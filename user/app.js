@@ -60,6 +60,9 @@ let currentUser, currentTripId, currentTripDriverId;
 let selectedRating = 0;
 let hasShownDriverInfo = false;
 let notificationSound; // Audio para notificaciones
+let navigationMode = false; // Modo de navegación activo
+let originalZoom = 15; // Zoom original del mapa
+let navigationZoom = 18; // Zoom para navegación
 
 // --- Authentication ---
 console.log("Setting up onAuthStateChanged listener.");
@@ -205,6 +208,10 @@ function listenToTripUpdates(tripId) {
             playNotificationSound();
             showNotificationToast('¡Tu viaje ha sido aceptado!');
         }
+        else if (trip.status === 'in_progress' && !navigationMode) {
+            console.log("Trip started, activating navigation mode.");
+            activateNavigationMode();
+        }
     });
 }
 
@@ -274,6 +281,10 @@ function resetTripState() {
     if (driverMarker) driverMarker.setMap(null);
     if (tripRoutePolyline) tripRoutePolyline.setMap(null);
     driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null; hasShownDriverInfo = false;
+    
+    // Desactivar modo de navegación
+    deactivateUserNavigationMode();
+    
     console.log("Trip state reset.");
 }
 
@@ -432,6 +443,97 @@ function showNotificationToast(message) {
             }
         }, 300);
     }, 3000);
+}
+
+// --- Navigation Mode Functions for User ---
+function activateNavigationMode() {
+    navigationMode = true;
+    
+    // Cambiar zoom del mapa
+    map.setZoom(navigationZoom);
+    
+    // Mostrar indicador de modo navegación
+    showUserNavigationIndicator();
+    
+    // Configurar actualización automática de vista
+    startUserNavigationViewUpdates();
+}
+
+function showUserNavigationIndicator() {
+    // Crear indicador de modo navegación para usuario
+    const navIndicator = document.createElement('div');
+    navIndicator.id = 'user-navigation-indicator';
+    navIndicator.innerHTML = `
+        <div class="nav-indicator-content">
+            <i class="fas fa-car"></i>
+            <span>Viaje en Curso</span>
+        </div>
+    `;
+    navIndicator.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 20px;
+        background: #007bff;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+    
+    document.body.appendChild(navIndicator);
+    
+    // Animar entrada
+    navIndicator.style.transform = 'translateY(-20px)';
+    navIndicator.style.opacity = '0';
+    setTimeout(() => {
+        navIndicator.style.transition = 'all 0.3s ease';
+        navIndicator.style.transform = 'translateY(0)';
+        navIndicator.style.opacity = '1';
+    }, 100);
+}
+
+function startUserNavigationViewUpdates() {
+    // Actualizar vista de navegación cada 5 segundos
+    const navigationInterval = setInterval(() => {
+        if (!navigationMode || !currentTripId) {
+            clearInterval(navigationInterval);
+            return;
+        }
+        
+        // Mantener zoom y centrar en la ruta activa
+        if (userMarker && driverMarker) {
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(userMarker.getPosition());
+            bounds.extend(driverMarker.getPosition());
+            map.fitBounds(bounds, 80);
+        }
+    }, 5000);
+}
+
+function deactivateUserNavigationMode() {
+    navigationMode = false;
+    
+    // Restaurar zoom original
+    map.setZoom(originalZoom);
+    
+    // Remover indicador de navegación
+    const navIndicator = document.getElementById('user-navigation-indicator');
+    if (navIndicator) {
+        navIndicator.style.transition = 'all 0.3s ease';
+        navIndicator.style.transform = 'translateY(-20px)';
+        navIndicator.style.opacity = '0';
+        setTimeout(() => {
+            if (navIndicator.parentNode) {
+                navIndicator.parentNode.removeChild(navIndicator);
+            }
+        }, 300);
+    }
 }
 
 // --- Profile Modal Functions ---

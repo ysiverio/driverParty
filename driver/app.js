@@ -79,7 +79,6 @@ function setupUIForLoggedInUser(user) {
     driverProfileName.textContent = user.displayName || 'Conductor';
     updateDriverRatingDisplay(); // Display rating on login
     initializeNotificationSound(); // Initialize audio
-    addDebugButton(); // Agregar botón de depuración temporal
     if (!map) initializeMap();
 }
 
@@ -691,52 +690,6 @@ function getTripStatusText(status) {
 
 function hideTripHistory() {
     historyModal.style.display = 'none';
-}
-
-// --- Debug Functions ---
-async function debugAllTrips() {
-    console.log("=== DEPURACIÓN: Todos los viajes en la base de datos ===");
-    
-    try {
-        const allTripsQuery = query(collection(db, "trips"));
-        const allTripsSnapshot = await getDocs(allTripsQuery);
-        
-        console.log("Total de viajes en la base de datos:", allTripsSnapshot.size);
-        
-        allTripsSnapshot.forEach(doc => {
-            const tripData = doc.data();
-            console.log("Viaje ID:", doc.id);
-            console.log("  - Driver ID:", tripData.driverId);
-            console.log("  - User ID:", tripData.userId);
-            console.log("  - Status:", tripData.status);
-            console.log("  - Created At:", tripData.createdAt);
-            console.log("  - User Name:", tripData.userName);
-            console.log("  ---");
-        });
-        
-    } catch (error) {
-        console.error("Error en depuración:", error);
-    }
-}
-
-// Agregar botón de depuración temporal
-function addDebugButton() {
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = 'Debug Viajes';
-    debugBtn.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 1000;
-        cursor: pointer;
-    `;
-    debugBtn.onclick = debugAllTrips;
-    document.body.appendChild(debugBtn);
 }
 
 // --- Rating Modal Functions ---

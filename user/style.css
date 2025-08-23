@@ -572,16 +572,16 @@ body, html {
     transform: translateX(0);
 }
 
-/* --- Audio Controls (Optional) --- */
+/* --- Audio Controls (repositioned) --- */
 .audio-controls {
-    position: fixed;
-    bottom: 20px;
+    position: absolute;
+    top: 20px;
     right: 20px;
     background: white;
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    z-index: 100;
+    padding: 10px 15px;
+    border-radius: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    z-index: 8;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -597,4 +597,44 @@ body, html {
     width: 16px;
     height: 16px;
     cursor: pointer;
+}
+
+/* --- User Navigation Mode Indicator --- */
+#user-navigation-indicator {
+    position: fixed;
+    top: 80px;
+    left: 20px;
+    background: #007bff;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideInFromTop 0.3s ease;
+}
+
+.nav-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-indicator-content i {
+    font-size: 16px;
+}
+
+@keyframes slideInFromTop {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
