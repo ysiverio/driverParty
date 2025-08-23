@@ -198,15 +198,35 @@ function listenToTripUpdates(tripId) {
         console.log("Trip data:", trip);
         currentTripDriverId = trip.driverId;
         updateTripUI(trip);
-        if (trip.routePolyline && !tripRoutePolyline) { console.log("Drawing route."); drawRoute(trip.routePolyline); }
+        
+        // Manejar la ruta cuando el conductor la acepta
+        if (trip.routePolyline) { 
+            console.log("Route polyline received, drawing route.");
+            drawRoute(trip.routePolyline); 
+        }
+        
         if (trip.driverLocation) { console.log("Updating driver marker."); updateDriverMarker(trip.driverLocation); }
         if (trip.driverInfo && !hasShownDriverInfo) { console.log("Displaying driver info."); displayDriverInfo(trip.driverInfo); }
-        if (trip.status === 'completed' && !trip.rating) { console.log("Trip completed, showing rating modal."); setTimeout(() => showRatingModal(), 1500); }
-        else if (trip.status === 'cancelled') { console.log("Trip cancelled, resetting state."); setTimeout(() => resetTripState(), 3000); }
+        
+        // Manejar diferentes estados del viaje
+        if (trip.status === 'completed' && !trip.rating) { 
+            console.log("Trip completed, showing rating modal."); 
+            setTimeout(() => showRatingModal(), 1500); 
+        }
+        else if (trip.status === 'cancelled') { 
+            console.log("Trip cancelled, resetting state."); 
+            setTimeout(() => resetTripState(), 3000); 
+        }
         else if (trip.status === 'accepted' && !hasShownDriverInfo) {
             console.log("Trip accepted, playing notification sound.");
             playNotificationSound();
             showNotificationToast('¡Tu viaje ha sido aceptado!');
+            
+            // Si hay ruta disponible, dibujarla inmediatamente
+            if (trip.routePolyline) {
+                console.log("Drawing route immediately after acceptance.");
+                setTimeout(() => drawRoute(trip.routePolyline), 500);
+            }
         }
         else if (trip.status === 'in_progress' && !navigationMode) {
             console.log("Trip started, activating navigation mode.");
@@ -248,9 +268,49 @@ function getStatusInfo(status) {
 }
 
 function drawRoute(polylineString) {
-    console.log("drawRoute called.");
-    const decodedPath = google.maps.geometry.encoding.decodePath(polylineString);
-    tripRoutePolyline = new google.maps.Polyline({ path: decodedPath, strokeColor: '#212121', strokeWeight: 5, map: map });
+    console.log("drawRoute called with polyline:", polylineString);
+    
+    try {
+        // Limpiar ruta anterior si existe
+        if (tripRoutePolyline) {
+            tripRoutePolyline.setMap(null);
+            tripRoutePolyline = null;
+        }
+        
+        // Verificar que el polyline string sea válido
+        if (!polylineString || typeof polylineString !== 'string') {
+            console.error("Invalid polyline string:", polylineString);
+            return;
+        }
+        
+        // Decodificar el polyline
+        const decodedPath = google.maps.geometry.encoding.decodePath(polylineString);
+        console.log("Decoded path points:", decodedPath.length);
+        
+        if (decodedPath.length === 0) {
+            console.error("Decoded path is empty");
+            return;
+        }
+        
+        // Crear la polyline
+        tripRoutePolyline = new google.maps.Polyline({
+            path: decodedPath,
+            strokeColor: '#4285F4',
+            strokeWeight: 6,
+            strokeOpacity: 0.8,
+            map: map
+        });
+        
+        console.log("Route drawn successfully");
+        
+        // Centrar el mapa en la ruta
+        const bounds = new google.maps.LatLngBounds();
+        decodedPath.forEach(point => bounds.extend(point));
+        map.fitBounds(bounds, 80);
+        
+    } catch (error) {
+        console.error("Error drawing route:", error);
+    }
 }
 
 function updateDriverMarker(location) {

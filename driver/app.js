@@ -438,6 +438,9 @@ async function updateTripStatus(status) {
             }
             await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
             updateDriverRatingDisplay(); // Refresh display
+            
+            // Mostrar notificación de calificación recibida
+            showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
         }
         resetTripState();
     }
@@ -694,7 +697,7 @@ function hideTripHistory() {
 
 // --- Rating Modal Functions ---
 function showRatingModal() {
-    // Create a simple rating display modal
+    // Create a comprehensive rating display modal
     const ratingModal = document.createElement('div');
     ratingModal.className = 'overlay-container';
     ratingModal.style.display = 'flex';
@@ -706,6 +709,10 @@ function showRatingModal() {
                     ${getStarsHTML()}
                 </div>
                 <p id="rating-text">Cargando...</p>
+                <div id="rating-stats" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <h4 style="margin-bottom: 10px; color: #333;">Estadísticas</h4>
+                    <div id="stats-content">Cargando estadísticas...</div>
+                </div>
             </div>
             <div class="modal-actions">
                 <button type="button" onclick="this.closest('.overlay-container').remove()">Cerrar</button>
@@ -715,6 +722,7 @@ function showRatingModal() {
     document.body.appendChild(ratingModal);
     closeSideNav();
     updateRatingDisplay();
+    updateRatingStats();
 }
 
 function getStarsHTML() {
@@ -739,16 +747,149 @@ async function updateRatingDisplay() {
             const numTrips = data.numTrips || 0;
             if (numTrips > 0) {
                 const avgRating = (totalStars / numTrips).toFixed(1);
-                ratingText.innerHTML = `Promedio: <strong>${avgRating}/5</strong> (${numTrips} viajes)`;
+                const starsHTML = generateStarsHTML(avgRating);
+                ratingText.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <strong>Promedio: ${avgRating}/5</strong>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        ${starsHTML}
+                    </div>
+                    <div style="font-size: 14px; color: #666;">
+                        Basado en ${numTrips} viaje${numTrips > 1 ? 's' : ''}
+                    </div>
+                `;
             } else {
-                ratingText.textContent = 'Aún no tienes calificaciones';
+                ratingText.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <strong>Aún no tienes calificaciones</strong>
+                    </div>
+                    <div style="font-size: 14px; color: #666;">
+                        Completa tu primer viaje para recibir calificaciones
+                    </div>
+                `;
             }
         } else {
-            ratingText.textContent = 'Aún no tienes calificaciones';
+            ratingText.innerHTML = `
+                <div style="margin-bottom: 10px;">
+                    <strong>Aún no tienes calificaciones</strong>
+                </div>
+                <div style="font-size: 14px; color: #666;">
+                    Completa tu primer viaje para recibir calificaciones
+                </div>
+            `;
         }
     } catch (error) {
         console.error("Error fetching driver rating: ", error);
-        document.getElementById('rating-text').textContent = 'Error al cargar calificación';
+        document.getElementById('rating-text').innerHTML = `
+            <div style="color: #dc3545;">
+                <strong>Error al cargar calificación</strong>
+            </div>
+        `;
+    }
+}
+
+function generateStarsHTML(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let starsHTML = '';
+    
+    // Estrellas llenas
+    for (let i = 0; i < fullStars; i++) {
+        starsHTML += '<i class="fas fa-star" style="color: #ffc107; margin: 0 2px;"></i>';
+    }
+    
+    // Media estrella si es necesario
+    if (hasHalfStar) {
+        starsHTML += '<i class="fas fa-star-half-alt" style="color: #ffc107; margin: 0 2px;"></i>';
+    }
+    
+    // Estrellas vacías
+    for (let i = 0; i < emptyStars; i++) {
+        starsHTML += '<i class="far fa-star" style="color: #ccc; margin: 0 2px;"></i>';
+    }
+    
+    return starsHTML;
+}
+
+async function updateRatingStats() {
+    if (!currentUser) return;
+    
+    try {
+        // Obtener estadísticas de calificaciones
+        const q = query(
+            collection(db, "trips"), 
+            where("driverId", "==", currentUser.uid),
+            where("rating", ">", 0)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const ratings = [];
+        querySnapshot.forEach(doc => {
+            const trip = doc.data();
+            if (trip.rating) {
+                ratings.push(trip.rating);
+            }
+        });
+        
+        const statsContent = document.getElementById('stats-content');
+        if (ratings.length === 0) {
+            statsContent.innerHTML = '<p style="color: #666; font-style: italic;">No hay calificaciones disponibles</p>';
+            return;
+        }
+        
+        // Calcular estadísticas
+        const totalRatings = ratings.length;
+        const avgRating = (ratings.reduce((a, b) => a + b, 0) / totalRatings).toFixed(1);
+        const fiveStars = ratings.filter(r => r === 5).length;
+        const fourStars = ratings.filter(r => r === 4).length;
+        const threeStars = ratings.filter(r => r === 3).length;
+        const twoStars = ratings.filter(r => r === 2).length;
+        const oneStars = ratings.filter(r => r === 1).length;
+        
+        statsContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4285F4;">${totalRatings}</div>
+                    <div style="font-size: 12px; color: #666;">Total Calificaciones</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #34A853;">${avgRating}</div>
+                    <div style="font-size: 12px; color: #666;">Promedio</div>
+                </div>
+            </div>
+            <div style="font-size: 14px; margin-bottom: 10px;">
+                <strong>Distribución de calificaciones:</strong>
+            </div>
+            <div style="font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>⭐⭐⭐⭐⭐</span>
+                    <span>${fiveStars} (${((fiveStars/totalRatings)*100).toFixed(0)}%)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>⭐⭐⭐⭐</span>
+                    <span>${fourStars} (${((fourStars/totalRatings)*100).toFixed(0)}%)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>⭐⭐⭐</span>
+                    <span>${threeStars} (${((threeStars/totalRatings)*100).toFixed(0)}%)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>⭐⭐</span>
+                    <span>${twoStars} (${((twoStars/totalRatings)*100).toFixed(0)}%)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>⭐</span>
+                    <span>${oneStars} (${((oneStars/totalRatings)*100).toFixed(0)}%)</span>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error("Error updating rating stats:", error);
+        document.getElementById('stats-content').innerHTML = '<p style="color: #dc3545;">Error al cargar estadísticas</p>';
     }
 }
 
