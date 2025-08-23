@@ -22,6 +22,7 @@ const tripPanel = document.getElementById('trip-panel');
 const tripClientName = document.getElementById('trip-client-name');
 const startTripButton = document.getElementById('start-trip-button');
 const endTripButton = document.getElementById('end-trip-button');
+const toggleNavigationBtn = document.getElementById('toggle-navigation-btn');
 
 // --- Vehicle Modal Elements ---
 const vehicleModal = document.getElementById('vehicle-modal');
@@ -51,6 +52,9 @@ let driverMarker, userMarker, directionsService, directionsRenderer;
 let requestMarkers = {};
 let unsubscribeFromRequests;
 let notificationSound; // Audio para notificaciones
+let navigationMode = false; // Modo de navegación activo
+let originalZoom = 14; // Zoom original del mapa
+let navigationZoom = 18; // Zoom para navegación
 
 // --- Authentication ---
 onAuthStateChanged(auth, (user) => {
@@ -188,6 +192,10 @@ async function acceptTrip(tripId) {
         await updateDoc(tripRef, { status: 'accepted', driverId: currentUser.uid, driverInfo: { name: currentUser.displayName, photoURL: currentUser.photoURL, vehicle: driverData.vehicle || null } });
         const tripDoc = await getDoc(tripRef);
         const tripData = tripDoc.data();
+        
+        // Activar modo de navegación
+        activateNavigationMode(tripData.userLocation);
+        
         requestsPanel.style.display = 'none';
         tripPanel.style.display = 'block';
         tripClientName.textContent = tripData.userName;
@@ -206,12 +214,207 @@ function calculateAndDisplayRoute(origin, destination) {
         if (status === 'OK') {
             directionsRenderer.setDirections(result);
             updateDoc(doc(db, "trips", activeTripId), { routePolyline: result.routes[0].overview_polyline });
+            
+            // Mostrar información de la ruta
+            const route = result.routes[0];
+            const leg = route.legs[0];
+            showRouteInfo(leg.distance.text, leg.duration.text);
         } else { console.error('Directions request failed: ' + status); }
     });
 }
 
+function showRouteInfo(distance, duration) {
+    // Crear o actualizar información de ruta
+    let routeInfo = document.getElementById('route-info');
+    if (!routeInfo) {
+        routeInfo = document.createElement('div');
+        routeInfo.id = 'route-info';
+        routeInfo.style.cssText = `
+            position: fixed;
+            top: 130px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.1);
+            max-width: 300px;
+        `;
+        document.body.appendChild(routeInfo);
+    }
+    
+    routeInfo.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-road" style="color: #4285F4;"></i>
+                <span>${distance}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-clock" style="color: #34A853;"></i>
+                <span>${duration}</span>
+            </div>
+        </div>
+        <div style="border-top: 1px solid #eee; padding-top: 8px;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Próxima instrucción:</div>
+            <div id="next-instruction" style="font-size: 13px; color: #333; font-weight: 500;">
+                Siguiendo la ruta optimizada...
+            </div>
+        </div>
+    `;
+    
+    // Animar entrada
+    routeInfo.style.transform = 'translateY(-20px)';
+    routeInfo.style.opacity = '0';
+    setTimeout(() => {
+        routeInfo.style.transition = 'all 0.3s ease';
+        routeInfo.style.transform = 'translateY(0)';
+        routeInfo.style.opacity = '1';
+    }, 100);
+}
+
+function updateNextInstruction(instruction) {
+    const nextInstruction = document.getElementById('next-instruction');
+    if (nextInstruction) {
+        nextInstruction.textContent = instruction;
+    }
+}
+
+function toggleNavigationMode() {
+    if (navigationMode) {
+        // Desactivar modo navegación
+        deactivateNavigationMode();
+        toggleNavigationBtn.innerHTML = '<i class="fas fa-route"></i> Modo Navegación';
+        toggleNavigationBtn.className = 'nav-toggle-btn navigation-mode';
+    } else {
+        // Activar modo navegación
+        if (userMarker) {
+            activateNavigationMode(userMarker.getPosition());
+            toggleNavigationBtn.innerHTML = '<i class="fas fa-map"></i> Vista Normal';
+            toggleNavigationBtn.className = 'nav-toggle-btn normal-mode';
+        }
+    }
+}
+
+// --- Navigation Mode Functions ---
+function activateNavigationMode(userLocation) {
+    navigationMode = true;
+    
+    // Cambiar zoom del mapa
+    map.setZoom(navigationZoom);
+    
+    // Centrar mapa en la ruta
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(userLocation);
+    
+    // Agregar padding para mejor vista
+    map.fitBounds(bounds, 80);
+    
+    // Mostrar indicador de modo navegación
+    showNavigationIndicator();
+    
+    // Configurar actualización automática de vista
+    startNavigationViewUpdates();
+}
+
+function showNavigationIndicator() {
+    // Crear indicador de modo navegación
+    const navIndicator = document.createElement('div');
+    navIndicator.id = 'navigation-indicator';
+    navIndicator.innerHTML = `
+        <div class="nav-indicator-content">
+            <i class="fas fa-route"></i>
+            <span>Modo Navegación</span>
+        </div>
+    `;
+    navIndicator.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 20px;
+        background: #28a745;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+    
+    document.body.appendChild(navIndicator);
+    
+    // Animar entrada
+    navIndicator.style.transform = 'translateY(-20px)';
+    navIndicator.style.opacity = '0';
+    setTimeout(() => {
+        navIndicator.style.transition = 'all 0.3s ease';
+        navIndicator.style.transform = 'translateY(0)';
+        navIndicator.style.opacity = '1';
+    }, 100);
+}
+
+function startNavigationViewUpdates() {
+    // Actualizar vista de navegación cada 5 segundos
+    const navigationInterval = setInterval(() => {
+        if (!navigationMode || !activeTripId) {
+            clearInterval(navigationInterval);
+            return;
+        }
+        
+        // Mantener zoom y centrar en la ruta activa
+        if (driverMarker && userMarker) {
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(driverMarker.getPosition());
+            bounds.extend(userMarker.getPosition());
+            map.fitBounds(bounds, 80);
+        }
+    }, 5000);
+}
+
+function deactivateNavigationMode() {
+    navigationMode = false;
+    
+    // Restaurar zoom original
+    map.setZoom(originalZoom);
+    
+    // Remover indicador de navegación
+    const navIndicator = document.getElementById('navigation-indicator');
+    if (navIndicator) {
+        navIndicator.style.transition = 'all 0.3s ease';
+        navIndicator.style.transform = 'translateY(-20px)';
+        navIndicator.style.opacity = '0';
+        setTimeout(() => {
+            if (navIndicator.parentNode) {
+                navIndicator.parentNode.removeChild(navIndicator);
+            }
+        }, 300);
+    }
+    
+    // Remover información de ruta
+    const routeInfo = document.getElementById('route-info');
+    if (routeInfo) {
+        routeInfo.style.transition = 'all 0.3s ease';
+        routeInfo.style.transform = 'translateY(-20px)';
+        routeInfo.style.opacity = '0';
+        setTimeout(() => {
+            if (routeInfo.parentNode) {
+                routeInfo.parentNode.removeChild(routeInfo);
+            }
+        }, 300);
+    }
+}
+
 startTripButton.addEventListener('click', () => updateTripStatus('in_progress'));
 endTripButton.addEventListener('click', () => updateTripStatus('completed'));
+
+// --- Navigation Toggle Events ---
+toggleNavigationBtn.addEventListener('click', toggleNavigationMode);
 
 async function updateTripStatus(status) {
     if (!activeTripId) return;
@@ -243,14 +446,48 @@ async function updateTripStatus(status) {
 // --- Location & Map Updates ---
 function startSharingLocation(initialLocation) {
     if (driverMarker) driverMarker.setMap(null);
-    driverMarker = new google.maps.Marker({ position: initialLocation, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeWeight: 2, strokeColor: "white" } });
-    updateMapBounds();
+    driverMarker = new google.maps.Marker({ 
+        position: initialLocation, 
+        map: map, 
+        icon: { 
+            path: google.maps.SymbolPath.CIRCLE, 
+            scale: 8, 
+            fillColor: "#4285F4", 
+            fillOpacity: 1, 
+            strokeWeight: 2, 
+            strokeColor: "white" 
+        } 
+    });
+    
+    if (navigationMode) {
+        // En modo navegación, centrar en la ruta completa
+        updateNavigationView();
+    } else {
+        updateMapBounds();
+    }
+    
     locationWatcherId = navigator.geolocation.watchPosition((pos) => {
         const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateDoc(doc(db, "trips", activeTripId), { driverLocation });
         driverMarker.setPosition(driverLocation);
-        updateMapBounds();
+        
+        if (navigationMode) {
+            updateNavigationView();
+        } else {
+            updateMapBounds();
+        }
     }, (err) => console.error("Watch position error:", err), { enableHighAccuracy: true });
+}
+
+function updateNavigationView() {
+    if (!userMarker || !driverMarker) return;
+    
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(userMarker.getPosition());
+    bounds.extend(driverMarker.getPosition());
+    
+    // Mantener zoom de navegación y centrar en la ruta
+    map.fitBounds(bounds, 80);
 }
 
 function updateMapBounds() {
@@ -267,6 +504,10 @@ function resetTripState(isLogout = false) {
     if (driverMarker) driverMarker.setMap(null);
     if (userMarker) userMarker.setMap(null);
     locationWatcherId = null; activeTripId = null; driverMarker = null; userMarker = null;
+    
+    // Desactivar modo de navegación
+    deactivateNavigationMode();
+    
     tripPanel.style.display = 'none';
     if (!isLogout && onlineToggle.checked) {
         requestsPanel.style.display = 'block';

@@ -538,3 +538,136 @@ input:checked + .slider:before { transform: translateX(22px); }
     height: 16px;
     cursor: pointer;
 }
+
+/* --- Navigation Mode Indicator --- */
+#navigation-indicator {
+    position: fixed;
+    top: 80px;
+    left: 20px;
+    background: #28a745;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideInFromTop 0.3s ease;
+}
+
+.nav-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-indicator-content i {
+    font-size: 16px;
+}
+
+@keyframes slideInFromTop {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* --- Enhanced Trip Panel for Navigation --- */
+#trip-panel {
+    text-align: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-top: 3px solid #28a745;
+}
+
+#trip-panel h2 {
+    color: #28a745;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.trip-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.trip-button {
+    width: 45%;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#start-trip-button { 
+    background-color: #007bff; 
+    color: white; 
+}
+
+#start-trip-button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#end-trip-button { 
+    background-color: #dc3545; 
+    color: white; 
+}
+
+#end-trip-button:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* --- Navigation Controls --- */
+.navigation-controls {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.nav-toggle-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-toggle-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.nav-toggle-btn.navigation-mode {
+    background: #28a745;
+}
+
+.nav-toggle-btn.normal-mode {
+    background: #6c757d;
+}
+
+.nav-toggle-btn i {
+    font-size: 14px;
+}

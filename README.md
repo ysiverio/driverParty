@@ -54,6 +54,7 @@ Una aplicación completa de transporte que conecta conductores con usuarios, sim
 - **▶️/⏹️ Control de viaje** - Iniciar y finalizar viajes
 - **📊 Estadísticas** - Número de viajes y calificación promedio
 - **🔊 Notificaciones sonoras** - Sonido cuando llega una nueva solicitud
+- **🎯 Modo Navegación Optimizada** - Zoom automático y vista optimizada
 
 ## Funcionalidades de Menú Implementadas
 
@@ -96,6 +97,41 @@ Una aplicación completa de transporte que conecta conductores con usuarios, sim
 - **🎛️ Icono dinámico** - Cambia entre volumen activo/mudo
 - **💾 Persistencia** - El estado se mantiene durante la sesión
 - **🎨 Feedback visual** - Color del icono indica el estado
+
+## 🎯 Modo de Navegación Optimizada
+
+### Características Implementadas
+- **🔍 Zoom automático** - Cambio automático a zoom 18x cuando se acepta un viaje
+- **🗺️ Vista optimizada** - Centrado automático en la ruta completa
+- **📊 Información de ruta** - Distancia y tiempo estimado en tiempo real
+- **🎛️ Controles de navegación** - Botón para alternar entre modos de vista
+- **📍 Seguimiento inteligente** - Actualización automática de la vista cada 5 segundos
+- **🎨 Indicadores visuales** - Indicador de modo navegación y información de ruta
+
+### Funcionalidades del Modo Navegación
+#### Activación Automática:
+- **🚀 Al aceptar viaje** - Se activa automáticamente el modo navegación
+- **🔍 Zoom in** - Cambio de zoom 14x a 18x para mejor detalle
+- **🎯 Centrado automático** - Vista centrada en la ruta conductor-usuario
+- **📱 Indicador visual** - Badge verde "Modo Navegación" en la pantalla
+
+#### Información en Tiempo Real:
+- **📏 Distancia** - Distancia total de la ruta
+- **⏱️ Tiempo estimado** - Tiempo de llegada calculado
+- **🗺️ Instrucciones** - Próximas instrucciones de navegación
+- **📍 Actualización continua** - Información actualizada cada 5 segundos
+
+#### Controles Manuales:
+- **🔄 Alternar modo** - Botón para cambiar entre vista normal y navegación
+- **🎛️ Zoom manual** - Control del nivel de zoom
+- **📱 Vista personalizada** - Flexibilidad para diferentes preferencias
+
+### Experiencia del Conductor
+1. **🎯 Enfoque automático** - La vista se centra automáticamente en la ruta
+2. **📊 Información clara** - Distancia y tiempo visibles en todo momento
+3. **🔄 Actualización continua** - La vista se mantiene optimizada
+4. **🎛️ Control total** - Posibilidad de alternar entre modos
+5. **📱 Interfaz intuitiva** - Indicadores claros del estado actual
 
 ## Tecnologías Utilizadas
 
