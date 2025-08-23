@@ -120,7 +120,8 @@
 
     <div id="nav-overlay"></div>
 
-    <script src="app.js"></script>
+    <script src="../firebase-config.js" type="module"></script>
+    <script src="app.js" type="module"></script>
     <script>
         window.initMap = () => {
             document.dispatchEvent(new CustomEvent('map-ready'));
