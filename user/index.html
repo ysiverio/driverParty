@@ -2,38 +2,92 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>DriverParty - Usuario</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div id="map"></div>
-    <div id="ui-container">
-        <div id="login-view">
-            <h2>Bienvenido a DriverParty</h2>
-            <button id="login-button">Iniciar Sesión con Google</button>
+
+    <div id="app-container">
+        <!-- Side Navigation Menu -->
+        <div id="side-nav" class="side-nav">
+            <a href="javascript:void(0)" class="close-btn" id="close-nav-btn">&times;</a>
+            <div class="nav-profile">
+                <img id="user-profile-pic" src="https://maps.google.com/mapfiles/kml/shapes/auth_maps_pic.png" alt="User">
+                <span id="user-profile-name">Nombre de Usuario</span>
+            </div>
+            <a href="#"><i class="fas fa-history"></i> Mis Viajes</a>
+            <a href="#"><i class="fas fa-user"></i> Perfil</a>
+            <a href="#"><i class="fas fa-bell"></i> Notificaciones</a>
+            <a href="#" id="logout-button"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
         </div>
-        <div id="request-view" style="display: none;">
-            <h1>¿Necesitas un conductor?</h1>
-            <button id="request-driver-button">Pedir un Conductor</button>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+
+        <!-- Login View (Overlay) -->
+        <div id="login-view" class="overlay-container">
+            <div class="login-box">
+                <h2>Bienvenido a DriverParty</h2>
+                <p>Inicia sesión para comenzar tu viaje.</p>
+                <button id="login-button"><i class="fab fa-google"></i> Iniciar Sesión con Google</button>
+            </div>
         </div>
-        <div id="waiting-view" style="display: none;">
-            <h2>Buscando un conductor...</h2>
-            <p>Tu conductor está en camino.</p>
-            <p>Estado: <span id="trip-status"></span></p>
+
+        <!-- Main UI (Visible after login) -->
+        <div id="main-ui" style="display: none;">
+            <button id="menu-btn" class="menu-btn"><i class="fas fa-bars"></i></button>
+
+            <!-- Ride Request Panel -->
+            <div id="request-panel" class="bottom-panel">
+                <h1>¿A dónde vamos?</h1>
+                <div class="input-group">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <input type="text" placeholder="Punto de partida" disabled>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-location-arrow"></i>
+                    <input type="text" placeholder="Destino (opcional)">
+                </div>
+                <button id="request-driver-button">Pedir un Conductor</button>
+            </div>
+
+            <!-- Waiting/Trip Panel -->
+            <div id="trip-panel" class="bottom-panel" style="display: none;">
+                <h2 id="trip-status-heading">Buscando conductor...</h2>
+                <p id="trip-status-details">Tu conductor está en camino.</p>
+                <div class="loader" id="trip-loader"></div>
+            </div>
         </div>
+
+        <!-- Rating Modal -->
+        <div id="rating-modal" class="overlay-container" style="display: none;">
+            <div class="rating-box">
+                <h2>Califica tu viaje</h2>
+                <p>Por favor, califica tu experiencia con el conductor.</p>
+                <div class="stars">
+                    <i class="fas fa-star" data-value="1"></i>
+                    <i class="fas fa-star" data-value="2"></i>
+                    <i class="fas fa-star" data-value="3"></i>
+                    <i class="fas fa-star" data-value="4"></i>
+                    <i class="fas fa-star" data-value="5"></i>
+                </div>
+                <button id="submit-rating-button">Enviar Calificación</button>
+            </div>
+        </div>
+
     </div>
+
+    <div id="nav-overlay"></div>
 
     <script src="../firebase-config.js" type="module"></script>
     <script src="app.js" type="module"></script>
     <script>
-        // This makes initMap globally available
         window.initMap = () => {
-            // The actual map initialization will be handled in app.js
-            // We'll dispatch an event to let the module know.
             document.dispatchEvent(new CustomEvent('map-ready'));
         };
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry"></script>
 </body>
 </html>

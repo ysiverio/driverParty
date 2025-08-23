@@ -1,56 +1,129 @@
 
 import { auth, db } from '../firebase-config.js';
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { collection, query, where, onSnapshot, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// DOM Elements
+// --- DOM Elements ---
 const loginView = document.getElementById('login-view');
-const requestsView = document.getElementById('requests-view');
-const tripView = document.getElementById('trip-view');
+const mainUI = document.getElementById('main-ui');
 const loginButton = document.getElementById('login-button');
+const logoutButton = document.getElementById('logout-button');
+const menuBtn = document.getElementById('menu-btn');
+const closeNavBtn = document.getElementById('close-nav-btn');
+const sideNav = document.getElementById('side-nav');
+const navOverlay = document.getElementById('nav-overlay');
+const driverProfilePic = document.getElementById('driver-profile-pic');
+const driverProfileName = document.getElementById('driver-profile-name');
+const onlineToggle = document.getElementById('online-toggle');
+const onlineStatus = document.getElementById('online-status');
+const requestsPanel = document.getElementById('requests-panel');
 const requestsList = document.getElementById('requests-list');
+const tripPanel = document.getElementById('trip-panel');
+const tripClientName = document.getElementById('trip-client-name');
 const startTripButton = document.getElementById('start-trip-button');
 const endTripButton = document.getElementById('end-trip-button');
 
-let map;
-let currentUser;
-let locationWatcherId = null;
-let activeTripId = null;
-let requestMarkers = {}; // To keep track of markers for pending requests
+// --- App State ---
+let map, currentUser, locationWatcherId, activeTripId;
+let driverMarker, directionsService, directionsRenderer;
+let requestMarkers = {};
+let unsubscribeFromRequests;
 
 // --- Authentication ---
-loginButton.addEventListener('click', () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch(error => console.error("Auth Error:", error));
-});
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
-        loginView.style.display = 'none';
-        requestsView.style.display = 'block';
-        listenForRequests();
+        setupUIForLoggedInUser(user);
     } else {
         currentUser = null;
-        loginView.style.display = 'block';
-        requestsView.style.display = 'none';
-        tripView.style.display = 'none';
-        if (locationWatcherId) navigator.geolocation.clearWatch(locationWatcherId);
+        setupUIForLoggedOutUser();
     }
 });
 
-// --- Map Initialization ---
-document.addEventListener('map-ready', () => {
-    // Default location, can be updated with driver's real location
-    initMap({ lat: 34.0522, lng: -118.2437 }); // Los Angeles
+loginButton.addEventListener('click', () => {
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider).catch(err => console.error("Auth Error:", err));
 });
 
-function initMap(initialLocation) {
+logoutButton.addEventListener('click', () => {
+    if (onlineToggle.checked) {
+        onlineToggle.checked = false;
+        goOffline();
+    }
+    signOut(auth).catch(err => console.error("Sign Out Error:", err));
+});
+
+function setupUIForLoggedInUser(user) {
+    loginView.style.display = 'none';
+    mainUI.style.display = 'block';
+    driverProfilePic.src = user.photoURL || 'default-pic.png';
+    driverProfileName.textContent = user.displayName || 'Conductor';
+    if (!map) {
+        initializeMap();
+    }
+}
+
+function setupUIForLoggedOutUser() {
+    loginView.style.display = 'flex';
+    mainUI.style.display = 'none';
+    closeSideNav();
+    resetTripState();
+}
+
+// --- Map Initialization ---
+function initializeMap() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            initMap(location);
+        }, () => initMap({ lat: 34.0522, lng: -118.2437 }));
+    } else {
+        initMap({ lat: 34.0522, lng: -118.2437 });
+    }
+}
+
+document.addEventListener('map-ready', initializeMap);
+
+function initMap(location) {
     map = new google.maps.Map(document.getElementById('map'), {
-        center: initialLocation,
-        zoom: 12,
+        center: location,
+        zoom: 14,
         disableDefaultUI: true
     });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+    directionsRenderer.setMap(map);
+}
+
+// --- UI Interactions (Side Nav) ---
+menuBtn.addEventListener('click', () => { sideNav.style.width = "280px"; navOverlay.style.display = "block"; });
+closeNavBtn.addEventListener('click', closeSideNav);
+navOverlay.addEventListener('click', closeSideNav);
+function closeSideNav() { sideNav.style.width = "0"; navOverlay.style.display = "none"; }
+
+// --- Driver Status (Online/Offline) ---
+onlineToggle.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        goOnline();
+    } else {
+        goOffline();
+    }
+});
+
+function goOnline() {
+    onlineStatus.textContent = 'En línea';
+    requestsPanel.style.display = 'block';
+    listenForRequests();
+}
+
+function goOffline() {
+    onlineStatus.textContent = 'Desconectado';
+    requestsPanel.style.display = 'none';
+    if (unsubscribeFromRequests) {
+        unsubscribeFromRequests();
+    }
+    clearRequestMarkers();
+    requestsList.innerHTML = '';
 }
 
 // --- Ride Request Listening ---
@@ -58,103 +131,125 @@ function listenForRequests() {
     const tripsRef = collection(db, "trips");
     const q = query(tripsRef, where("status", "==", "pending"));
 
-    onSnapshot(q, (snapshot) => {
-        // Clear old requests from UI and map
-        requestsList.innerHTML = '';
+    unsubscribeFromRequests = onSnapshot(q, (snapshot) => {
         clearRequestMarkers();
-
+        requestsList.innerHTML = ''; // Clear list before re-rendering
+        if (snapshot.empty) {
+            requestsList.innerHTML = '<p>No hay solicitudes pendientes.</p>';
+            return;
+        }
         snapshot.forEach((doc) => {
             const trip = doc.data();
             const tripId = doc.id;
-
-            // Add marker to map
             addRequestMarker(trip.userLocation, trip.userName, tripId);
-
-            // Add to UI list
-            const li = document.createElement('li');
-            li.innerHTML = `Cliente: ${trip.userName || 'Usuario'} <button data-id="${tripId}" class="accept-button">Aceptar</button>`;
-            requestsList.appendChild(li);
+            createRequestCard(trip, tripId);
         });
     });
 }
 
+function createRequestCard(trip, tripId) {
+    const card = document.createElement('div');
+    card.className = 'request-card';
+    card.innerHTML = `
+        <div class="request-card-info">
+            <h4>${trip.userName || 'Usuario'}</h4>
+            <p>Destino: (No especificado)</p> <!-- Placeholder -->
+        </div>
+        <button class="accept-button" data-id="${tripId}">Aceptar</button>
+    `;
+    requestsList.appendChild(card);
+}
+
+requestsList.addEventListener('click', (e) => {
+    if (e.target.classList.contains('accept-button')) {
+        const tripId = e.target.dataset.id;
+        acceptTrip(tripId);
+    }
+});
+
 function addRequestMarker(position, title, tripId) {
-    const marker = new google.maps.Marker({
-        position,
-        map,
-        title
-    });
+    const marker = new google.maps.Marker({ position, map, title });
     requestMarkers[tripId] = marker;
 }
 
 function clearRequestMarkers() {
-    for (const tripId in requestMarkers) {
-        requestMarkers[tripId].setMap(null);
-    }
+    Object.values(requestMarkers).forEach(marker => marker.setMap(null));
     requestMarkers = {};
 }
 
 // --- Accept & Manage Trip ---
-requestsList.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('accept-button')) {
-        const tripId = e.target.dataset.id;
-        activeTripId = tripId;
-        const tripRef = doc(db, "trips", tripId);
+async function acceptTrip(tripId) {
+    activeTripId = tripId;
+    const tripRef = doc(db, "trips", tripId);
 
-        try {
-            await updateDoc(tripRef, {
-                status: 'accepted',
-                driverId: currentUser.uid
-            });
+    try {
+        await updateDoc(tripRef, { status: 'accepted', driverId: currentUser.uid });
+        const tripDoc = await getDoc(tripRef);
+        const tripData = tripDoc.data();
 
-            requestsView.style.display = 'none';
-            tripView.style.display = 'block';
-            clearRequestMarkers();
+        goOffline(); // Stop listening for other requests
+        onlineToggle.checked = false;
+        requestsPanel.style.display = 'none';
+        tripPanel.style.display = 'block';
+        tripClientName.textContent = tripData.userName;
 
-            startSharingLocation();
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            calculateAndDisplayRoute(location, tripData.userLocation);
+            startSharingLocation(location);
+        }, (err) => console.error("Geolocation error:", err));
 
-        } catch (error) {
-            console.error("Error al aceptar el viaje: ", error);
-        }
+    } catch (error) {
+        console.error("Error accepting trip: ", error);
     }
-});
+}
+
+function calculateAndDisplayRoute(origin, destination) {
+    directionsService.route({ origin, destination, travelMode: 'DRIVING' }, (result, status) => {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+            const routePolyline = result.routes[0].overview_polyline;
+            updateDoc(doc(db, "trips", activeTripId), { routePolyline });
+        } else {
+            console.error('Directions request failed: ' + status);
+        }
+    });
+}
 
 startTripButton.addEventListener('click', () => updateTripStatus('in_progress'));
-endTripButton.addEventListener('click', () => {
-    updateTripStatus('completed');
-    if (locationWatcherId) navigator.geolocation.clearWatch(locationWatcherId);
-    tripView.style.display = 'none';
-    requestsView.style.display = 'block'; // Go back to looking for requests
-});
+endTripButton.addEventListener('click', () => updateTripStatus('completed'));
 
 async function updateTripStatus(status) {
     if (!activeTripId) return;
-    const tripRef = doc(db, "trips", activeTripId);
-    try {
-        await updateDoc(tripRef, { status });
-        console.log(`Viaje ${status}`);
-    } catch (error) {
-        console.error(`Error al actualizar a ${status}:`, error);
+    await updateDoc(doc(db, "trips", activeTripId), { status });
+    if (status === 'completed') {
+        resetTripState();
     }
 }
 
 // --- Location Sharing ---
-function startSharingLocation() {
-    if (!activeTripId) return;
+function startSharingLocation(initialLocation) {
+    if (driverMarker) driverMarker.setMap(null);
+    driverMarker = new google.maps.Marker({ position: initialLocation, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeWeight: 2, strokeColor: "white" } });
 
-    locationWatcherId = navigator.geolocation.watchPosition(
-        (position) => {
-            const driverLocation = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
-            
-            const tripRef = doc(db, "trips", activeTripId);
-            updateDoc(tripRef, { driverLocation }).catch(err => console.error("Error updating location", err));
-        },
-        (error) => {
-            console.error("Error de geolocalización: ", error);
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-    );
+    locationWatcherId = navigator.geolocation.watchPosition((pos) => {
+        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        updateDoc(doc(db, "trips", activeTripId), { driverLocation });
+        driverMarker.setPosition(driverLocation);
+    }, (err) => console.error("Watch position error:", err), { enableHighAccuracy: true });
+}
+
+function resetTripState() {
+    if (locationWatcherId) navigator.geolocation.clearWatch(locationWatcherId);
+    if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
+    if (driverMarker) driverMarker.setMap(null);
+    
+    locationWatcherId = null;
+    activeTripId = null;
+    driverMarker = null;
+
+    tripPanel.style.display = 'none';
+    requestsPanel.style.display = 'none';
+    onlineToggle.checked = false;
+    onlineStatus.textContent = 'Desconectado';
 }
