@@ -1,208 +1,291 @@
 
-# DriverParty - Aplicación de Transporte
+# DriverParty - Plataforma de Transporte Profesional
 
-Una aplicación completa de transporte que conecta conductores con usuarios, similar a Uber o Lyft.
+## 🚀 Descripción
 
-## Características Principales
+DriverParty es una plataforma completa de transporte que conecta conductores con usuarios de manera eficiente y segura. La aplicación incluye interfaces para conductores, usuarios y un panel de administración completo con sistema de configuración de precios dinámico.
 
-### 🔐 Autenticación
-- Inicio de sesión con Google
-- Gestión de sesiones de usuario
-- Cerrar sesión seguro
+## ✨ Características Principales
 
-### 🗺️ Funcionalidades del Mapa
-- Integración con Google Maps API
-- Geolocalización en tiempo real
-- Cálculo de rutas
-- Marcadores dinámicos para usuarios y conductores
+### 🎯 Funcionalidades Core
+- **Sistema de Geolocalización en Tiempo Real**: Ubicación precisa de conductores y usuarios
+- **Cálculo Automático de Rutas**: Optimización de rutas usando Google Maps API
+- **Sistema de Calificaciones**: Calificación bidireccional entre conductores y usuarios
+- **Notificaciones Sonoras**: Alertas audibles para nuevas solicitudes y actualizaciones
+- **Modo de Navegación**: Interfaz optimizada para conductores durante viajes
+- **Historial Completo**: Registro detallado de todos los viajes
 
-### 👤 Interfaz de Usuario (user/)
+### 💰 Sistema de Precios Dinámico
+- **Configuración Flexible**: Precios por kilómetro configurables
+- **Multiplicadores Dinámicos**: Hora pico y tarifas nocturnas
+- **Cargos Adicionales**: Espera, cancelación y tarifa base
+- **Vista Previa en Tiempo Real**: Cálculo instantáneo de precios
+- **Comisiones Automáticas**: Cálculo de ganancias para conductores y plataforma
 
-#### Menú Principal
-- **📱 Menú lateral deslizable** con todas las opciones
-- **👤 Perfil de usuario** - Ver información del perfil
-- **📋 Historial de viajes** - Ver todos los viajes realizados
-- **🔔 Notificaciones** - Sistema de notificaciones
-- **🚪 Cerrar sesión** - Salir de la aplicación
+### 🛠️ Panel de Administración
+- **Dashboard Completo**: Métricas en tiempo real
+- **Gestión de Conductores**: Administración completa de conductores
+- **Gestión de Usuarios**: Control de usuarios registrados
+- **Historial de Viajes**: Consulta y exportación de datos
+- **Analíticas Avanzadas**: Gráficos y estadísticas detalladas
+- **Configuración General**: Personalización de la aplicación
 
-#### Funcionalidades de Viaje
-- **🚗 Solicitar conductor** - Crear nueva solicitud de viaje
-- **📍 Ubicación automática** - Detección de ubicación actual
-- **🎯 Destino opcional** - Especificar destino
-- **⏱️ Estado del viaje** - Seguimiento en tiempo real
-- **👨‍💼 Información del conductor** - Ver datos del conductor asignado
-- **🚙 Información del vehículo** - Marca, modelo, color, placa
-- **⭐ Sistema de calificación** - Calificar al conductor después del viaje
-- **🔊 Notificaciones sonoras** - Sonido cuando el viaje es aceptado
+## 🏗️ Arquitectura del Sistema
 
-### 🚗 Interfaz del Conductor (driver/)
-
-#### Menú Principal
-- **📱 Menú lateral deslizable** con todas las opciones
-- **⭐ Mi Calificación** - Ver promedio de calificaciones
-- **📋 Historial de viajes** - Ver todos los viajes completados
-- **🚙 Mi Vehículo** - Gestionar información del vehículo
-- **🔔 Notificaciones** - Sistema de notificaciones
-- **🚪 Cerrar sesión** - Salir de la aplicación
-
-#### Funcionalidades de Conductor
-- **🟢/🔴 Toggle Online/Offline** - Activar/desactivar disponibilidad
-- **📱 Solicitudes en tiempo real** - Ver nuevas solicitudes de viaje
-- **✅ Aceptar viajes** - Aceptar solicitudes de usuarios
-- **🗺️ Navegación** - Rutas automáticas hacia el usuario
-- **📍 Compartir ubicación** - Ubicación en tiempo real
-- **▶️/⏹️ Control de viaje** - Iniciar y finalizar viajes
-- **📊 Estadísticas** - Número de viajes y calificación promedio
-- **🔊 Notificaciones sonoras** - Sonido cuando llega una nueva solicitud
-- **🎯 Modo Navegación Optimizada** - Zoom automático y vista optimizada
-
-## Funcionalidades de Menú Implementadas
-
-### ✅ Interfaz de Usuario
-- [x] **Menú lateral funcional** - Abrir/cerrar con animación
-- [x] **Modal de perfil** - Mostrar foto y nombre del usuario
-- [x] **Historial de viajes** - Lista completa de viajes con estados
-- [x] **Sistema de notificaciones** - Modal de notificaciones
-- [x] **Sistema de calificación** - Calificar conductores con estrellas
-- [x] **Cerrar sesión** - Funcionalidad completa
-
-### ✅ Interfaz del Conductor
-- [x] **Menú lateral funcional** - Abrir/cerrar con animación
-- [x] **Modal de calificación** - Mostrar promedio y estadísticas
-- [x] **Historial de viajes** - Lista completa de viajes con detalles
-- [x] **Gestión de vehículo** - Formulario para actualizar información
-- [x] **Sistema de notificaciones** - Modal de notificaciones
-- [x] **Cerrar sesión** - Funcionalidad completa
-
-## 🔊 Sistema de Notificaciones Sonoras
-
-### Características Implementadas
-- **🔊 Notificaciones automáticas** - Sonidos generados con Web Audio API
-- **🎵 Tono personalizado** - Frecuencias específicas para cada tipo de notificación
-- **🔇 Control de volumen** - Toggle para activar/desactivar sonidos
-- **📱 Notificaciones toast** - Mensajes visuales acompañados de sonido
-- **🔄 Fallback robusto** - Sistema alternativo si Web Audio API no está disponible
-
-### Cuándo se Reproducen
-#### Para Conductores:
-- **🆕 Nueva solicitud de viaje** - Cuando llega una solicitud pendiente
-- **📱 Solicitudes en tiempo real** - Solo cuando está en modo "En línea"
-
-#### Para Usuarios:
-- **✅ Viaje aceptado** - Cuando un conductor acepta la solicitud
-- **🎉 Confirmación visual** - Toast notification con mensaje de confirmación
-
-### Controles de Audio
-- **🔊 Toggle de sonido** - Control visible en ambas interfaces
-- **🎛️ Icono dinámico** - Cambia entre volumen activo/mudo
-- **💾 Persistencia** - El estado se mantiene durante la sesión
-- **🎨 Feedback visual** - Color del icono indica el estado
-
-## 🎯 Modo de Navegación Optimizada
-
-### Características Implementadas
-- **🔍 Zoom automático** - Cambio automático a zoom 18x cuando se acepta un viaje
-- **🗺️ Vista optimizada** - Centrado automático en la ruta completa
-- **📊 Información de ruta** - Distancia y tiempo estimado en tiempo real
-- **🎛️ Controles de navegación** - Botón para alternar entre modos de vista
-- **📍 Seguimiento inteligente** - Actualización automática de la vista cada 5 segundos
-- **🎨 Indicadores visuales** - Indicador de modo navegación y información de ruta
-
-### Funcionalidades del Modo Navegación
-#### Activación Automática:
-- **🚀 Al aceptar viaje** - Se activa automáticamente el modo navegación
-- **🔍 Zoom in** - Cambio de zoom 14x a 18x para mejor detalle
-- **🎯 Centrado automático** - Vista centrada en la ruta conductor-usuario
-- **📱 Indicador visual** - Badge verde "Modo Navegación" en la pantalla
-
-#### Información en Tiempo Real:
-- **📏 Distancia** - Distancia total de la ruta
-- **⏱️ Tiempo estimado** - Tiempo de llegada calculado
-- **🗺️ Instrucciones** - Próximas instrucciones de navegación
-- **📍 Actualización continua** - Información actualizada cada 5 segundos
-
-#### Controles Manuales:
-- **🔄 Alternar modo** - Botón para cambiar entre vista normal y navegación
-- **🎛️ Zoom manual** - Control del nivel de zoom
-- **📱 Vista personalizada** - Flexibilidad para diferentes preferencias
-
-### Experiencia del Conductor
-1. **🎯 Enfoque automático** - La vista se centra automáticamente en la ruta
-2. **📊 Información clara** - Distancia y tiempo visibles en todo momento
-3. **🔄 Actualización continua** - La vista se mantiene optimizada
-4. **🎛️ Control total** - Posibilidad de alternar entre modos
-5. **📱 Interfaz intuitiva** - Indicadores claros del estado actual
-
-## Tecnologías Utilizadas
-
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Backend**: Firebase (Firestore, Authentication)
-- **Mapas**: Google Maps API
-- **Iconos**: Font Awesome
-- **Fuentes**: Google Fonts (Roboto)
-
-## Estructura del Proyecto
-
+### 📁 Estructura de Archivos
 ```
 driverParty/
-├── driver/                 # Interfaz del conductor
-│   ├── index.html         # Página principal del conductor
-│   ├── app.js            # Lógica del conductor
-│   └── style.css         # Estilos del conductor
-├── user/                  # Interfaz del usuario
-│   ├── index.html        # Página principal del usuario
-│   ├── app.js           # Lógica del usuario
-│   └── style.css        # Estilos del usuario
-├── firebase-config.js    # Configuración de Firebase
-└── README.md            # Documentación
+├── admin/                 # Panel de administración
+│   ├── index.html        # Interfaz de administración
+│   ├── app.js           # Lógica de administración
+│   └── style.css        # Estilos del panel admin
+├── driver/               # Interfaz de conductores
+│   ├── index.html       # Interfaz principal
+│   ├── app.js          # Lógica de conductores
+│   └── style.css       # Estilos de conductores
+├── user/                 # Interfaz de usuarios
+│   ├── index.html       # Interfaz principal
+│   ├── app.js          # Lógica de usuarios
+│   └── style.css       # Estilos de usuarios
+├── config.js            # Configuración centralizada
+├── firebase-config.js   # Configuración de Firebase
+└── README.md           # Documentación
 ```
 
-## Configuración
+### 🔧 Tecnologías Utilizadas
+- **Frontend**: HTML5, CSS3, JavaScript ES6+
+- **Backend**: Firebase (Firestore, Authentication)
+- **Mapas**: Google Maps API
+- **Gráficos**: Chart.js
+- **Iconos**: Font Awesome
+- **Notificaciones**: Web Audio API
 
-1. **Firebase**: Configurar proyecto en `firebase-config.js`
-2. **Google Maps API**: Agregar clave de API en los archivos HTML
-3. **Autenticación**: Habilitar Google Auth en Firebase Console
+## 🚀 Instalación y Configuración
 
-## Características de UX/UI
+### 📋 Prerrequisitos
+- Node.js (versión 14 o superior)
+- Cuenta de Firebase
+- API Key de Google Maps
+- Servidor web local o hosting
 
-### 🎨 Diseño Moderno
-- **Interfaz limpia** y minimalista
-- **Colores consistentes** con la marca
-- **Tipografía legible** (Roboto)
-- **Iconos intuitivos** (Font Awesome)
+### ⚙️ Configuración Inicial
 
-### 📱 Responsive Design
-- **Adaptable a móviles** y tablets
-- **Navegación táctil** optimizada
-- **Modales centrados** y accesibles
+1. **Clonar el repositorio**
+```bash
+git clone https://github.com/ysiverio/driverParty.git
+cd driverParty
+```
 
-### ⚡ Experiencia de Usuario
-- **Animaciones suaves** en transiciones
-- **Feedback visual** en interacciones
-- **Estados de carga** con spinners
-- **Mensajes informativos** claros
+2. **Configurar Firebase**
+   - Crear proyecto en Firebase Console
+   - Habilitar Authentication (Google Sign-In)
+   - Habilitar Firestore Database
+   - Configurar reglas de seguridad
 
-### 🔧 Funcionalidades Avanzadas
-- **Sincronización en tiempo real** con Firestore
-- **Geolocalización precisa** con Google Maps
-- **Gestión de estado** robusta
-- **Manejo de errores** completo
+3. **Configurar Google Maps API**
+   - Obtener API Key de Google Cloud Console
+   - Habilitar Maps JavaScript API
+   - Habilitar Directions API
+   - Habilitar Geocoding API
 
-## Estado de Desarrollo
+4. **Actualizar configuración**
+   - Editar `firebase-config.js` con tus credenciales
+   - Agregar API Key de Google Maps en las interfaces
 
-✅ **Completado**: Todas las funcionalidades de menú implementadas
-✅ **Completado**: Sistema de autenticación funcional
-✅ **Completado**: Integración con mapas
-✅ **Completado**: Gestión de viajes en tiempo real
-✅ **Completado**: Sistema de calificaciones
-✅ **Completado**: Historiales de viajes
-✅ **Completado**: Gestión de perfiles y vehículos
+5. **Ejecutar la aplicación**
+```bash
+# Usar servidor local (ejemplo con Python)
+python -m http.server 8000
 
-## Próximas Mejoras
+# O con Node.js
+npx http-server
+```
 
-- [ ] **Chat en tiempo real** entre usuario y conductor
-- [ ] **Pagos integrados** con Stripe/PayPal
-- [ ] **Notificaciones push** con Firebase Cloud Messaging
-- [ ] **Modo oscuro** para mejor experiencia nocturna
-- [ ] **Múltiples idiomas** (español/inglés)
-- [ ] **Accesibilidad** mejorada (WCAG 2.1)
+## 📱 Interfaces de Usuario
+
+### 👨‍💼 Panel de Administración (`/admin`)
+- **Dashboard**: Métricas en tiempo real
+- **Configuración de Precios**: Gestión completa de tarifas
+- **Gestión de Conductores**: Administración de conductores
+- **Gestión de Usuarios**: Control de usuarios
+- **Historial de Viajes**: Consulta de datos
+- **Analíticas**: Gráficos y estadísticas
+- **Configuración General**: Personalización
+
+### 🚗 Interfaz de Conductores (`/driver`)
+- **Autenticación**: Google Sign-In
+- **Mapa Interactivo**: Ubicación en tiempo real
+- **Solicitudes de Viaje**: Notificaciones y aceptación
+- **Modo de Navegación**: Interfaz optimizada para viajes
+- **Historial de Viajes**: Registro completo
+- **Calificaciones**: Sistema de rating
+- **Notificaciones**: Alertas sonoras
+- **Perfil**: Gestión de información personal
+
+### 👤 Interfaz de Usuarios (`/user`)
+- **Autenticación**: Google Sign-In
+- **Solicitud de Viaje**: Origen y destino
+- **Seguimiento en Tiempo Real**: Ubicación del conductor
+- **Información del Conductor**: Perfil y calificaciones
+- **Modo de Navegación**: Durante el viaje
+- **Historial**: Viajes realizados
+- **Calificaciones**: Rating del conductor
+- **Notificaciones**: Alertas sonoras
+
+## 💰 Sistema de Precios
+
+### 🎛️ Configuración Dinámica
+```javascript
+// Ejemplo de configuración
+{
+    DEFAULT_DRIVER_RATE_PER_KM: 2.50,    // Precio por km (conductor)
+    DEFAULT_USER_RATE_PER_KM: 3.50,      // Precio por km (usuario)
+    MINIMUM_FARE: 5.00,                  // Tarifa mínima
+    BASE_FARE: 2.00,                     // Tarifa base
+    SURGE_MULTIPLIER: 1.5,               // Multiplicador hora pico
+    NIGHT_RATE_MULTIPLIER: 1.2,          // Multiplicador nocturno
+    WAITING_FEE_PER_MINUTE: 0.50,        // Cargo por espera
+    CANCELLATION_FEE: 3.00               // Cargo por cancelación
+}
+```
+
+### 📊 Cálculo de Precios
+- **Precio Usuario**: Base + (Distancia × Tarifa/km) + Cargos adicionales
+- **Ganancia Conductor**: Distancia × Tarifa conductor + Cargos de espera
+- **Comisión Plataforma**: Precio usuario - Ganancia conductor
+
+## 🔧 Funcionalidades Avanzadas
+
+### 🎵 Sistema de Notificaciones
+- **Notificaciones Sonoras**: Tones personalizables
+- **Alertas Visuales**: Toasts informativos
+- **Vibración**: Soporte para dispositivos móviles
+- **Configuración**: Control de volumen y duración
+
+### 🗺️ Modo de Navegación
+- **Zoom Automático**: Ajuste automático del mapa
+- **Información en Tiempo Real**: Distancia, duración, siguiente instrucción
+- **Indicadores Visuales**: Estado de navegación
+- **Optimización**: Interfaz simplificada para conducción
+
+### 📈 Analíticas y Reportes
+- **Dashboard en Tiempo Real**: Métricas actualizadas
+- **Gráficos Interactivos**: Chart.js para visualización
+- **Exportación de Datos**: Funcionalidad de descarga
+- **Filtros Avanzados**: Búsqueda y filtrado de datos
+
+## 🔒 Seguridad
+
+### 🛡️ Medidas Implementadas
+- **Autenticación Google**: Login seguro
+- **Reglas de Firestore**: Validación de datos
+- **Validación de Entrada**: Sanitización de datos
+- **Control de Acceso**: Permisos por rol
+- **Encriptación**: Datos sensibles protegidos
+
+### 📋 Reglas de Firestore
+```javascript
+// Ejemplo de reglas de seguridad
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuarios solo pueden leer/escribir sus propios datos
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Conductores solo pueden leer/escribir sus propios datos
+    match /drivers/{driverId} {
+      allow read, write: if request.auth != null && request.auth.uid == driverId;
+    }
+    
+    // Viajes: usuarios y conductores involucrados pueden leer/escribir
+    match /trips/{tripId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+    }
+  }
+}
+```
+
+## 📊 Estado de Desarrollo
+
+### ✅ Funcionalidades Completadas
+- [x] Sistema de autenticación Google
+- [x] Geolocalización en tiempo real
+- [x] Cálculo de rutas optimizadas
+- [x] Sistema de calificaciones
+- [x] Notificaciones sonoras
+- [x] Modo de navegación
+- [x] Historial de viajes
+- [x] Panel de administración
+- [x] Sistema de precios dinámico
+- [x] Gestión de conductores y usuarios
+- [x] Analíticas y reportes
+- [x] Configuración general
+- [x] Interfaz responsive
+- [x] Validaciones de seguridad
+
+### 🚧 Funcionalidades en Desarrollo
+- [ ] Sistema de pagos integrado
+- [ ] Chat en tiempo real
+- [ ] Notificaciones push
+- [ ] Modo offline
+- [ ] Integración con GPS nativo
+- [ ] Sistema de recompensas
+- [ ] API REST pública
+- [ ] Aplicación móvil nativa
+
+### 📋 Próximas Funcionalidades
+- [ ] Integración con Stripe/PayPal
+- [ ] Sistema de cupones y descuentos
+- [ ] Programación de viajes
+- [ ] Viajes compartidos
+- [ ] Sistema de fidelización
+- [ ] Reportes avanzados
+- [ ] Integración con redes sociales
+- [ ] Sistema de soporte en vivo
+
+## 🤝 Contribución
+
+### 📝 Cómo Contribuir
+1. Fork el proyecto
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request
+
+### 🐛 Reportar Bugs
+- Usar el sistema de Issues de GitHub
+- Incluir pasos para reproducir el error
+- Adjuntar capturas de pantalla si es necesario
+- Especificar el navegador y sistema operativo
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 📞 Soporte
+
+### 📧 Contacto
+- **Email**: support@driverparty.com
+- **Teléfono**: +1-800-DRIVER
+- **Documentación**: [docs.driverparty.com](https://docs.driverparty.com)
+
+### 🔗 Enlaces Útiles
+- **Sitio Web**: [driverparty.com](https://driverparty.com)
+- **Panel de Administración**: [admin.driverparty.com](https://admin.driverparty.com)
+- **API Documentation**: [api.driverparty.com](https://api.driverparty.com)
+
+## 🙏 Agradecimientos
+
+- **Google Maps API** por la funcionalidad de mapas
+- **Firebase** por el backend robusto
+- **Font Awesome** por los iconos
+- **Chart.js** por las visualizaciones
+- **Comunidad de desarrolladores** por el soporte
+
+---
+
+**DriverParty v2.0.0** - Conectando el mundo, un viaje a la vez 🚗✨

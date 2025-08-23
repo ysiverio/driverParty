@@ -1,7 +1,17 @@
 
-import { auth, db } from '../firebase-config.js';
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, setDoc, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp } from '../firebase-config.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from '../firebase-config.js';
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp } from '../firebase-config.js';
+import { APP_CONFIG, PricingCalculator, ValidationUtils, FormatUtils, UIUtils } from '../config.js';
+
+// Inicialización de Firebase
+const app = initializeApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Sistema de precios
+let pricingCalculator = new PricingCalculator();
+let currentPricingConfig = null;
 
 // --- DOM Elements ---
 const loginView = document.getElementById('login-view');
@@ -80,7 +90,32 @@ function setupUIForLoggedInUser(user) {
     updateDriverRatingDisplay(); // Display rating on login
     initializeNotificationSound(); // Initialize audio
     addDebugButton(); // Agregar botón de debug temporal
+    loadPricingConfiguration(); // Cargar configuración de precios
     if (!map) initializeMap();
+}
+
+// Cargar configuración de precios
+async function loadPricingConfiguration() {
+    try {
+        const configRef = doc(db, "configuration", "pricing");
+        const configDoc = await getDoc(configRef);
+        
+        if (configDoc.exists()) {
+            currentPricingConfig = configDoc.data();
+            pricingCalculator = new PricingCalculator(currentPricingConfig);
+            console.log('Configuración de precios cargada:', currentPricingConfig);
+        } else {
+            // Usar configuración por defecto
+            currentPricingConfig = APP_CONFIG.PRICING;
+            pricingCalculator = new PricingCalculator(currentPricingConfig);
+            console.log('Usando configuración de precios por defecto');
+        }
+    } catch (error) {
+        console.error('Error loading pricing configuration:', error);
+        // Usar configuración por defecto en caso de error
+        currentPricingConfig = APP_CONFIG.PRICING;
+        pricingCalculator = new PricingCalculator(currentPricingConfig);
+    }
 }
 
 function setupUIForLoggedOutUser() {
