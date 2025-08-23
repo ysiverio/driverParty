@@ -322,6 +322,3 @@ export class UIUtils {
         };
     }
 }
-
-// Exportar todo
-export { APP_CONFIG, PricingCalculator, ValidationUtils, FormatUtils, UIUtils };
