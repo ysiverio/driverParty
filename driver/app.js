@@ -1,4 +1,3 @@
-
 import { auth, db } from '../firebase-config.js';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, query, where, onSnapshot, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -67,7 +66,7 @@ function setupUIForLoggedOutUser() {
     loginView.style.display = 'flex';
     mainUI.style.display = 'none';
     closeSideNav();
-    resetTripState();
+    resetTripState(true); // Force a full reset on logout
 }
 
 // --- Map Initialization ---
@@ -112,15 +111,20 @@ onlineToggle.addEventListener('change', (e) => {
 
 function goOnline() {
     onlineStatus.textContent = 'En línea';
+    onlineStatus.style.color = '#28a745';
     requestsPanel.style.display = 'block';
-    listenForRequests();
+    if (!unsubscribeFromRequests) { // Prevent multiple listeners
+        listenForRequests();
+    }
 }
 
 function goOffline() {
     onlineStatus.textContent = 'Desconectado';
+    onlineStatus.style.color = '#6c757d';
     requestsPanel.style.display = 'none';
     if (unsubscribeFromRequests) {
         unsubscribeFromRequests();
+        unsubscribeFromRequests = null;
     }
     clearRequestMarkers();
     requestsList.innerHTML = '';
@@ -132,6 +136,12 @@ function listenForRequests() {
     const q = query(tripsRef, where("status", "==", "pending"));
 
     unsubscribeFromRequests = onSnapshot(q, (snapshot) => {
+        // If driver is on a trip, don't show new requests.
+        if (activeTripId) {
+            requestsList.innerHTML = '<p>Completando un viaje...</p>';
+            return;
+        }
+        
         clearRequestMarkers();
         requestsList.innerHTML = ''; // Clear list before re-rendering
         if (snapshot.empty) {
@@ -153,7 +163,6 @@ function createRequestCard(trip, tripId) {
     card.innerHTML = `
         <div class="request-card-info">
             <h4>${trip.userName || 'Usuario'}</h4>
-            <p>Destino: (No especificado)</p> <!-- Placeholder -->
         </div>
         <button class="accept-button" data-id="${tripId}">Aceptar</button>
     `;
@@ -179,6 +188,9 @@ function clearRequestMarkers() {
 
 // --- Accept & Manage Trip ---
 async function acceptTrip(tripId) {
+    // If already in a trip, do nothing.
+    if (activeTripId) return;
+
     activeTripId = tripId;
     const tripRef = doc(db, "trips", tripId);
 
@@ -187,11 +199,11 @@ async function acceptTrip(tripId) {
         const tripDoc = await getDoc(tripRef);
         const tripData = tripDoc.data();
 
-        goOffline(); // Stop listening for other requests
-        onlineToggle.checked = false;
+        // UI changes for active trip
         requestsPanel.style.display = 'none';
         tripPanel.style.display = 'block';
         tripClientName.textContent = tripData.userName;
+        clearRequestMarkers(); // Clear markers for other requests
 
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -239,7 +251,7 @@ function startSharingLocation(initialLocation) {
     }, (err) => console.error("Watch position error:", err), { enableHighAccuracy: true });
 }
 
-function resetTripState() {
+function resetTripState(isLogout = false) {
     if (locationWatcherId) navigator.geolocation.clearWatch(locationWatcherId);
     if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
     if (driverMarker) driverMarker.setMap(null);
@@ -249,7 +261,13 @@ function resetTripState() {
     driverMarker = null;
 
     tripPanel.style.display = 'none';
-    requestsPanel.style.display = 'none';
-    onlineToggle.checked = false;
-    onlineStatus.textContent = 'Desconectado';
+
+    // If not logging out, check if driver should go back to seeing requests
+    if (!isLogout && onlineToggle.checked) {
+        requestsPanel.style.display = 'block';
+        listenForRequests(); // Re-listen for requests
+    } else if (isLogout) {
+        onlineToggle.checked = false;
+        goOffline();
+    }
 }

@@ -17,7 +17,7 @@
                 <img id="user-profile-pic" src="https://maps.google.com/mapfiles/kml/shapes/auth_maps_pic.png" alt="User">
                 <span id="user-profile-name">Nombre de Usuario</span>
             </div>
-            <a href="#"><i class="fas fa-history"></i> Mis Viajes</a>
+            <a href="#" id="show-history-btn"><i class="fas fa-history"></i> Mis Viajes</a>
             <a href="#"><i class="fas fa-user"></i> Perfil</a>
             <a href="#"><i class="fas fa-bell"></i> Notificaciones</a>
             <a href="#" id="logout-button"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
@@ -78,6 +78,19 @@
         </div>
 
     </div>
+
+    <!-- History Modal -->
+        <div id="history-modal" class="overlay-container" style="display: none;">
+            <div class="history-panel">
+                <div class="history-header">
+                    <h2>Mis Viajes</h2>
+                    <button id="close-history-btn" class="close-panel-btn">&times;</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- Trip history will be injected here -->
+                </div>
+            </div>
+        </div>
 
     <div id="nav-overlay"></div>
 

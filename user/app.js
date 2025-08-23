@@ -1,7 +1,6 @@
-
 import { auth, db } from '../firebase-config.js';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, addDoc, doc, onSnapshot, runTransaction, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, onSnapshot, runTransaction, updateDoc, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // --- DOM Elements ---
 const loginView = document.getElementById('login-view');
@@ -28,6 +27,12 @@ const tripStatusDetails = document.getElementById('trip-status-details');
 const ratingModal = document.getElementById('rating-modal');
 const stars = document.querySelectorAll('.stars .fa-star');
 const submitRatingButton = document.getElementById('submit-rating-button');
+
+// --- History Modal ---
+const historyModal = document.getElementById('history-modal');
+const showHistoryBtn = document.getElementById('show-history-btn');
+const closeHistoryBtn = document.getElementById('close-history-btn');
+const historyList = document.getElementById('history-list');
 
 // --- App State ---
 let map, userMarker, driverMarker, tripRoutePolyline;
@@ -77,8 +82,7 @@ function initializeMap() {
         navigator.geolocation.getCurrentPosition(pos => {
             const userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             initMap(userLocation);
-        }, () => initMap({ lat: 34.0522, lng: -118.2437 }) // Default location
-        );
+        }, () => initMap({ lat: 34.0522, lng: -118.2437 }));
     } else {
         initMap({ lat: 34.0522, lng: -118.2437 });
     }
@@ -87,36 +91,24 @@ function initializeMap() {
 document.addEventListener('map-ready', initializeMap);
 
 function initMap(location) {
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: location,
-        zoom: 15,
-        disableDefaultUI: true,
-        styles: [/* Uber-like map styles can be added here */]
-    });
+    map = new google.maps.Map(document.getElementById('map'), { center: location, zoom: 15, disableDefaultUI: true });
     userMarker = new google.maps.Marker({ position: location, map: map, title: 'Tu ubicación' });
 }
 
-// --- UI Interactions (Side Nav) ---
+// --- UI Interactions (Side Nav & Modals) ---
 menuBtn.addEventListener('click', openSideNav);
 closeNavBtn.addEventListener('click', closeSideNav);
 navOverlay.addEventListener('click', closeSideNav);
+showHistoryBtn.addEventListener('click', showTripHistory);
+closeHistoryBtn.addEventListener('click', hideTripHistory);
 
-function openSideNav() {
-    sideNav.style.width = "280px";
-    navOverlay.style.display = "block";
-}
-
-function closeSideNav() {
-    sideNav.style.width = "0";
-    navOverlay.style.display = "none";
-}
+function openSideNav() { sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
+function closeSideNav() { sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
 // --- Ride Request ---
 requestDriverButton.addEventListener('click', async () => {
     if (!currentUser || !map) return;
-
     const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
-
     try {
         const docRef = await addDoc(collection(db, "trips"), {
             userId: currentUser.uid,
@@ -140,23 +132,12 @@ requestDriverButton.addEventListener('click', async () => {
 function listenToTripUpdates(tripId) {
     const tripRef = doc(db, "trips", tripId);
     onSnapshot(tripRef, (docSnap) => {
-        if (!docSnap.exists()) {
-            resetTripState();
-            return;
-        }
-
+        if (!docSnap.exists()) { resetTripState(); return; }
         const trip = docSnap.data();
         currentTripDriverId = trip.driverId;
         updateTripUI(trip);
-
-        if (trip.routePolyline && !tripRoutePolyline) {
-            drawRoute(trip.routePolyline);
-        }
-
-        if (trip.driverLocation) {
-            updateDriverMarker(trip.driverLocation);
-        }
-
+        if (trip.routePolyline && !tripRoutePolyline) { drawRoute(trip.routePolyline); }
+        if (trip.driverLocation) { updateDriverMarker(trip.driverLocation); }
         if (trip.status === 'completed' && !trip.rating) {
             setTimeout(() => showRatingModal(), 1500);
         } else if (trip.status === 'cancelled') {
@@ -166,7 +147,7 @@ function listenToTripUpdates(tripId) {
 }
 
 function updateTripUI(trip) {
-    const { status, statusText, details } = getStatusInfo(trip.status);
+    const { statusText, details } = getStatusInfo(trip.status);
     tripStatusHeading.textContent = statusText;
     tripStatusDetails.textContent = details;
 }
@@ -184,24 +165,14 @@ function getStatusInfo(status) {
 
 function drawRoute(polylineString) {
     const decodedPath = google.maps.geometry.encoding.decodePath(polylineString);
-    tripRoutePolyline = new google.maps.Polyline({
-        path: decodedPath,
-        strokeColor: '#212121',
-        strokeWeight: 5,
-        map: map
-    });
+    tripRoutePolyline = new google.maps.Polyline({ path: decodedPath, strokeColor: '#212121', strokeWeight: 5, map: map });
 }
 
 function updateDriverMarker(location) {
     const pos = new google.maps.LatLng(location.lat, location.lng);
     if (!driverMarker) {
-        driverMarker = new google.maps.Marker({
-            position: pos, map: map, title: 'Tu Conductor',
-            icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }
-        });
-    } else {
-        driverMarker.setPosition(pos);
-    }
+        driverMarker = new google.maps.Marker({ position: pos, map: map, title: 'Tu Conductor', icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" } });
+    } else { driverMarker.setPosition(pos); }
 }
 
 function resetTripState() {
@@ -209,32 +180,23 @@ function resetTripState() {
     requestPanel.style.display = 'block';
     if (driverMarker) driverMarker.setMap(null);
     if (tripRoutePolyline) tripRoutePolyline.setMap(null);
-    driverMarker = null;
-    tripRoutePolyline = null;
-    currentTripId = null;
-    currentTripDriverId = null;
+    driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null;
 }
 
 // --- Rating Logic ---
-function showRatingModal() {
-    ratingModal.style.display = 'flex';
-}
+function showRatingModal() { ratingModal.style.display = 'flex'; }
 
 stars.forEach(star => {
     star.addEventListener('click', () => {
         selectedRating = parseInt(star.dataset.value);
-        stars.forEach(s => {
-            s.classList.toggle('selected', parseInt(s.dataset.value) <= selectedRating);
-        });
+        stars.forEach(s => { s.classList.toggle('selected', parseInt(s.dataset.value) <= selectedRating); });
     });
 });
 
 submitRatingButton.addEventListener('click', async () => {
     if (selectedRating === 0 || !currentTripId || !currentTripDriverId) return;
-
     const tripRef = doc(db, "trips", currentTripId);
     const driverRef = doc(db, "drivers", currentTripDriverId);
-
     try {
         await runTransaction(db, async (transaction) => {
             const driverDoc = await transaction.get(driverRef);
@@ -247,15 +209,57 @@ submitRatingButton.addEventListener('click', async () => {
             }
             transaction.update(tripRef, { rating: selectedRating });
         });
-
-        // Hide modal and reset state
         ratingModal.style.display = 'none';
         selectedRating = 0;
         stars.forEach(s => s.classList.remove('selected'));
         resetTripState();
-
     } catch (error) {
         console.error("Error submitting rating: ", error);
-        alert("No se pudo enviar tu calificación. Inténtalo de nuevo.");
+        alert("No se pudo enviar tu calificación.");
     }
 });
+
+// --- Trip History Logic ---
+async function showTripHistory() {
+    if (!currentUser) return;
+    historyList.innerHTML = '<div class="loader"></div>'; // Show loader
+    historyModal.style.display = 'flex';
+    closeSideNav();
+
+    const tripsRef = collection(db, "trips");
+    const q = query(tripsRef, where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+    
+    try {
+        const querySnapshot = await getDocs(q);
+        historyList.innerHTML = ''; // Clear loader
+        if (querySnapshot.empty) {
+            historyList.innerHTML = '<p>No has realizado ningún viaje.</p>';
+            return;
+        }
+        querySnapshot.forEach(doc => {
+            createHistoryItem(doc.data());
+        });
+    } catch (error) {
+        console.error("Error getting trip history: ", error);
+        historyList.innerHTML = '<p>No se pudo cargar el historial.</p>';
+    }
+}
+
+function createHistoryItem(trip) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const tripDate = trip.createdAt.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+    const statusText = getStatusInfo(trip.status).statusText;
+    const rating = trip.rating ? `${trip.rating} <i class="fas fa-star" style="color: #ffc107;"></i>` : 'Sin calificar';
+
+    item.innerHTML = `
+        <h4>Viaje del ${tripDate}</h4>
+        <p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p>
+        <p>Calificación: ${rating}</p>
+    `;
+    historyList.appendChild(item);
+}
+
+function hideTripHistory() {
+    historyModal.style.display = 'none';
+}
