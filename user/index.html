@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Usuario</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+    <div id="ui-container">
+        <div id="login-view">
+            <h2>Bienvenido a DriverParty</h2>
+            <button id="login-button">Iniciar Sesión con Google</button>
+        </div>
+        <div id="request-view" style="display: none;">
+            <h1>¿Necesitas un conductor?</h1>
+            <button id="request-driver-button">Pedir un Conductor</button>
+        </div>
+        <div id="waiting-view" style="display: none;">
+            <h2>Buscando un conductor...</h2>
+            <p>Tu conductor está en camino.</p>
+            <p>Estado: <span id="trip-status"></span></p>
+        </div>
+    </div>
+
+    <script src="../firebase-config.js" type="module"></script>
+    <script src="app.js" type="module"></script>
+    <script>
+        // This makes initMap globally available
+        window.initMap = () => {
+            // The actual map initialization will be handled in app.js
+            // We'll dispatch an event to let the module know.
+            document.dispatchEvent(new CustomEvent('map-ready'));
+        };
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyC7qU1MGpcsh52kQmYWtBv0YPKgFxketH0",
+  authDomain: "driverparty-d28cc.firebaseapp.com",
+  projectId: "driverparty-d28cc",
+  storageBucket: "driverparty-d28cc.firebasestorage.app",
+  messagingSenderId: "1019227765471",
+  appId: "1:1019227765471:web:de5ae2dc4e2486fb92c76a",
+  measurementId: "G-YF8261PLRK"
+};
+
+
+Maps API: AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8
+
