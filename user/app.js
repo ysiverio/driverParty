@@ -1,6 +1,6 @@
 import { auth, db } from '../firebase-config.js';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, addDoc, doc, onSnapshot, runTransaction, updateDoc, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, onSnapshot, updateDoc, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // --- DOM Elements ---
 const loginView = document.getElementById('login-view');
@@ -16,19 +16,23 @@ const navOverlay = document.getElementById('nav-overlay');
 const userProfilePic = document.getElementById('user-profile-pic');
 const userProfileName = document.getElementById('user-profile-name');
 
-// --- Panels ---
+// --- Panels & Trip Details ---
 const requestPanel = document.getElementById('request-panel');
 const tripPanel = document.getElementById('trip-panel');
 const requestDriverButton = document.getElementById('request-driver-button');
+const tripInfoContainer = document.getElementById('trip-info-container');
 const tripStatusHeading = document.getElementById('trip-status-heading');
 const tripStatusDetails = document.getElementById('trip-status-details');
+const driverDetailsContainer = document.getElementById('driver-details-container');
+const tripDriverPic = document.getElementById('trip-driver-pic');
+const tripDriverName = document.getElementById('trip-driver-name');
+const tripVehicleDetails = document.getElementById('trip-vehicle-details');
+const tripVehiclePlate = document.getElementById('trip-vehicle-plate');
 
-// --- Rating Modal ---
+// --- Modals ---
 const ratingModal = document.getElementById('rating-modal');
 const stars = document.querySelectorAll('.stars .fa-star');
 const submitRatingButton = document.getElementById('submit-rating-button');
-
-// --- History Modal ---
 const historyModal = document.getElementById('history-modal');
 const showHistoryBtn = document.getElementById('show-history-btn');
 const closeHistoryBtn = document.getElementById('close-history-btn');
@@ -38,6 +42,7 @@ const historyList = document.getElementById('history-list');
 let map, userMarker, driverMarker, tripRoutePolyline;
 let currentUser, currentTripId, currentTripDriverId;
 let selectedRating = 0;
+let hasShownDriverInfo = false;
 
 // --- Authentication ---
 onAuthStateChanged(auth, (user) => {
@@ -55,18 +60,14 @@ loginButton.addEventListener('click', () => {
     signInWithPopup(auth, provider).catch(err => console.error("Auth Error:", err));
 });
 
-logoutButton.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error("Sign Out Error:", err));
-});
+logoutButton.addEventListener('click', () => signOut(auth).catch(err => console.error("Sign Out Error:", err)));
 
 function setupUIForLoggedInUser(user) {
     loginView.style.display = 'none';
     mainUI.style.display = 'block';
     userProfilePic.src = user.photoURL || 'default-pic.png';
     userProfileName.textContent = user.displayName || 'Usuario';
-    if (!map) {
-        initializeMap();
-    }
+    if (!map) initializeMap();
 }
 
 function setupUIForLoggedOutUser() {
@@ -79,10 +80,8 @@ function setupUIForLoggedOutUser() {
 // --- Map Initialization ---
 function initializeMap() {
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            const userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            initMap(userLocation);
-        }, () => initMap({ lat: 34.0522, lng: -118.2437 }));
+        navigator.geolocation.getCurrentPosition(pos => initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude }), 
+        () => initMap({ lat: 34.0522, lng: -118.2437 }));
     } else {
         initMap({ lat: 34.0522, lng: -118.2437 });
     }
@@ -95,7 +94,7 @@ function initMap(location) {
     userMarker = new google.maps.Marker({ position: location, map: map, title: 'Tu ubicación' });
 }
 
-// --- UI Interactions (Side Nav & Modals) ---
+// --- UI Interactions ---
 menuBtn.addEventListener('click', openSideNav);
 closeNavBtn.addEventListener('click', closeSideNav);
 navOverlay.addEventListener('click', closeSideNav);
@@ -111,21 +110,13 @@ requestDriverButton.addEventListener('click', async () => {
     const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
     try {
         const docRef = await addDoc(collection(db, "trips"), {
-            userId: currentUser.uid,
-            userName: currentUser.displayName,
-            userLocation: userLocation,
-            status: 'pending',
-            createdAt: new Date()
+            userId: currentUser.uid, userName: currentUser.displayName, userLocation, status: 'pending', createdAt: new Date()
         });
         currentTripId = docRef.id;
         requestPanel.style.display = 'none';
         tripPanel.style.display = 'block';
-        tripStatusHeading.textContent = 'Buscando conductor...';
-        tripStatusDetails.textContent = 'Hemos recibido tu solicitud.';
         listenToTripUpdates(currentTripId);
-    } catch (e) {
-        console.error("Error requesting trip: ", e);
-    }
+    } catch (e) { console.error("Error requesting trip: ", e); }
 });
 
 // --- Trip Lifecycle & Updates ---
@@ -136,13 +127,11 @@ function listenToTripUpdates(tripId) {
         const trip = docSnap.data();
         currentTripDriverId = trip.driverId;
         updateTripUI(trip);
-        if (trip.routePolyline && !tripRoutePolyline) { drawRoute(trip.routePolyline); }
-        if (trip.driverLocation) { updateDriverMarker(trip.driverLocation); }
-        if (trip.status === 'completed' && !trip.rating) {
-            setTimeout(() => showRatingModal(), 1500);
-        } else if (trip.status === 'cancelled') {
-            setTimeout(() => resetTripState(), 3000);
-        }
+        if (trip.routePolyline && !tripRoutePolyline) drawRoute(trip.routePolyline);
+        if (trip.driverLocation) updateDriverMarker(trip.driverLocation);
+        if (trip.driverInfo && !hasShownDriverInfo) displayDriverInfo(trip.driverInfo);
+        if (trip.status === 'completed' && !trip.rating) setTimeout(() => showRatingModal(), 1500);
+        else if (trip.status === 'cancelled') setTimeout(() => resetTripState(), 3000);
     });
 }
 
@@ -152,10 +141,22 @@ function updateTripUI(trip) {
     tripStatusDetails.textContent = details;
 }
 
+function displayDriverInfo(info) {
+    tripInfoContainer.style.display = 'none';
+    tripDriverPic.src = info.photoURL || 'default-pic.png';
+    tripDriverName.textContent = info.name || 'Conductor';
+    if (info.vehicle) {
+        tripVehicleDetails.textContent = `${info.vehicle.color || ''} ${info.vehicle.make || ''} ${info.vehicle.model || ''}`;
+        tripVehiclePlate.textContent = info.vehicle.plate || '';
+    }
+    driverDetailsContainer.style.display = 'flex';
+    hasShownDriverInfo = true;
+}
+
 function getStatusInfo(status) {
     switch (status) {
         case 'pending': return { statusText: 'Buscando conductor', details: 'Tu solicitud está siendo procesada.' };
-        case 'accepted': return { statusText: 'Conductor en camino', details: 'Tu conductor llegará pronto.' };
+        case 'accepted': return { statusText: 'Tu conductor está en camino', details: '' };
         case 'in_progress': return { statusText: 'Viaje en curso', details: 'Disfruta tu viaje.' };
         case 'completed': return { statusText: 'Viaje completado', details: 'Gracias por viajar con nosotros.' };
         case 'cancelled': return { statusText: 'Viaje cancelado', details: 'Tu viaje ha sido cancelado.' };
@@ -173,42 +174,39 @@ function updateDriverMarker(location) {
     if (!driverMarker) {
         driverMarker = new google.maps.Marker({ position: pos, map: map, title: 'Tu Conductor', icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" } });
     } else { driverMarker.setPosition(pos); }
+    updateMapBounds();
+}
+
+function updateMapBounds() {
+    if (!userMarker || !driverMarker) return;
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(userMarker.getPosition());
+    bounds.extend(driverMarker.getPosition());
+    map.fitBounds(bounds, 60); // 60px padding
 }
 
 function resetTripState() {
     tripPanel.style.display = 'none';
     requestPanel.style.display = 'block';
+    tripInfoContainer.style.display = 'block';
+    driverDetailsContainer.style.display = 'none';
     if (driverMarker) driverMarker.setMap(null);
     if (tripRoutePolyline) tripRoutePolyline.setMap(null);
-    driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null;
+    driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null; hasShownDriverInfo = false;
 }
 
 // --- Rating Logic ---
 function showRatingModal() { ratingModal.style.display = 'flex'; }
-
 stars.forEach(star => {
     star.addEventListener('click', () => {
         selectedRating = parseInt(star.dataset.value);
         stars.forEach(s => { s.classList.toggle('selected', parseInt(s.dataset.value) <= selectedRating); });
     });
 });
-
 submitRatingButton.addEventListener('click', async () => {
-    if (selectedRating === 0 || !currentTripId || !currentTripDriverId) return;
-    const tripRef = doc(db, "trips", currentTripId);
-    const driverRef = doc(db, "drivers", currentTripDriverId);
+    if (selectedRating === 0 || !currentTripId) return;
     try {
-        await runTransaction(db, async (transaction) => {
-            const driverDoc = await transaction.get(driverRef);
-            if (!driverDoc.exists()) {
-                transaction.set(driverRef, { totalStars: selectedRating, numTrips: 1 });
-            } else {
-                const newNumTrips = (driverDoc.data().numTrips || 0) + 1;
-                const newTotalStars = (driverDoc.data().totalStars || 0) + selectedRating;
-                transaction.update(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars });
-            }
-            transaction.update(tripRef, { rating: selectedRating });
-        });
+        await updateDoc(doc(db, "trips", currentTripId), { rating: selectedRating });
         ratingModal.style.display = 'none';
         selectedRating = 0;
         stars.forEach(s => s.classList.remove('selected'));
@@ -222,23 +220,15 @@ submitRatingButton.addEventListener('click', async () => {
 // --- Trip History Logic ---
 async function showTripHistory() {
     if (!currentUser) return;
-    historyList.innerHTML = '<div class="loader"></div>'; // Show loader
+    historyList.innerHTML = '<div class="loader"></div>';
     historyModal.style.display = 'flex';
     closeSideNav();
-
-    const tripsRef = collection(db, "trips");
-    const q = query(tripsRef, where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
-    
+    const q = query(collection(db, "trips"), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
     try {
         const querySnapshot = await getDocs(q);
-        historyList.innerHTML = ''; // Clear loader
-        if (querySnapshot.empty) {
-            historyList.innerHTML = '<p>No has realizado ningún viaje.</p>';
-            return;
-        }
-        querySnapshot.forEach(doc => {
-            createHistoryItem(doc.data());
-        });
+        historyList.innerHTML = '';
+        if (querySnapshot.empty) { historyList.innerHTML = '<p>No has realizado ningún viaje.</p>'; return; }
+        querySnapshot.forEach(doc => createHistoryItem(doc.data()));
     } catch (error) {
         console.error("Error getting trip history: ", error);
         historyList.innerHTML = '<p>No se pudo cargar el historial.</p>';
@@ -251,15 +241,8 @@ function createHistoryItem(trip) {
     const tripDate = trip.createdAt.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
     const statusText = getStatusInfo(trip.status).statusText;
     const rating = trip.rating ? `${trip.rating} <i class="fas fa-star" style="color: #ffc107;"></i>` : 'Sin calificar';
-
-    item.innerHTML = `
-        <h4>Viaje del ${tripDate}</h4>
-        <p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p>
-        <p>Calificación: ${rating}</p>
-    `;
+    item.innerHTML = `<h4>Viaje del ${tripDate}</h4><p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p><p>Calificación: ${rating}</p>`;
     historyList.appendChild(item);
 }
 
-function hideTripHistory() {
-    historyModal.style.display = 'none';
-}
+function hideTripHistory() { historyModal.style.display = 'none'; }

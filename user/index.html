@@ -18,7 +18,7 @@
                 <span id="user-profile-name">Nombre de Usuario</span>
             </div>
             <a href="#" id="show-history-btn"><i class="fas fa-history"></i> Mis Viajes</a>
-            <a href="#"><i class="fas fa-user"></i> Perfil</a>
+            <a href="#" id="show-profile-btn"><i class="fas fa-user"></i> Perfil</a>
             <a href="#"><i class="fas fa-bell"></i> Notificaciones</a>
             <a href="#" id="logout-button"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
         </div>
@@ -55,9 +55,21 @@
 
             <!-- Waiting/Trip Panel -->
             <div id="trip-panel" class="bottom-panel" style="display: none;">
-                <h2 id="trip-status-heading">Buscando conductor...</h2>
-                <p id="trip-status-details">Tu conductor está en camino.</p>
-                <div class="loader" id="trip-loader"></div>
+                <div id="trip-info-container">
+                    <h2 id="trip-status-heading">Buscando conductor...</h2>
+                    <p id="trip-status-details">Tu conductor está en camino.</p>
+                    <div class="loader" id="trip-loader"></div>
+                </div>
+                <div id="driver-details-container" style="display: none;">
+                    <div class="driver-info">
+                        <img id="trip-driver-pic" src="" alt="Driver">
+                        <span id="trip-driver-name"></span>
+                    </div>
+                    <div class="vehicle-info">
+                        <span id="trip-vehicle-details"></span>
+                        <span id="trip-vehicle-plate"></span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -88,6 +100,20 @@
                 </div>
                 <div id="history-list" class="history-list">
                     <!-- Trip history will be injected here -->
+                </div>
+            </div>
+        </div>
+
+    <!-- Profile Modal -->
+        <div id="profile-modal" class="overlay-container" style="display: none;">
+            <div class="modal-box">
+                <h2>Mi Perfil</h2>
+                <div class="profile-details">
+                    <img id="profile-pic-display" src="" alt="Profile Picture">
+                    <span id="profile-name-display"></span>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="close-profile-modal-btn">Cerrar</button>
                 </div>
             </div>
         </div>

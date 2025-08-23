@@ -17,8 +17,9 @@
                 <img id="driver-profile-pic" src="https://maps.google.com/mapfiles/kml/shapes/auth_maps_pic.png" alt="Driver">
                 <span id="driver-profile-name">Nombre del Conductor</span>
             </div>
-            <a href="#"><i class="fas fa-star"></i> Rating</a>
-            <a href="#"><i class="fas fa-route"></i> Viajes</a>
+            <a href="#" id="show-rating-btn"><i class="fas fa-star"></i> Rating <span id="driver-avg-rating"></span></a>
+            <a href="#" id="show-history-btn"><i class="fas fa-route"></i> Viajes</a>
+            <a href="#" id="vehicle-btn"><i class="fas fa-car"></i> Mi Vehículo</a>
             <a href="#"><i class="fas fa-bell"></i> Notificaciones</a>
             <a href="#" id="logout-button"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
         </div>
@@ -67,6 +68,37 @@
             </div>
         </div>
     </div>
+
+    <!-- Vehicle Modal -->
+        <div id="vehicle-modal" class="overlay-container" style="display: none;">
+            <div class="modal-box">
+                <h2>Mi Vehículo</h2>
+                <p>Mantén la información de tu vehículo actualizada.</p>
+                <form id="vehicle-form">
+                    <input type="text" id="vehicle-make" placeholder="Marca (ej. Toyota)" required>
+                    <input type="text" id="vehicle-model" placeholder="Modelo (ej. Corolla)" required>
+                    <input type="text" id="vehicle-color" placeholder="Color (ej. Azul)" required>
+                    <input type="text" id="vehicle-plate" placeholder="Matrícula (ej. ABC 123)" required>
+                    <div class="modal-actions">
+                        <button type="button" id="close-vehicle-modal-btn">Cancelar</button>
+                        <button type="submit">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    <!-- History Modal -->
+        <div id="history-modal" class="overlay-container" style="display: none;">
+            <div class="history-panel">
+                <div class="history-header">
+                    <h2>Mis Viajes</h2>
+                    <button id="close-history-btn" class="close-panel-btn">&times;</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- Trip history will be injected here -->
+                </div>
+            </div>
+        </div>
 
     <div id="nav-overlay"></div>
 
