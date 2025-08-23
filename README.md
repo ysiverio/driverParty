@@ -1,100 +1,146 @@
 
-# DriverParty
+# DriverParty - Aplicación de Transporte
 
-DriverParty es una aplicación web simple que simula la funcionalidad básica de una aplicación de transporte tipo Uber. Consta de dos interfaces separadas: una para los usuarios que solicitan un viaje y otra para los conductores que aceptan y completan los viajes.
+Una aplicación completa de transporte que conecta conductores con usuarios, similar a Uber o Lyft.
 
 ## Características Principales
 
-- **Dos Interfaces Separadas:** Aplicaciones web independientes para el `Usuario` y el `Conductor`.
-- **Autenticación de Google:** Inicio de sesión seguro para usuarios y conductores utilizando Firebase Authentication.
-- **Geolocalización en Tiempo Real:** Seguimiento de la ubicación del conductor en el mapa del usuario utilizando Firestore y la API de Geolocalización del navegador.
-- **Cálculo de Rutas:** Muestra la ruta desde la ubicación del conductor hasta el punto de recogida del usuario utilizando la API de Direcciones de Google Maps.
-- **Flujo de Viaje Completo:**
-    - El usuario solicita un conductor.
-    - El conductor ve la solicitud y la acepta.
-    - La ruta se muestra en ambos mapas.
-    - El conductor puede marcar el viaje como "iniciado" y "completado".
-- **Sistema de Calificación:** Al finalizar el viaje, el usuario puede calificar al conductor con una puntuación de 1 a 5 estrellas.
-- **Interfaz Moderna:** La interfaz de usuario ha sido rediseñada para ser intuitiva y similar a las aplicaciones de transporte modernas.
+### 🔐 Autenticación
+- Inicio de sesión con Google
+- Gestión de sesiones de usuario
+- Cerrar sesión seguro
+
+### 🗺️ Funcionalidades del Mapa
+- Integración con Google Maps API
+- Geolocalización en tiempo real
+- Cálculo de rutas
+- Marcadores dinámicos para usuarios y conductores
+
+### 👤 Interfaz de Usuario (user/)
+
+#### Menú Principal
+- **📱 Menú lateral deslizable** con todas las opciones
+- **👤 Perfil de usuario** - Ver información del perfil
+- **📋 Historial de viajes** - Ver todos los viajes realizados
+- **🔔 Notificaciones** - Sistema de notificaciones
+- **🚪 Cerrar sesión** - Salir de la aplicación
+
+#### Funcionalidades de Viaje
+- **🚗 Solicitar conductor** - Crear nueva solicitud de viaje
+- **📍 Ubicación automática** - Detección de ubicación actual
+- **🎯 Destino opcional** - Especificar destino
+- **⏱️ Estado del viaje** - Seguimiento en tiempo real
+- **👨‍💼 Información del conductor** - Ver datos del conductor asignado
+- **🚙 Información del vehículo** - Marca, modelo, color, placa
+- **⭐ Sistema de calificación** - Calificar al conductor después del viaje
+
+### 🚗 Interfaz del Conductor (driver/)
+
+#### Menú Principal
+- **📱 Menú lateral deslizable** con todas las opciones
+- **⭐ Mi Calificación** - Ver promedio de calificaciones
+- **📋 Historial de viajes** - Ver todos los viajes completados
+- **🚙 Mi Vehículo** - Gestionar información del vehículo
+- **🔔 Notificaciones** - Sistema de notificaciones
+- **🚪 Cerrar sesión** - Salir de la aplicación
+
+#### Funcionalidades de Conductor
+- **🟢/🔴 Toggle Online/Offline** - Activar/desactivar disponibilidad
+- **📱 Solicitudes en tiempo real** - Ver nuevas solicitudes de viaje
+- **✅ Aceptar viajes** - Aceptar solicitudes de usuarios
+- **🗺️ Navegación** - Rutas automáticas hacia el usuario
+- **📍 Compartir ubicación** - Ubicación en tiempo real
+- **▶️/⏹️ Control de viaje** - Iniciar y finalizar viajes
+- **📊 Estadísticas** - Número de viajes y calificación promedio
+
+## Funcionalidades de Menú Implementadas
+
+### ✅ Interfaz de Usuario
+- [x] **Menú lateral funcional** - Abrir/cerrar con animación
+- [x] **Modal de perfil** - Mostrar foto y nombre del usuario
+- [x] **Historial de viajes** - Lista completa de viajes con estados
+- [x] **Sistema de notificaciones** - Modal de notificaciones
+- [x] **Sistema de calificación** - Calificar conductores con estrellas
+- [x] **Cerrar sesión** - Funcionalidad completa
+
+### ✅ Interfaz del Conductor
+- [x] **Menú lateral funcional** - Abrir/cerrar con animación
+- [x] **Modal de calificación** - Mostrar promedio y estadísticas
+- [x] **Historial de viajes** - Lista completa de viajes con detalles
+- [x] **Gestión de vehículo** - Formulario para actualizar información
+- [x] **Sistema de notificaciones** - Modal de notificaciones
+- [x] **Cerrar sesión** - Funcionalidad completa
+
+## Tecnologías Utilizadas
+
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Backend**: Firebase (Firestore, Authentication)
+- **Mapas**: Google Maps API
+- **Iconos**: Font Awesome
+- **Fuentes**: Google Fonts (Roboto)
 
 ## Estructura del Proyecto
 
 ```
-/
-├── driver/         # Contiene los archivos de la aplicación del conductor
-│   ├── app.js
-│   ├── index.html
-│   └── style.css
-├── user/           # Contiene los archivos de la aplicación del usuario
-│   ├── app.js
-│   ├── index.html
-│   └── style.css
-├── firebase-config.js  # Archivo de configuración de Firebase
-└── README.md
+driverParty/
+├── driver/                 # Interfaz del conductor
+│   ├── index.html         # Página principal del conductor
+│   ├── app.js            # Lógica del conductor
+│   └── style.css         # Estilos del conductor
+├── user/                  # Interfaz del usuario
+│   ├── index.html        # Página principal del usuario
+│   ├── app.js           # Lógica del usuario
+│   └── style.css        # Estilos del usuario
+├── firebase-config.js    # Configuración de Firebase
+└── README.md            # Documentación
 ```
 
 ## Configuración
 
-Para ejecutar esta aplicación, necesitas configurar tus propias claves de API para Firebase y Google Maps.
+1. **Firebase**: Configurar proyecto en `firebase-config.js`
+2. **Google Maps API**: Agregar clave de API en los archivos HTML
+3. **Autenticación**: Habilitar Google Auth en Firebase Console
 
-### 1. Firebase
+## Características de UX/UI
 
-La aplicación utiliza Firebase para la autenticación y como base de datos en tiempo real (Firestore).
+### 🎨 Diseño Moderno
+- **Interfaz limpia** y minimalista
+- **Colores consistentes** con la marca
+- **Tipografía legible** (Roboto)
+- **Iconos intuitivos** (Font Awesome)
 
-1.  Crea un nuevo proyecto en la [Consola de Firebase](https://console.firebase.google.com/).
-2.  Crea una nueva aplicación web dentro de tu proyecto de Firebase.
-3.  Copia las credenciales de configuración de tu aplicación.
-4.  Pega tus credenciales en el archivo `firebase-config.js`. Debería tener la siguiente estructura:
+### 📱 Responsive Design
+- **Adaptable a móviles** y tablets
+- **Navegación táctil** optimizada
+- **Modales centrados** y accesibles
 
-    ```javascript
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+### ⚡ Experiencia de Usuario
+- **Animaciones suaves** en transiciones
+- **Feedback visual** en interacciones
+- **Estados de carga** con spinners
+- **Mensajes informativos** claros
 
-    const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "TU_AUTH_DOMAIN",
-      projectId: "TU_PROJECT_ID",
-      storageBucket: "TU_STORAGE_BUCKET",
-      messagingSenderId: "TU_MESSAGING_SENDER_ID",
-      appId: "TU_APP_ID"
-    };
+### 🔧 Funcionalidades Avanzadas
+- **Sincronización en tiempo real** con Firestore
+- **Geolocalización precisa** con Google Maps
+- **Gestión de estado** robusta
+- **Manejo de errores** completo
 
-    const app = initializeApp(firebaseConfig);
-    export const auth = getAuth(app);
-    export const db = getFirestore(app);
-    ```
+## Estado de Desarrollo
 
-5.  En la configuración de Firestore, asegúrate de establecer las reglas de seguridad adecuadas para permitir la lectura y escritura en la colección `trips` y `drivers`.
+✅ **Completado**: Todas las funcionalidades de menú implementadas
+✅ **Completado**: Sistema de autenticación funcional
+✅ **Completado**: Integración con mapas
+✅ **Completado**: Gestión de viajes en tiempo real
+✅ **Completado**: Sistema de calificaciones
+✅ **Completado**: Historiales de viajes
+✅ **Completado**: Gestión de perfiles y vehículos
 
-### 2. Google Maps
+## Próximas Mejoras
 
-La aplicación utiliza la API de Google Maps para mostrar los mapas, las rutas y los marcadores.
-
-1.  Ve a la [Consola de Google Cloud](https://console.cloud.google.com/) y crea un nuevo proyecto.
-2.  Habilita las siguientes APIs para tu proyecto:
-    - **Maps JavaScript API**
-    - **Directions API**
-    - **Geolocation API**
-3.  Crea una clave de API (API Key).
-4.  Reemplaza la clave `AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8` en los archivos `user/index.html` y `driver/index.html` con tu propia clave de API.
-
-    Busca esta línea en ambos archivos:
-    ```html
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=TU_NUEVA_API_KEY&callback=initMap&libraries=geometry"></script>
-    ```
-
-## Cómo Ejecutar el Proyecto
-
-Dado que este es un proyecto basado en HTML, CSS y JavaScript del lado del cliente, no requiere un servidor de backend complejo. Sin embargo, para evitar problemas de CORS (Cross-Origin Resource Sharing) al cargar los módulos de JavaScript, se recomienda servir los archivos desde un servidor web local.
-
-Una forma sencilla de hacerlo es utilizando Python:
-
-1.  Abre una terminal en la raíz del directorio del proyecto.
-2.  Ejecuta el siguiente comando:
-    ```bash
-    # Para Python 3
-    python -m http.server
-    ```
-3.  Abre tu navegador y ve a `http://localhost:8000/`.
-4.  Desde ahí, puedes navegar a `user/index.html` o `driver/index.html`.
+- [ ] **Chat en tiempo real** entre usuario y conductor
+- [ ] **Pagos integrados** con Stripe/PayPal
+- [ ] **Notificaciones push** con Firebase Cloud Messaging
+- [ ] **Modo oscuro** para mejor experiencia nocturna
+- [ ] **Múltiples idiomas** (español/inglés)
+- [ ] **Accesibilidad** mejorada (WCAG 2.1)

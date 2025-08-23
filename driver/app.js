@@ -1,7 +1,7 @@
 
 import { auth, db } from '../firebase-config.js';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, setDoc, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // --- DOM Elements ---
 const loginView = document.getElementById('login-view');
@@ -31,6 +31,16 @@ const vehicleForm = document.getElementById('vehicle-form');
 
 // --- Rating Display Elements ---
 const driverAvgRatingSpan = document.getElementById('driver-avg-rating');
+const showRatingBtn = document.getElementById('show-rating-btn');
+
+// --- History Modal Elements ---
+const historyModal = document.getElementById('history-modal');
+const showHistoryBtn = document.getElementById('show-history-btn');
+const closeHistoryBtn = document.getElementById('close-history-btn');
+const historyList = document.getElementById('history-list');
+
+// --- Notification Elements ---
+const notificationBtn = document.querySelector('a[href="#"]:has(i.fa-bell)');
 
 // --- App State ---
 let map, currentUser, locationWatcherId, activeTripId;
@@ -93,6 +103,17 @@ closeNavBtn.addEventListener('click', closeSideNav);
 navOverlay.addEventListener('click', closeSideNav);
 vehicleBtn.addEventListener('click', showVehicleModal);
 closeVehicleModalBtn.addEventListener('click', () => vehicleModal.style.display = 'none');
+
+// --- History Modal Events ---
+showHistoryBtn.addEventListener('click', showTripHistory);
+closeHistoryBtn.addEventListener('click', hideTripHistory);
+
+// --- Rating Display Events ---
+showRatingBtn.addEventListener('click', showRatingModal);
+
+// --- Notification Events ---
+notificationBtn.addEventListener('click', showNotifications);
+
 function closeSideNav() { sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
 // --- Driver Status ---
@@ -278,4 +299,141 @@ async function updateDriverRatingDisplay() {
         console.error("Error fetching driver rating: ", error);
         driverAvgRatingSpan.textContent = '(Error)';
     }
+}
+
+// --- Trip History Functions ---
+async function showTripHistory() {
+    if (!currentUser) return;
+    historyList.innerHTML = '<div class="loader"></div>';
+    historyModal.style.display = 'flex';
+    closeSideNav();
+    
+    const q = query(collection(db, "trips"), where("driverId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+    try {
+        const querySnapshot = await getDocs(q);
+        historyList.innerHTML = '';
+        if (querySnapshot.empty) {
+            historyList.innerHTML = '<p>No has completado ningún viaje.</p>';
+            return;
+        }
+        querySnapshot.forEach(doc => {
+            createHistoryItem(doc.data());
+        });
+    } catch (error) {
+        console.error("Error getting trip history: ", error);
+        historyList.innerHTML = '<p>No se pudo cargar el historial.</p>';
+    }
+}
+
+function createHistoryItem(trip) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const tripDate = trip.createdAt && typeof trip.createdAt.toDate === 'function' 
+        ? trip.createdAt.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+        : 'Fecha desconocida';
+    const statusText = getTripStatusText(trip.status);
+    const rating = trip.rating ? `${trip.rating} <i class="fas fa-star" style="color: #ffc107;"></i>` : 'Sin calificar';
+    item.innerHTML = `
+        <h4>Viaje del ${tripDate}</h4>
+        <p>Cliente: <strong>${trip.userName || 'Usuario'}</strong></p>
+        <p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p>
+        <p>Calificación: ${rating}</p>
+    `;
+    historyList.appendChild(item);
+}
+
+function getTripStatusText(status) {
+    switch (status) {
+        case 'pending': return 'Pendiente';
+        case 'accepted': return 'Aceptado';
+        case 'in_progress': return 'En Progreso';
+        case 'completed': return 'Completado';
+        case 'cancelled': return 'Cancelado';
+        default: return 'Desconocido';
+    }
+}
+
+function hideTripHistory() {
+    historyModal.style.display = 'none';
+}
+
+// --- Rating Modal Functions ---
+function showRatingModal() {
+    // Create a simple rating display modal
+    const ratingModal = document.createElement('div');
+    ratingModal.className = 'overlay-container';
+    ratingModal.style.display = 'flex';
+    ratingModal.innerHTML = `
+        <div class="modal-box">
+            <h2>Mi Calificación</h2>
+            <div class="rating-display">
+                <div class="stars-display">
+                    ${getStarsHTML()}
+                </div>
+                <p id="rating-text">Cargando...</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="this.closest('.overlay-container').remove()">Cerrar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(ratingModal);
+    closeSideNav();
+    updateRatingDisplay();
+}
+
+function getStarsHTML() {
+    return `
+        <i class="fas fa-star"></i>
+        <i class="fas fa-star"></i>
+        <i class="fas fa-star"></i>
+        <i class="fas fa-star"></i>
+        <i class="fas fa-star"></i>
+    `;
+}
+
+async function updateRatingDisplay() {
+    if (!currentUser) return;
+    const driverRef = doc(db, "drivers", currentUser.uid);
+    try {
+        const docSnap = await getDoc(driverRef);
+        const ratingText = document.getElementById('rating-text');
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const totalStars = data.totalStars || 0;
+            const numTrips = data.numTrips || 0;
+            if (numTrips > 0) {
+                const avgRating = (totalStars / numTrips).toFixed(1);
+                ratingText.innerHTML = `Promedio: <strong>${avgRating}/5</strong> (${numTrips} viajes)`;
+            } else {
+                ratingText.textContent = 'Aún no tienes calificaciones';
+            }
+        } else {
+            ratingText.textContent = 'Aún no tienes calificaciones';
+        }
+    } catch (error) {
+        console.error("Error fetching driver rating: ", error);
+        document.getElementById('rating-text').textContent = 'Error al cargar calificación';
+    }
+}
+
+// --- Notification Functions ---
+function showNotifications() {
+    // Create a simple notification modal
+    const notificationModal = document.createElement('div');
+    notificationModal.className = 'overlay-container';
+    notificationModal.style.display = 'flex';
+    notificationModal.innerHTML = `
+        <div class="modal-box">
+            <h2>Notificaciones</h2>
+            <div class="notification-list">
+                <p>No tienes notificaciones nuevas.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="this.closest('.overlay-container').remove()">Cerrar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notificationModal);
+    closeSideNav();
 }

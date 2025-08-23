@@ -1,4 +1,47 @@
-Menu button clicked.
+user/app.js loaded and running!
+app.js:51 Setting up onAuthStateChanged listener.
+js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:292 Google Maps JavaScript API has been loaded directly without loading=async. This can result in suboptimal performance. For best-practice loading patterns please see https://goo.gle/js-api-loading
+Zca @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:292
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:14
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530Understand this warning
+app.js:114 map-ready event received.
+app.js:96 initializeMap() called.
+app.js:98 Uncaught TypeError: navigator.log is not a function
+    at initializeMap (app.js:98:19)
+    at HTMLDocument.<anonymous> (app.js:115:5)
+    at window.initMap (user/:127:22)
+    at js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:297:275
+    at js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296:288
+initializeMap @ app.js:98
+(anonymous) @ app.js:115
+window.initMap @ user/:127
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:297
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296
+Promise.then
+Zca @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:14
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530
+(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530Understand this error
+app.js:53 onAuthStateChanged triggered. User: UserImpl {providerId: 'firebase', proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: 'TGKUBTBYOEXtYOSW4dvnuGbv01Z2', …}
+app.js:75 setupUIForLoggedInUser called.
+app.js:81 Map not initialized, calling initializeMap().
+app.js:96 initializeMap() called.
+app.js:98 Uncaught (in promise) TypeError: navigator.log is not a function
+    at initializeMap (app.js:98:19)
+    at setupUIForLoggedInUser (app.js:82:9)
+    at app.js:56:9
+    at auth_impl.ts:745:7
+initializeMap @ app.js:98
+setupUIForLoggedInUser @ app.js:82
+(anonymous) @ app.js:56
+(anonymous) @ auth_impl.ts:745
+Promise.then
+registerStateListener @ auth_impl.ts:744
+onAuthStateChanged @ auth_impl.ts:545
+onAuthStateChanged @ index.ts:211
+(anonymous) @ app.js:52Understand this error
+app.js:126 Menu button clicked.
 app.js:132 Opening side nav.
 app.js:129 Show history button clicked.
 app.js:269 showTripHistory called.
@@ -6,7 +49,7 @@ app.js:133 Closing side nav.
 app.js:274 Fetching trip history for user: TGKUBTBYOEXtYOSW4dvnuGbv01Z2
 app.js:277 Executing Firestore query.
 app.js:279 Query snapshot obtained. Empty: false
-app.js:287 Creating history item for trip: {rating: 5, userLocation: {…}, userId: 'TGKUBTBYOEXtYOSW4dvnuGbv01Z2', driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', driverInfo: {…}, …}
-app.js:298 createHistoryItem called with trip: {rating: 5, userLocation: {…}, userId: 'TGKUBTBYOEXtYOSW4dvnuGbv01Z2', driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', driverInfo: {…}, …}
+app.js:287 Creating history item for trip: {userName: 'Manuel Cabrera Trader', createdAt: Timestamp, driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', userLocation: {…}, routePolyline: '|v}sE~wyuIRA', …}
+app.js:298 createHistoryItem called with trip: {userName: 'Manuel Cabrera Trader', createdAt: Timestamp, driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', userLocation: {…}, routePolyline: '|v}sE~wyuIRA', …}
 app.js:309 History item appended.
 app.js:290 Trip history displayed.

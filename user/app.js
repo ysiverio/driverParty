@@ -41,6 +41,16 @@ const showHistoryBtn = document.getElementById('show-history-btn');
 const closeHistoryBtn = document.getElementById('close-history-btn');
 const historyList = document.getElementById('history-list');
 
+// --- Profile Modal Elements ---
+const profileModal = document.getElementById('profile-modal');
+const showProfileBtn = document.getElementById('show-profile-btn');
+const closeProfileModalBtn = document.getElementById('close-profile-modal-btn');
+const profilePicDisplay = document.getElementById('profile-pic-display');
+const profileNameDisplay = document.getElementById('profile-name-display');
+
+// --- Notification Elements ---
+const notificationBtn = document.querySelector('a[href="#"]:has(i.fa-bell)');
+
 // --- App State ---
 let map, userMarker, driverMarker, tripRoutePolyline;
 let currentUser, currentTripId, currentTripDriverId;
@@ -95,7 +105,7 @@ function setupUIForLoggedOutUser() {
 function initializeMap() {
     console.log("initializeMap() called.");
     if (navigator.geolocation) {
-        navigator.log("Geolocation available.");
+        console.log("Geolocation available.");
         navigator.geolocation.getCurrentPosition(pos => {
             console.log("Current position obtained:", pos.coords);
             initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude });
@@ -128,6 +138,13 @@ closeNavBtn.addEventListener('click', () => { console.log("Close nav button clic
 navOverlay.addEventListener('click', () => { console.log("Nav overlay clicked."); closeSideNav(); });
 showHistoryBtn.addEventListener('click', () => { console.log("Show history button clicked."); showTripHistory(); });
 closeHistoryBtn.addEventListener('click', () => { console.log("Close history button clicked."); hideTripHistory(); });
+
+// --- Profile Modal Events ---
+showProfileBtn.addEventListener('click', showProfileModal);
+closeProfileModalBtn.addEventListener('click', hideProfileModal);
+
+// --- Notification Events ---
+notificationBtn.addEventListener('click', showNotifications);
 
 function openSideNav() { console.log("Opening side nav."); sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
 function closeSideNav() { console.log("Closing side nav."); sideNav.style.width = "0"; navOverlay.style.display = "none"; }
@@ -310,3 +327,42 @@ function createHistoryItem(trip) {
 }
 
 function hideTripHistory() { console.log("Hiding history modal."); historyModal.style.display = 'none'; }
+
+// --- Profile Modal Functions ---
+function showProfileModal() {
+    console.log("Showing profile modal.");
+    if (!currentUser) return;
+    
+    profilePicDisplay.src = currentUser.photoURL || 'default-pic.png';
+    profileNameDisplay.textContent = currentUser.displayName || 'Usuario';
+    
+    profileModal.style.display = 'flex';
+    closeSideNav();
+}
+
+function hideProfileModal() {
+    console.log("Hiding profile modal.");
+    profileModal.style.display = 'none';
+}
+
+// --- Notification Functions ---
+function showNotifications() {
+    console.log("Showing notifications.");
+    // Create a simple notification modal
+    const notificationModal = document.createElement('div');
+    notificationModal.className = 'overlay-container';
+    notificationModal.style.display = 'flex';
+    notificationModal.innerHTML = `
+        <div class="modal-box">
+            <h2>Notificaciones</h2>
+            <div class="notification-list">
+                <p>No tienes notificaciones nuevas.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="this.closest('.overlay-container').remove()">Cerrar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notificationModal);
+    closeSideNav();
+}
