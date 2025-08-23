@@ -79,6 +79,7 @@ function setupUIForLoggedInUser(user) {
     driverProfileName.textContent = user.displayName || 'Conductor';
     updateDriverRatingDisplay(); // Display rating on login
     initializeNotificationSound(); // Initialize audio
+    addDebugButton(); // Agregar botón de depuración temporal
     if (!map) initializeMap();
 }
 
@@ -575,43 +576,106 @@ async function updateDriverRatingDisplay() {
 
 // --- Trip History Functions ---
 async function showTripHistory() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log("No hay usuario actual");
+        return;
+    }
+    
+    console.log("Mostrando historial para conductor:", currentUser.uid);
     historyList.innerHTML = '<div class="loader"></div>';
     historyModal.style.display = 'flex';
     closeSideNav();
     
-    const q = query(collection(db, "trips"), where("driverId", "==", currentUser.uid), orderBy("createdAt", "desc"));
     try {
-        const querySnapshot = await getDocs(q);
+        // Primero intentar con consulta simple sin ordenar
+        console.log("Intentando consulta simple...");
+        const simpleQuery = query(
+            collection(db, "trips"), 
+            where("driverId", "==", currentUser.uid)
+        );
+        
+        const simpleSnapshot = await getDocs(simpleQuery);
+        console.log("Consulta simple resultó en:", simpleSnapshot.size, "documentos");
+        
         historyList.innerHTML = '';
-        if (querySnapshot.empty) {
+        
+        if (simpleSnapshot.empty) {
+            console.log("No se encontraron viajes para este conductor");
             historyList.innerHTML = '<p>No has completado ningún viaje.</p>';
             return;
         }
-        querySnapshot.forEach(doc => {
-            createHistoryItem(doc.data());
+        
+        // Ordenar los resultados en el cliente
+        const trips = [];
+        simpleSnapshot.forEach(doc => {
+            trips.push({ id: doc.id, ...doc.data() });
         });
+        
+        // Ordenar por fecha de creación (más reciente primero)
+        trips.sort((a, b) => {
+            const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+            const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+            return dateB - dateA;
+        });
+        
+        console.log("Viajes ordenados:", trips.length);
+        
+        trips.forEach(trip => {
+            console.log("Procesando viaje:", trip.id, trip);
+            createHistoryItem(trip, trip.id);
+        });
+        
+        console.log("Historial cargado exitosamente");
+        
     } catch (error) {
         console.error("Error getting trip history: ", error);
-        historyList.innerHTML = '<p>No se pudo cargar el historial.</p>';
+        historyList.innerHTML = '<p>No se pudo cargar el historial. Error: ' + error.message + '</p>';
     }
 }
 
-function createHistoryItem(trip) {
+function createHistoryItem(trip, tripId) {
     const item = document.createElement('div');
     item.className = 'history-item';
-    const tripDate = trip.createdAt && typeof trip.createdAt.toDate === 'function' 
-        ? trip.createdAt.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
-        : 'Fecha desconocida';
+    
+    // Manejar diferentes formatos de fecha
+    let tripDate = 'Fecha desconocida';
+    if (trip.createdAt) {
+        if (typeof trip.createdAt.toDate === 'function') {
+            tripDate = trip.createdAt.toDate().toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        } else if (trip.createdAt instanceof Date) {
+            tripDate = trip.createdAt.toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        } else if (typeof trip.createdAt === 'string') {
+            tripDate = new Date(trip.createdAt).toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        }
+    }
+    
     const statusText = getTripStatusText(trip.status);
     const rating = trip.rating ? `${trip.rating} <i class="fas fa-star" style="color: #ffc107;"></i>` : 'Sin calificar';
+    const userName = trip.userName || 'Usuario desconocido';
+    
     item.innerHTML = `
         <h4>Viaje del ${tripDate}</h4>
-        <p>Cliente: <strong>${trip.userName || 'Usuario'}</strong></p>
-        <p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p>
-        <p>Calificación: ${rating}</p>
+        <p><strong>ID:</strong> ${tripId || 'N/A'}</p>
+        <p><strong>Cliente:</strong> ${userName}</p>
+        <p><strong>Estado:</strong> <span class="status status-${trip.status}">${statusText}</span></p>
+        <p><strong>Calificación:</strong> ${rating}</p>
+        ${trip.driverId ? `<p><strong>Conductor ID:</strong> ${trip.driverId}</p>` : ''}
     `;
+    
     historyList.appendChild(item);
+    console.log("Elemento de historial creado:", item.innerHTML);
 }
 
 function getTripStatusText(status) {
@@ -627,6 +691,52 @@ function getTripStatusText(status) {
 
 function hideTripHistory() {
     historyModal.style.display = 'none';
+}
+
+// --- Debug Functions ---
+async function debugAllTrips() {
+    console.log("=== DEPURACIÓN: Todos los viajes en la base de datos ===");
+    
+    try {
+        const allTripsQuery = query(collection(db, "trips"));
+        const allTripsSnapshot = await getDocs(allTripsQuery);
+        
+        console.log("Total de viajes en la base de datos:", allTripsSnapshot.size);
+        
+        allTripsSnapshot.forEach(doc => {
+            const tripData = doc.data();
+            console.log("Viaje ID:", doc.id);
+            console.log("  - Driver ID:", tripData.driverId);
+            console.log("  - User ID:", tripData.userId);
+            console.log("  - Status:", tripData.status);
+            console.log("  - Created At:", tripData.createdAt);
+            console.log("  - User Name:", tripData.userName);
+            console.log("  ---");
+        });
+        
+    } catch (error) {
+        console.error("Error en depuración:", error);
+    }
+}
+
+// Agregar botón de depuración temporal
+function addDebugButton() {
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug Viajes';
+    debugBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+        cursor: pointer;
+    `;
+    debugBtn.onclick = debugAllTrips;
+    document.body.appendChild(debugBtn);
 }
 
 // --- Rating Modal Functions ---
