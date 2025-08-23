@@ -60,6 +60,12 @@ driverParty/
 - **Iconos**: Font Awesome
 - **Notificaciones**: Web Audio API
 
+### 🔐 Sistema de Autenticación
+- **Conductores y Usuarios**: Google Sign-In
+- **Administración**: Email/Password con Firebase Auth
+- **Recuperación de contraseña**: Sistema integrado
+- **Sesiones seguras**: Manejo automático de tokens
+
 ## 🚀 Instalación y Configuración
 
 ### 📋 Prerrequisitos
@@ -92,7 +98,12 @@ cd driverParty
    - Editar `firebase-config.js` con tus credenciales
    - Agregar API Key de Google Maps en las interfaces
 
-5. **Ejecutar la aplicación**
+5. **Configurar usuario administrador**
+   - Abrir `setup-admin.js` en el navegador
+   - Hacer clic en "Configurar Administrador"
+   - Usar las credenciales generadas para acceder al panel
+
+6. **Ejecutar la aplicación**
 ```bash
 # Usar servidor local (ejemplo con Python)
 python -m http.server 8000
@@ -104,6 +115,13 @@ npx http-server
 ## 📱 Interfaces de Usuario
 
 ### 👨‍💼 Panel de Administración (`/admin`)
+- **URL**: `http://localhost:8000/admin/`
+- **Login**: `http://localhost:8000/admin/login.html`
+- **Autenticación**: Email/Password con Firebase Auth
+- **Credenciales por defecto**: 
+  - Email: `admin@driverparty.com`
+  - Contraseña: `AdminDriverParty2024!`
+  - **⚠️ IMPORTANTE**: Cambiar la contraseña después del primer acceso
 - **Dashboard**: Métricas en tiempo real
 - **Configuración de Precios**: Gestión completa de tarifas
 - **Gestión de Conductores**: Administración de conductores

@@ -85,7 +85,7 @@ function initializeAuth() {
             loadDashboardData();
         } else {
             // Redirigir a login si no está autenticado
-            window.location.href = '../driver/index.html';
+            window.location.href = 'login.html';
         }
     });
 }
