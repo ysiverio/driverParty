@@ -79,6 +79,7 @@ function setupUIForLoggedInUser(user) {
     driverProfileName.textContent = user.displayName || 'Conductor';
     updateDriverRatingDisplay(); // Display rating on login
     initializeNotificationSound(); // Initialize audio
+    addDebugButton(); // Agregar botón de debug temporal
     if (!map) initializeMap();
 }
 
@@ -736,15 +737,29 @@ function getStarsHTML() {
 }
 
 async function updateRatingDisplay() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log("No current user for rating display");
+        return;
+    }
+    
     const driverRef = doc(db, "drivers", currentUser.uid);
     try {
+        console.log("Fetching driver rating for:", currentUser.uid);
         const docSnap = await getDoc(driverRef);
         const ratingText = document.getElementById('rating-text');
+        
+        if (!ratingText) {
+            console.error("Rating text element not found");
+            return;
+        }
+        
         if (docSnap.exists()) {
             const data = docSnap.data();
             const totalStars = data.totalStars || 0;
             const numTrips = data.numTrips || 0;
+            
+            console.log("Driver data:", { totalStars, numTrips });
+            
             if (numTrips > 0) {
                 const avgRating = (totalStars / numTrips).toFixed(1);
                 const starsHTML = generateStarsHTML(avgRating);
@@ -759,6 +774,7 @@ async function updateRatingDisplay() {
                         Basado en ${numTrips} viaje${numTrips > 1 ? 's' : ''}
                     </div>
                 `;
+                console.log("Rating display updated successfully");
             } else {
                 ratingText.innerHTML = `
                     <div style="margin-bottom: 10px;">
@@ -768,6 +784,7 @@ async function updateRatingDisplay() {
                         Completa tu primer viaje para recibir calificaciones
                     </div>
                 `;
+                console.log("No trips completed yet");
             }
         } else {
             ratingText.innerHTML = `
@@ -778,14 +795,21 @@ async function updateRatingDisplay() {
                     Completa tu primer viaje para recibir calificaciones
                 </div>
             `;
+            console.log("Driver document does not exist");
         }
     } catch (error) {
         console.error("Error fetching driver rating: ", error);
-        document.getElementById('rating-text').innerHTML = `
-            <div style="color: #dc3545;">
-                <strong>Error al cargar calificación</strong>
-            </div>
-        `;
+        const ratingText = document.getElementById('rating-text');
+        if (ratingText) {
+            ratingText.innerHTML = `
+                <div style="color: #dc3545;">
+                    <strong>Error al cargar calificación</strong>
+                </div>
+                <div style="font-size: 12px; color: #666;">
+                    Intenta de nuevo más tarde
+                </div>
+            `;
+        }
     }
 }
 
@@ -815,39 +839,82 @@ function generateStarsHTML(rating) {
 }
 
 async function updateRatingStats() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log("No current user for stats");
+        return;
+    }
     
     try {
-        // Obtener estadísticas de calificaciones
-        const q = query(
-            collection(db, "trips"), 
-            where("driverId", "==", currentUser.uid),
-            where("rating", ">", 0)
-        );
+        console.log("Loading rating stats for driver:", currentUser.uid);
         
-        const querySnapshot = await getDocs(q);
-        const ratings = [];
-        querySnapshot.forEach(doc => {
-            const trip = doc.data();
-            if (trip.rating) {
-                ratings.push(trip.rating);
+        // Primero intentar obtener datos del documento del conductor
+        const driverRef = doc(db, "drivers", currentUser.uid);
+        const driverDoc = await getDoc(driverRef);
+        
+        let totalRatings = 0;
+        let avgRating = 0;
+        let ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        
+        if (driverDoc.exists()) {
+            const data = driverDoc.data();
+            const totalStars = data.totalStars || 0;
+            const numTrips = data.numTrips || 0;
+            
+            if (numTrips > 0) {
+                totalRatings = numTrips;
+                avgRating = (totalStars / numTrips).toFixed(1);
+                
+                // Intentar obtener distribución detallada de calificaciones
+                try {
+                    const q = query(
+                        collection(db, "trips"), 
+                        where("driverId", "==", currentUser.uid)
+                    );
+                    
+                    const querySnapshot = await getDocs(q);
+                    const ratings = [];
+                    
+                    querySnapshot.forEach(doc => {
+                        const trip = doc.data();
+                        if (trip.rating && trip.rating > 0) {
+                            ratings.push(trip.rating);
+                            ratingDistribution[trip.rating] = (ratingDistribution[trip.rating] || 0) + 1;
+                        }
+                    });
+                    
+                    console.log("Found ratings:", ratings);
+                    console.log("Rating distribution:", ratingDistribution);
+                    
+                } catch (queryError) {
+                    console.log("Could not get detailed ratings, using basic stats:", queryError);
+                    // Si no podemos obtener la distribución, usar datos básicos
+                }
             }
-        });
+        }
         
         const statsContent = document.getElementById('stats-content');
-        if (ratings.length === 0) {
-            statsContent.innerHTML = '<p style="color: #666; font-style: italic;">No hay calificaciones disponibles</p>';
+        if (!statsContent) {
+            console.error("Stats content element not found");
             return;
         }
         
-        // Calcular estadísticas
-        const totalRatings = ratings.length;
-        const avgRating = (ratings.reduce((a, b) => a + b, 0) / totalRatings).toFixed(1);
-        const fiveStars = ratings.filter(r => r === 5).length;
-        const fourStars = ratings.filter(r => r === 4).length;
-        const threeStars = ratings.filter(r => r === 3).length;
-        const twoStars = ratings.filter(r => r === 2).length;
-        const oneStars = ratings.filter(r => r === 1).length;
+        if (totalRatings === 0) {
+            statsContent.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-star" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
+                    <p style="color: #666; font-style: italic;">No hay calificaciones disponibles</p>
+                    <p style="color: #999; font-size: 12px;">Completa tu primer viaje para recibir calificaciones</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Calcular porcentajes
+        const fiveStars = ratingDistribution[5] || 0;
+        const fourStars = ratingDistribution[4] || 0;
+        const threeStars = ratingDistribution[3] || 0;
+        const twoStars = ratingDistribution[2] || 0;
+        const oneStars = ratingDistribution[1] || 0;
         
         statsContent.innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -864,32 +931,43 @@ async function updateRatingStats() {
                 <strong>Distribución de calificaciones:</strong>
             </div>
             <div style="font-size: 12px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 4px;">
                     <span>⭐⭐⭐⭐⭐</span>
-                    <span>${fiveStars} (${((fiveStars/totalRatings)*100).toFixed(0)}%)</span>
+                    <span>${fiveStars} (${totalRatings > 0 ? ((fiveStars/totalRatings)*100).toFixed(0) : 0}%)</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 4px;">
                     <span>⭐⭐⭐⭐</span>
-                    <span>${fourStars} (${((fourStars/totalRatings)*100).toFixed(0)}%)</span>
+                    <span>${fourStars} (${totalRatings > 0 ? ((fourStars/totalRatings)*100).toFixed(0) : 0}%)</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 4px;">
                     <span>⭐⭐⭐</span>
-                    <span>${threeStars} (${((threeStars/totalRatings)*100).toFixed(0)}%)</span>
+                    <span>${threeStars} (${totalRatings > 0 ? ((threeStars/totalRatings)*100).toFixed(0) : 0}%)</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 4px;">
                     <span>⭐⭐</span>
-                    <span>${twoStars} (${((twoStars/totalRatings)*100).toFixed(0)}%)</span>
+                    <span>${twoStars} (${totalRatings > 0 ? ((twoStars/totalRatings)*100).toFixed(0) : 0}%)</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 4px;">
                     <span>⭐</span>
-                    <span>${oneStars} (${((oneStars/totalRatings)*100).toFixed(0)}%)</span>
+                    <span>${oneStars} (${totalRatings > 0 ? ((oneStars/totalRatings)*100).toFixed(0) : 0}%)</span>
                 </div>
             </div>
         `;
         
+        console.log("Rating stats updated successfully");
+        
     } catch (error) {
         console.error("Error updating rating stats:", error);
-        document.getElementById('stats-content').innerHTML = '<p style="color: #dc3545;">Error al cargar estadísticas</p>';
+        const statsContent = document.getElementById('stats-content');
+        if (statsContent) {
+            statsContent.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 10px;"></i>
+                    <p style="color: #dc3545; font-weight: bold;">Error al cargar estadísticas</p>
+                    <p style="color: #666; font-size: 12px;">Intenta de nuevo más tarde</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -996,4 +1074,61 @@ function showNotificationToast(message) {
             }
         }, 300);
     }, 3000);
+}
+
+// --- Debug Functions (Temporary) ---
+function debugDriverStats() {
+    console.log("=== DEBUG: Driver Statistics ===");
+    console.log("Current user:", currentUser);
+    
+    if (!currentUser) {
+        console.log("No current user");
+        return;
+    }
+    
+    console.log("Driver ID:", currentUser.uid);
+    
+    // Verificar documento del conductor
+    const driverRef = doc(db, "drivers", currentUser.uid);
+    getDoc(driverRef).then(docSnap => {
+        console.log("Driver document exists:", docSnap.exists());
+        if (docSnap.exists()) {
+            console.log("Driver data:", docSnap.data());
+        }
+    }).catch(error => {
+        console.error("Error getting driver document:", error);
+    });
+    
+    // Verificar viajes del conductor
+    const tripsQuery = query(collection(db, "trips"), where("driverId", "==", currentUser.uid));
+    getDocs(tripsQuery).then(querySnapshot => {
+        console.log("Total trips for driver:", querySnapshot.size);
+        querySnapshot.forEach(doc => {
+            const trip = doc.data();
+            console.log("Trip:", doc.id, trip);
+        });
+    }).catch(error => {
+        console.error("Error getting trips:", error);
+    });
+}
+
+// Agregar botón de debug temporal
+function addDebugButton() {
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug Stats';
+    debugBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+        cursor: pointer;
+        font-size: 12px;
+    `;
+    debugBtn.onclick = debugDriverStats;
+    document.body.appendChild(debugBtn);
 }
