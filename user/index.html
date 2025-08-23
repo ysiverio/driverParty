@@ -79,6 +79,66 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Driver Info Card (Center Screen) -->
+            <div id="driver-card" class="driver-card" style="display: none;">
+                <div class="driver-card-header">
+                    <div class="driver-card-close">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+                <div class="driver-card-content">
+                    <div class="driver-profile-section">
+                        <img id="card-driver-pic" src="" alt="Driver">
+                        <div class="driver-basic-info">
+                            <h3 id="card-driver-name"></h3>
+                            <div class="driver-rating">
+                                <div id="card-driver-stars"></div>
+                                <span id="card-driver-rating-text"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="driver-stats-section">
+                        <div class="stat-item">
+                            <i class="fas fa-star"></i>
+                            <div class="stat-content">
+                                <span class="stat-value" id="card-driver-avg-rating">-</span>
+                                <span class="stat-label">Calificación</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-route"></i>
+                            <div class="stat-content">
+                                <span class="stat-value" id="card-driver-trips">-</span>
+                                <span class="stat-label">Viajes</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vehicle-section">
+                        <h4>Vehículo</h4>
+                        <div class="vehicle-details">
+                            <div class="vehicle-item">
+                                <i class="fas fa-car"></i>
+                                <span id="card-vehicle-model"></span>
+                            </div>
+                            <div class="vehicle-item">
+                                <i class="fas fa-palette"></i>
+                                <span id="card-vehicle-color"></span>
+                            </div>
+                            <div class="vehicle-item">
+                                <i class="fas fa-id-card"></i>
+                                <span id="card-vehicle-plate"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="driver-card-actions">
+                        <button id="minimize-card-btn" class="minimize-btn">
+                            <i class="fas fa-chevron-down"></i>
+                            Minimizar
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Rating Modal -->

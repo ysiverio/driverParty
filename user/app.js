@@ -1,7 +1,7 @@
 
 import { auth, db } from '../firebase-config.js';
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, addDoc, doc, onSnapshot, updateDoc, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, onSnapshot, updateDoc, query, where, getDocs, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 console.log("user/app.js loaded and running!");
 
@@ -53,6 +53,20 @@ const notificationBtn = document.querySelector('a[href="#"]:has(i.fa-bell)');
 
 // --- Audio Control Elements ---
 const soundToggle = document.getElementById('sound-toggle');
+
+// --- Driver Card Elements ---
+const driverCard = document.getElementById('driver-card');
+const cardDriverPic = document.getElementById('card-driver-pic');
+const cardDriverName = document.getElementById('card-driver-name');
+const cardDriverStars = document.getElementById('card-driver-stars');
+const cardDriverRatingText = document.getElementById('card-driver-rating-text');
+const cardDriverAvgRating = document.getElementById('card-driver-avg-rating');
+const cardDriverTrips = document.getElementById('card-driver-trips');
+const cardVehicleModel = document.getElementById('card-vehicle-model');
+const cardVehicleColor = document.getElementById('card-vehicle-color');
+const cardVehiclePlate = document.getElementById('card-vehicle-plate');
+const minimizeCardBtn = document.getElementById('minimize-card-btn');
+const driverCardClose = document.querySelector('.driver-card-close');
 
 // --- App State ---
 let map, userMarker, driverMarker, tripRoutePolyline;
@@ -166,6 +180,10 @@ soundToggle.addEventListener('change', (e) => {
     }
 });
 
+// --- Driver Card Events ---
+minimizeCardBtn.addEventListener('click', minimizeDriverCard);
+driverCardClose.addEventListener('click', closeDriverCard);
+
 function openSideNav() { console.log("Opening side nav."); sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
 function closeSideNav() { console.log("Closing side nav."); sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
@@ -254,6 +272,9 @@ function displayDriverInfo(info) {
     driverDetailsContainer.style.display = 'flex';
     hasShownDriverInfo = true;
     console.log("Driver info displayed.");
+    
+    // Mostrar la card completa del conductor
+    showDriverCard(info);
 }
 
 function getStatusInfo(status) {
@@ -344,6 +365,9 @@ function resetTripState() {
     
     // Desactivar modo de navegación
     deactivateUserNavigationMode();
+    
+    // Cerrar la card del conductor
+    closeDriverCard();
     
     console.log("Trip state reset.");
 }
@@ -594,6 +618,137 @@ function deactivateUserNavigationMode() {
             }
         }, 300);
     }
+}
+
+// --- Driver Card Functions ---
+async function showDriverCard(driverInfo) {
+    console.log("Showing driver card with info:", driverInfo);
+    
+    // Llenar información básica del conductor
+    cardDriverPic.src = driverInfo.photoURL || 'default-pic.png';
+    cardDriverName.textContent = driverInfo.name || 'Conductor';
+    
+    // Llenar información del vehículo
+    if (driverInfo.vehicle) {
+        cardVehicleModel.textContent = `${driverInfo.vehicle.make || ''} ${driverInfo.vehicle.model || ''}`.trim() || 'No especificado';
+        cardVehicleColor.textContent = driverInfo.vehicle.color || 'No especificado';
+        cardVehiclePlate.textContent = driverInfo.vehicle.plate || 'No especificado';
+    } else {
+        cardVehicleModel.textContent = 'No especificado';
+        cardVehicleColor.textContent = 'No especificado';
+        cardVehiclePlate.textContent = 'No especificado';
+    }
+    
+    // Obtener estadísticas del conductor
+    await loadDriverStats(driverInfo.driverId || currentTripDriverId);
+    
+    // Mostrar la card
+    driverCard.style.display = 'block';
+    
+    // Animar entrada
+    setTimeout(() => {
+        driverCard.style.animation = 'slideInFromCenter 0.4s ease';
+    }, 100);
+}
+
+async function loadDriverStats(driverId) {
+    if (!driverId) {
+        console.log("No driver ID available for stats");
+        return;
+    }
+    
+    try {
+        console.log("Loading driver stats for:", driverId);
+        const driverRef = doc(db, "drivers", driverId);
+        const driverDoc = await getDoc(driverRef);
+        
+        if (driverDoc.exists()) {
+            const data = driverDoc.data();
+            const totalStars = data.totalStars || 0;
+            const numTrips = data.numTrips || 0;
+            
+            if (numTrips > 0) {
+                const avgRating = (totalStars / numTrips).toFixed(1);
+                
+                // Actualizar estadísticas
+                cardDriverAvgRating.textContent = avgRating;
+                cardDriverTrips.textContent = numTrips;
+                
+                // Mostrar estrellas
+                cardDriverStars.innerHTML = generateStarsHTML(avgRating);
+                cardDriverRatingText.textContent = `(${numTrips} viaje${numTrips > 1 ? 's' : ''})`;
+            } else {
+                cardDriverAvgRating.textContent = 'N/A';
+                cardDriverTrips.textContent = '0';
+                cardDriverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
+                cardDriverRatingText.textContent = '(Sin viajes)';
+            }
+        } else {
+            cardDriverAvgRating.textContent = 'N/A';
+            cardDriverTrips.textContent = '0';
+            cardDriverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
+            cardDriverRatingText.textContent = '(Sin viajes)';
+        }
+    } catch (error) {
+        console.error("Error loading driver stats:", error);
+        cardDriverAvgRating.textContent = 'Error';
+        cardDriverTrips.textContent = 'Error';
+        cardDriverStars.innerHTML = '<span style="color: #dc3545;">Error</span>';
+        cardDriverRatingText.textContent = '';
+    }
+}
+
+function generateStarsHTML(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let starsHTML = '';
+    
+    // Estrellas llenas
+    for (let i = 0; i < fullStars; i++) {
+        starsHTML += '<i class="fas fa-star" style="color: #ffc107; margin: 0 1px;"></i>';
+    }
+    
+    // Media estrella si es necesario
+    if (hasHalfStar) {
+        starsHTML += '<i class="fas fa-star-half-alt" style="color: #ffc107; margin: 0 1px;"></i>';
+    }
+    
+    // Estrellas vacías
+    for (let i = 0; i < emptyStars; i++) {
+        starsHTML += '<i class="far fa-star" style="color: #ccc; margin: 0 1px;"></i>';
+    }
+    
+    return starsHTML;
+}
+
+function minimizeDriverCard() {
+    console.log("Minimizing driver card");
+    driverCard.classList.add('minimized');
+    
+    // Cambiar el botón
+    minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Expandir';
+    minimizeCardBtn.onclick = expandDriverCard;
+}
+
+function expandDriverCard() {
+    console.log("Expanding driver card");
+    driverCard.classList.remove('minimized');
+    
+    // Cambiar el botón
+    minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Minimizar';
+    minimizeCardBtn.onclick = minimizeDriverCard;
+}
+
+function closeDriverCard() {
+    console.log("Closing driver card");
+    driverCard.style.display = 'none';
+    driverCard.classList.remove('minimized');
+    
+    // Resetear el botón
+    minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Minimizar';
+    minimizeCardBtn.onclick = minimizeDriverCard;
 }
 
 // --- Profile Modal Functions ---

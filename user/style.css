@@ -638,3 +638,254 @@ body, html {
         opacity: 1;
     }
 }
+
+/* --- Driver Info Card --- */
+.driver-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 1000;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: slideInFromCenter 0.4s ease;
+}
+
+@keyframes slideInFromCenter {
+    from {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+.driver-card-header {
+    background: linear-gradient(135deg, #4285F4 0%, #34A853 100%);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.driver-card-close {
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+}
+
+.driver-card-close:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+.driver-card-content {
+    padding: 20px;
+}
+
+.driver-profile-section {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+#card-driver-pic {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 15px;
+    border: 3px solid #4285F4;
+}
+
+.driver-basic-info h3 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.driver-rating {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#card-driver-stars {
+    color: #ffc107;
+    font-size: 16px;
+}
+
+#card-driver-rating-text {
+    color: #666;
+    font-size: 14px;
+}
+
+.driver-stats-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.stat-item i {
+    color: #4285F4;
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.vehicle-section {
+    margin-bottom: 20px;
+}
+
+.vehicle-section h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.vehicle-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vehicle-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.vehicle-item i {
+    color: #34A853;
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.vehicle-item span {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.driver-card-actions {
+    text-align: center;
+}
+
+.minimize-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.minimize-btn:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* --- Card Minimized State --- */
+.driver-card.minimized {
+    top: auto;
+    bottom: 20px;
+    left: 20px;
+    transform: none;
+    width: auto;
+    max-width: 300px;
+    animation: slideInFromBottom 0.3s ease;
+}
+
+@keyframes slideInFromBottom {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.driver-card.minimized .driver-card-content {
+    padding: 15px;
+}
+
+.driver-card.minimized .driver-profile-section {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+
+.driver-card.minimized #card-driver-pic {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+}
+
+.driver-card.minimized .driver-basic-info h3 {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.driver-card.minimized .driver-stats-section,
+.driver-card.minimized .vehicle-section,
+.driver-card.minimized .driver-card-actions {
+    display: none;
+}
