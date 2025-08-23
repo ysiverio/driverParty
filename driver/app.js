@@ -42,11 +42,15 @@ const historyList = document.getElementById('history-list');
 // --- Notification Elements ---
 const notificationBtn = document.querySelector('a[href="#"]:has(i.fa-bell)');
 
+// --- Audio Control Elements ---
+const soundToggle = document.getElementById('sound-toggle');
+
 // --- App State ---
 let map, currentUser, locationWatcherId, activeTripId;
 let driverMarker, userMarker, directionsService, directionsRenderer;
 let requestMarkers = {};
 let unsubscribeFromRequests;
+let notificationSound; // Audio para notificaciones
 
 // --- Authentication ---
 onAuthStateChanged(auth, (user) => {
@@ -70,6 +74,7 @@ function setupUIForLoggedInUser(user) {
     driverProfilePic.src = user.photoURL || 'default-pic.png';
     driverProfileName.textContent = user.displayName || 'Conductor';
     updateDriverRatingDisplay(); // Display rating on login
+    initializeNotificationSound(); // Initialize audio
     if (!map) initializeMap();
 }
 
@@ -114,6 +119,18 @@ showRatingBtn.addEventListener('click', showRatingModal);
 // --- Notification Events ---
 notificationBtn.addEventListener('click', showNotifications);
 
+// --- Audio Control Events ---
+soundToggle.addEventListener('change', (e) => {
+    const icon = e.target.parentElement.querySelector('i');
+    if (e.target.checked) {
+        icon.className = 'fas fa-volume-up';
+        icon.style.color = '#4285F4';
+    } else {
+        icon.className = 'fas fa-volume-mute';
+        icon.style.color = '#999';
+    }
+});
+
 function closeSideNav() { sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
 // --- Driver Status ---
@@ -126,10 +143,24 @@ function listenForRequests() {
     const q = query(collection(db, "trips"), where("status", "==", "pending"));
     unsubscribeFromRequests = onSnapshot(q, (snapshot) => {
         if (activeTripId) { requestsList.innerHTML = '<p>Completando un viaje...</p>'; return; }
+        
+        const previousRequestCount = requestsList.children.length;
         clearRequestMarkers();
         requestsList.innerHTML = '';
-        if (snapshot.empty) { requestsList.innerHTML = '<p>No hay solicitudes pendientes.</p>'; return; }
+        
+        if (snapshot.empty) { 
+            requestsList.innerHTML = '<p>No hay solicitudes pendientes.</p>'; 
+            return; 
+        }
+        
         snapshot.forEach((doc) => createRequestCard(doc.data(), doc.id));
+        
+        // Reproducir sonido si hay nuevas solicitudes
+        const currentRequestCount = snapshot.size;
+        if (currentRequestCount > previousRequestCount && onlineToggle.checked) {
+            playNotificationSound();
+            showNotificationToast('¡Nueva solicitud de viaje!');
+        }
     });
 }
 
@@ -436,4 +467,88 @@ function showNotifications() {
     `;
     document.body.appendChild(notificationModal);
     closeSideNav();
+}
+
+// --- Audio Notifications ---
+function initializeNotificationSound() {
+    // Crear un sonido de notificación usando Web Audio API
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        notificationSound = createNotificationTone(audioContext);
+    } catch (error) {
+        console.log("Audio context not supported, using fallback");
+        // Fallback: usar un archivo de audio externo
+        notificationSound = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.wav');
+    }
+}
+
+function createNotificationTone(audioContext) {
+    // Crear un tono de notificación simple
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    return {
+        play: () => {
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+    };
+}
+
+function playNotificationSound() {
+    if (notificationSound && soundToggle.checked) {
+        try {
+            notificationSound.play();
+        } catch (error) {
+            console.log("Could not play notification sound:", error);
+        }
+    }
+}
+
+function showNotificationToast(message) {
+    // Crear y mostrar una notificación toast
+    const toast = document.createElement('div');
+    toast.className = 'notification-toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4285F4;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 1000;
+        font-weight: 500;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Animar entrada
+    setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 3000);
 }

@@ -33,6 +33,7 @@ Una aplicación completa de transporte que conecta conductores con usuarios, sim
 - **👨‍💼 Información del conductor** - Ver datos del conductor asignado
 - **🚙 Información del vehículo** - Marca, modelo, color, placa
 - **⭐ Sistema de calificación** - Calificar al conductor después del viaje
+- **🔊 Notificaciones sonoras** - Sonido cuando el viaje es aceptado
 
 ### 🚗 Interfaz del Conductor (driver/)
 
@@ -52,6 +53,7 @@ Una aplicación completa de transporte que conecta conductores con usuarios, sim
 - **📍 Compartir ubicación** - Ubicación en tiempo real
 - **▶️/⏹️ Control de viaje** - Iniciar y finalizar viajes
 - **📊 Estadísticas** - Número de viajes y calificación promedio
+- **🔊 Notificaciones sonoras** - Sonido cuando llega una nueva solicitud
 
 ## Funcionalidades de Menú Implementadas
 
@@ -70,6 +72,30 @@ Una aplicación completa de transporte que conecta conductores con usuarios, sim
 - [x] **Gestión de vehículo** - Formulario para actualizar información
 - [x] **Sistema de notificaciones** - Modal de notificaciones
 - [x] **Cerrar sesión** - Funcionalidad completa
+
+## 🔊 Sistema de Notificaciones Sonoras
+
+### Características Implementadas
+- **🔊 Notificaciones automáticas** - Sonidos generados con Web Audio API
+- **🎵 Tono personalizado** - Frecuencias específicas para cada tipo de notificación
+- **🔇 Control de volumen** - Toggle para activar/desactivar sonidos
+- **📱 Notificaciones toast** - Mensajes visuales acompañados de sonido
+- **🔄 Fallback robusto** - Sistema alternativo si Web Audio API no está disponible
+
+### Cuándo se Reproducen
+#### Para Conductores:
+- **🆕 Nueva solicitud de viaje** - Cuando llega una solicitud pendiente
+- **📱 Solicitudes en tiempo real** - Solo cuando está en modo "En línea"
+
+#### Para Usuarios:
+- **✅ Viaje aceptado** - Cuando un conductor acepta la solicitud
+- **🎉 Confirmación visual** - Toast notification con mensaje de confirmación
+
+### Controles de Audio
+- **🔊 Toggle de sonido** - Control visible en ambas interfaces
+- **🎛️ Icono dinámico** - Cambia entre volumen activo/mudo
+- **💾 Persistencia** - El estado se mantiene durante la sesión
+- **🎨 Feedback visual** - Color del icono indica el estado
 
 ## Tecnologías Utilizadas
 
