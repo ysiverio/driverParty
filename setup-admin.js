@@ -3,6 +3,7 @@
 
 import { 
     auth, 
+    db,
     createUserWithEmailAndPassword,
     doc,
     setDoc,

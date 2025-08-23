@@ -1,13 +1,26 @@
 // Importaciones
-import { initializeApp } from '../firebase-config.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from '../firebase-config.js';
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp } from '../firebase-config.js';
+import { 
+    auth, 
+    db,
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    onAuthStateChanged, 
+    signOut,
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    getDoc, 
+    getDocs, 
+    query, 
+    where, 
+    orderBy, 
+    serverTimestamp, 
+    Timestamp 
+} from '../firebase-config.js';
 import { APP_CONFIG, PricingCalculator, ValidationUtils, FormatUtils, UIUtils } from '../config.js';
-
-// Inicialización de Firebase
-const app = initializeApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
 
 // Variables globales
 let currentUser = null;
