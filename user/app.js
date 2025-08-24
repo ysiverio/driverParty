@@ -812,7 +812,7 @@ async function confirmTripPayment(request) {
             estimatedDistance: request.estimatedDistance,
             estimatedFare: request.estimatedFare,
             paymentMethod: paymentMethod,
-            requestId: currentTripRequestId
+            tripRequestId: currentTripRequestId
         };
         
         const tripRef = await addDoc(collection(db, "trips"), tripData);
@@ -1355,8 +1355,8 @@ function startUserNavigationViewUpdates() {
         // Mantener zoom y centrar en la ruta activa
         if (userMarker && driverMarker) {
             const bounds = new google.maps.LatLngBounds();
-            bounds.extend(userMarker.getPosition());
-            bounds.extend(driverMarker.getPosition());
+            bounds.extend(getMarkerPosition(userMarker));
+            bounds.extend(getMarkerPosition(driverMarker));
             map.fitBounds(bounds, 80);
         }
     }, 5000);
@@ -1693,4 +1693,22 @@ function createCustomMarker(position, map, title, color = '#4285f4', emoji = '')
             title: title
         });
     }
+}
+
+// Helper function para obtener la posición de marcadores compatibles
+function getMarkerPosition(marker) {
+    if (!marker) return null;
+    
+    if (marker && typeof marker.getPosition === 'function') {
+        // Marker tradicional
+        return marker.getPosition();
+    } else if (marker && marker.position) {
+        // AdvancedMarkerElement
+        return marker.position;
+    } else if (marker && marker.latLng) {
+        // Otro tipo de marcador
+        return marker.latLng;
+    }
+    
+    return null;
 }

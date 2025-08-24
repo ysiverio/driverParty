@@ -891,27 +891,35 @@ async function updateTripStatus(status) {
     if (!activeTripId) return;
     await updateDoc(doc(db, "tripRequests", activeTripId), { status });
     if (status === 'completed') {
-        // Update driver's aggregate rating
-        const tripRef = doc(db, "tripRequests", activeTripId);
-        const tripDoc = await getDoc(tripRef);
-        const tripData = tripDoc.data();
-        const rating = tripData.rating || 0; // Get rating from trip document
-
-        if (rating > 0) { // Only update if a rating was given
-            const driverRef = doc(db, "drivers", currentUser.uid);
-            const driverDoc = await getDoc(driverRef);
-            let newNumTrips = 1;
-            let newTotalStars = rating;
-
-            if (driverDoc.exists()) {
-                newNumTrips = (driverDoc.data().numTrips || 0) + 1;
-                newTotalStars = (driverDoc.data().totalStars || 0) + rating;
-            }
-            await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
-            updateDriverRatingDisplay(); // Refresh display
+        // Buscar el rating en la colección trips
+        try {
+            const tripsQuery = query(collection(db, "trips"), where("tripRequestId", "==", activeTripId));
+            const tripsSnapshot = await getDocs(tripsQuery);
             
-            // Mostrar notificación de calificación recibida
-            showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
+            if (!tripsSnapshot.empty) {
+                const tripDoc = tripsSnapshot.docs[0];
+                const tripData = tripDoc.data();
+                const rating = tripData.rating || 0; // Get rating from trip document
+
+                if (rating > 0) { // Only update if a rating was given
+                    const driverRef = doc(db, "drivers", currentUser.uid);
+                    const driverDoc = await getDoc(driverRef);
+                    let newNumTrips = 1;
+                    let newTotalStars = rating;
+
+                    if (driverDoc.exists()) {
+                        newNumTrips = (driverDoc.data().numTrips || 0) + 1;
+                        newTotalStars = (driverDoc.data().totalStars || 0) + rating;
+                    }
+                    await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
+                    updateDriverRatingDisplay(); // Refresh display
+                    
+                    // Mostrar notificación de calificación recibida
+                    showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
+                }
+            }
+        } catch (error) {
+            console.error("Error checking for rating:", error);
         }
         resetTripState();
     }
