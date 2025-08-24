@@ -82,15 +82,153 @@ let navigationMode = false; // Modo de navegación activo
 let originalZoom = 14; // Zoom original del mapa
 let navigationZoom = 18; // Zoom para navegación
 
+// --- Persistencia de Estado ---
+const TRIP_STORAGE_KEY = 'driverParty_driver_trip_state';
+const SESSION_STORAGE_KEY = 'driverParty_driver_session';
+
+// Función para guardar el estado del viaje
+function saveTripState() {
+    const tripState = {
+        activeTripId,
+        navigationMode,
+        timestamp: Date.now()
+    };
+    
+    try {
+        localStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(tripState));
+        console.log('Estado del viaje guardado:', tripState);
+    } catch (error) {
+        console.error('Error guardando estado del viaje:', error);
+    }
+}
+
+// Función para cargar el estado del viaje
+function loadTripState() {
+    try {
+        const savedState = localStorage.getItem(TRIP_STORAGE_KEY);
+        if (savedState) {
+            const tripState = JSON.parse(savedState);
+            
+            // Verificar si el estado no es muy antiguo (máximo 24 horas)
+            const isRecent = (Date.now() - tripState.timestamp) < (24 * 60 * 60 * 1000);
+            
+            if (isRecent) {
+                activeTripId = tripState.activeTripId;
+                navigationMode = tripState.navigationMode;
+                
+                console.log('Estado del viaje cargado:', tripState);
+                return true;
+            } else {
+                // Estado muy antiguo, limpiarlo
+                clearTripState();
+                console.log('Estado del viaje muy antiguo, limpiado');
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando estado del viaje:', error);
+        clearTripState();
+    }
+    return false;
+}
+
+// Función para limpiar el estado del viaje
+function clearTripState() {
+    try {
+        localStorage.removeItem(TRIP_STORAGE_KEY);
+        console.log('Estado del viaje limpiado');
+    } catch (error) {
+        console.error('Error limpiando estado del viaje:', error);
+    }
+}
+
+// Función para verificar y restaurar viaje en curso
+async function checkAndRestoreActiveTrip() {
+    if (!currentUser) return;
+    
+    const hasActiveTrip = loadTripState();
+    if (!hasActiveTrip) return;
+    
+    console.log('Verificando viaje en curso...');
+    
+    // Verificar si el viaje aún existe en Firestore
+    if (activeTripId) {
+        try {
+            const tripDoc = await getDoc(doc(db, "tripRequests", activeTripId));
+            if (tripDoc.exists()) {
+                const tripData = tripDoc.data();
+                
+                // Si el viaje no está completado o cancelado, restaurarlo
+                if (tripData.status !== 'completed' && tripData.status !== 'cancelled' && tripData.status !== 'expired') {
+                    console.log('Restaurando viaje en curso:', activeTripId);
+                    await restoreActiveTrip(tripData);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error verificando viaje:', error);
+        }
+    }
+    
+    // Si no hay viaje válido, limpiar estado
+    console.log('No se encontró viaje válido, limpiando estado');
+    clearTripState();
+    resetTripState();
+}
+
+// Función para restaurar un viaje activo
+async function restoreActiveTrip(tripData) {
+    try {
+        // Restaurar UI del viaje
+        requestsPanel.style.display = 'none';
+        tripPanel.style.display = 'block';
+        tripClientName.textContent = tripData.userName;
+        
+        // Restaurar marcador del usuario
+        const userLocation = tripData.originCoords || tripData.userLocation;
+        if (userLocation) {
+            userMarker = createCustomMarker(userLocation, map, tripData.userName, '#4285f4');
+        }
+        
+        // Obtener ubicación actual del driver
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            calculateAndDisplayRoute(location, userLocation);
+            startSharingLocation(location);
+        }, (err) => console.error("Geolocation error:", err));
+        
+        // Activar modo navegación si el viaje está en progreso
+        if (tripData.status === 'in_progress' && !navigationMode) {
+            activateNavigationMode(userLocation);
+        }
+        
+        // Escuchar si el usuario rechaza el viaje
+        listenForTripRejection(activeTripId);
+        
+        showNotificationToast('Viaje en curso restaurado');
+        console.log('Viaje restaurado exitosamente');
+        
+    } catch (error) {
+        console.error('Error restaurando viaje:', error);
+        clearTripState();
+        resetTripState();
+    }
+}
+
 // --- Authentication ---
 onAuthStateChanged(auth, async (user) => {
     if (user) { 
         currentUser = user; 
         await checkDriverStatus(user);
+        
+        // Verificar si hay un viaje en curso al iniciar sesión
+        setTimeout(async () => {
+            await checkAndRestoreActiveTrip();
+        }, 2000); // Esperar 2 segundos para que el mapa se inicialice
     }
     else { 
         currentUser = null; 
         setupUIForLoggedOutUser(); 
+        clearTripState(); // Limpiar estado al cerrar sesión
     }
 });
 
@@ -675,6 +813,9 @@ async function acceptTrip(tripId) {
         
         // Escuchar si el usuario rechaza el viaje
         listenForTripRejection(tripId);
+        
+        // Guardar estado del viaje
+        saveTripState();
     } catch (error) { console.error("Error accepting trip: ", error); activeTripId = null; }
 }
 
@@ -787,6 +928,9 @@ function activateNavigationMode(userLocation) {
     
     // Configurar actualización automática de vista
     startNavigationViewUpdates();
+    
+    // Guardar estado del viaje
+    saveTripState();
 }
 
 function showNavigationIndicator() {
@@ -1010,6 +1154,9 @@ function resetTripState(isLogout = false) {
         onlineToggle.checked = false;
         goOffline();
     }
+    
+    // Limpiar estado persistente
+    clearTripState();
 }
 
 // --- Vehicle Management ---

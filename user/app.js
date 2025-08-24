@@ -105,6 +105,202 @@ let destinationLocation = null;
 let originalZoom = 15; // Zoom original del mapa
 let navigationZoom = 18; // Zoom para navegación
 
+// --- Persistencia de Estado ---
+const TRIP_STORAGE_KEY = 'driverParty_user_trip_state';
+const SESSION_STORAGE_KEY = 'driverParty_user_session';
+
+// Función para guardar el estado del viaje
+function saveTripState() {
+    const tripState = {
+        currentTripId,
+        currentTripRequestId,
+        currentTripDriverId,
+        navigationMode,
+        timestamp: Date.now()
+    };
+    
+    try {
+        localStorage.setItem(TRIP_STORAGE_KEY, JSON.stringify(tripState));
+        console.log('Estado del viaje guardado:', tripState);
+    } catch (error) {
+        console.error('Error guardando estado del viaje:', error);
+    }
+}
+
+// Función para cargar el estado del viaje
+function loadTripState() {
+    try {
+        const savedState = localStorage.getItem(TRIP_STORAGE_KEY);
+        if (savedState) {
+            const tripState = JSON.parse(savedState);
+            
+            // Verificar si el estado no es muy antiguo (máximo 24 horas)
+            const isRecent = (Date.now() - tripState.timestamp) < (24 * 60 * 60 * 1000);
+            
+            if (isRecent) {
+                currentTripId = tripState.currentTripId;
+                currentTripRequestId = tripState.currentTripRequestId;
+                currentTripDriverId = tripState.currentTripDriverId;
+                navigationMode = tripState.navigationMode;
+                
+                console.log('Estado del viaje cargado:', tripState);
+                return true;
+            } else {
+                // Estado muy antiguo, limpiarlo
+                clearTripState();
+                console.log('Estado del viaje muy antiguo, limpiado');
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando estado del viaje:', error);
+        clearTripState();
+    }
+    return false;
+}
+
+// Función para limpiar el estado del viaje
+function clearTripState() {
+    try {
+        localStorage.removeItem(TRIP_STORAGE_KEY);
+        console.log('Estado del viaje limpiado');
+    } catch (error) {
+        console.error('Error limpiando estado del viaje:', error);
+    }
+}
+
+// Función para verificar y restaurar viaje en curso
+async function checkAndRestoreActiveTrip() {
+    if (!currentUser) return;
+    
+    const hasActiveTrip = loadTripState();
+    if (!hasActiveTrip) return;
+    
+    console.log('Verificando viaje en curso...');
+    
+    // Verificar si el viaje aún existe en Firestore
+    if (currentTripId) {
+        try {
+            const tripDoc = await getDoc(doc(db, "trips", currentTripId));
+            if (tripDoc.exists()) {
+                const tripData = tripDoc.data();
+                
+                // Si el viaje no está completado o cancelado, restaurarlo
+                if (tripData.status !== 'completed' && tripData.status !== 'cancelled') {
+                    console.log('Restaurando viaje en curso:', currentTripId);
+                    await restoreActiveTrip(tripData);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error verificando viaje:', error);
+        }
+    }
+    
+    // Verificar si hay solicitud de viaje activa
+    if (currentTripRequestId) {
+        try {
+            const requestDoc = await getDoc(doc(db, "tripRequests", currentTripRequestId));
+            if (requestDoc.exists()) {
+                const requestData = requestDoc.data();
+                
+                // Si la solicitud no está completada o cancelada, restaurarla
+                if (requestData.status !== 'completed' && requestData.status !== 'cancelled' && requestData.status !== 'expired') {
+                    console.log('Restaurando solicitud de viaje:', currentTripRequestId);
+                    await restoreActiveTripRequest(requestData);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error verificando solicitud de viaje:', error);
+        }
+    }
+    
+    // Si no hay viaje válido, limpiar estado
+    console.log('No se encontró viaje válido, limpiando estado');
+    clearTripState();
+    resetTripState();
+}
+
+// Función para restaurar un viaje activo
+async function restoreActiveTrip(tripData) {
+    try {
+        // Restaurar UI del viaje
+        tripPanel.style.display = 'block';
+        requestPanel.style.display = 'none';
+        
+        // Actualizar UI con datos del viaje
+        updateTripUI(tripData);
+        
+        // Restaurar información del conductor si existe
+        if (tripData.driverInfo && !hasShownDriverInfo) {
+            displayDriverInfo(tripData.driverInfo);
+        }
+        
+        // Restaurar ruta si existe
+        if (tripData.routePolyline) {
+            drawRoute(tripData.routePolyline);
+        }
+        
+        // Restaurar marcador del conductor si existe
+        if (tripData.driverLocation) {
+            updateDriverMarker(tripData.driverLocation);
+        }
+        
+        // Activar modo navegación si el viaje está en progreso
+        if (tripData.status === 'in_progress' && !navigationMode) {
+            activateNavigationMode();
+        }
+        
+        // Reconectar listener del viaje
+        listenToTripUpdates(currentTripId);
+        
+        showNotificationToast('Viaje en curso restaurado');
+        console.log('Viaje restaurado exitosamente');
+        
+    } catch (error) {
+        console.error('Error restaurando viaje:', error);
+        clearTripState();
+        resetTripState();
+    }
+}
+
+// Función para restaurar una solicitud de viaje activa
+async function restoreActiveTripRequest(requestData) {
+    try {
+        // Restaurar UI de la solicitud
+        requestPanel.style.display = 'none';
+        tripInfoContainer.style.display = 'block';
+        
+        // Actualizar estado de la solicitud
+        if (requestData.status === 'accepted') {
+            tripStatusHeading.textContent = 'Conductor Encontrado';
+            tripStatusDetails.textContent = 'Por favor, confirma los detalles y el pago para comenzar.';
+            
+            // Obtener información del conductor
+            const driverRef = doc(db, "drivers", requestData.driverId);
+            const driverDoc = await getDoc(driverRef);
+            const driverData = driverDoc.exists() ? driverDoc.data() : {};
+            
+            // Mostrar modal de confirmación de pago
+            showPaymentConfirmationModal(requestData, driverData);
+        } else {
+            tripStatusHeading.textContent = 'Buscando Conductor';
+            tripStatusDetails.textContent = 'Estamos buscando un conductor disponible...';
+        }
+        
+        // Reconectar listener de la solicitud
+        listenToTripRequestUpdates(currentTripRequestId);
+        
+        showNotificationToast('Solicitud de viaje restaurada');
+        console.log('Solicitud de viaje restaurada exitosamente');
+        
+    } catch (error) {
+        console.error('Error restaurando solicitud de viaje:', error);
+        clearTripState();
+        resetTripState();
+    }
+}
+
 // --- Authentication ---
 console.log("Setting up onAuthStateChanged listener.");
 onAuthStateChanged(auth, (user) => {
@@ -112,9 +308,15 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
         setupUIForLoggedInUser(user);
+        
+        // Verificar si hay un viaje en curso al iniciar sesión
+        setTimeout(async () => {
+            await checkAndRestoreActiveTrip();
+        }, 2000); // Esperar 2 segundos para que el mapa se inicialice
     } else {
         currentUser = null;
         setupUIForLoggedOutUser();
+        clearTripState(); // Limpiar estado al cerrar sesión
     }
 });
 
@@ -379,6 +581,9 @@ if (requestDriverButton) {
             tripPanel.style.display = 'block';
             listenToTripRequestUpdates(currentTripRequestId);
             
+            // Guardar estado del viaje
+            saveTripState();
+            
         } catch (e) { 
             console.error("Error requesting trip: ", e);
             showNotificationToast(e.message || 'Error al solicitar viaje.', 'error');
@@ -477,6 +682,9 @@ async function confirmTripPayment(request) {
 
         // Iniciar el listener para el VIAJE real
         listenToTripUpdates(currentTripId);
+        
+        // Guardar estado del viaje
+        saveTripState();
 
     } catch (error) {
         console.error("Error confirming trip payment:", error);
@@ -616,9 +824,12 @@ function resetTripState() {
     driverDetailsContainer.style.display = 'none';
     if (driverMarker) driverMarker.setMap(null);
     if (tripRoutePolyline) tripRoutePolyline.setMap(null);
-    driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null; hasShownDriverInfo = false;
+    driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripRequestId = null; currentTripDriverId = null; hasShownDriverInfo = false;
     deactivateUserNavigationMode();
     closeDriverCard();
+    
+    // Limpiar estado persistente
+    clearTripState();
 }
 
 // --- Rating Logic ---
@@ -720,6 +931,9 @@ function activateNavigationMode() {
     map.setZoom(navigationZoom);
     showUserNavigationIndicator();
     startUserNavigationViewUpdates();
+    
+    // Guardar estado del viaje
+    saveTripState();
 }
 
 function showUserNavigationIndicator() {
