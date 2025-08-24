@@ -528,23 +528,30 @@ if (requestDriverButton) {
 
             if (destinationInput.dataset.placeId) {
                 try {
-                    // Usar la nueva API de Place en lugar de PlacesService
-                    const place = await google.maps.places.Place.fetchPlace({
-                        placeId: destinationInput.dataset.placeId,
-                        fields: ['geometry']
+                    // Intentar usar PlacesService (método tradicional pero funcional)
+                    const placesService = new google.maps.places.PlacesService(map);
+                    
+                    const placeResult = await new Promise((resolve, reject) => {
+                        placesService.getDetails({ 
+                            placeId: destinationInput.dataset.placeId, 
+                            fields: ['geometry'] 
+                        }, (place, status) => {
+                            if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
+                                resolve(place.geometry.location);
+                            } else {
+                                reject(new Error('No se pudo obtener los detalles del lugar.'));
+                            }
+                        });
                     });
                     
-                    if (place.geometry && place.geometry.location) {
-                        destinationLocation = { 
-                            lat: place.geometry.location.lat, 
-                            lng: place.geometry.location.lng 
-                        };
-                    } else {
-                        throw new Error('No se pudo obtener los detalles del lugar.');
-                    }
+                    destinationLocation = { 
+                        lat: placeResult.lat(), 
+                        lng: placeResult.lng() 
+                    };
+                    
                 } catch (error) {
-                    console.warn('Error usando Place.fetchPlace, fallback a geocodificación:', error);
-                    // Fallback a geocodificación si Place.fetchPlace falla
+                    console.warn('Error usando PlacesService, fallback a geocodificación:', error);
+                    // Fallback a geocodificación si PlacesService falla
                     const geocoder = new google.maps.Geocoder();
                     const geocodeResult = await geocoder.geocode({ 
                         address: destinationInput.value, 
