@@ -244,7 +244,25 @@ document.addEventListener('map-ready', () => {
 function initMap(location) {
     console.log("initMap() called with location:", location);
     map = new google.maps.Map(document.getElementById('map'), { center: location, zoom: 15, disableDefaultUI: true });
-    userMarker = new google.maps.Marker({ position: location, map: map, title: 'Tu ubicación' });
+            // Usar AdvancedMarkerElement en lugar de Marker deprecado
+        const userMarkerElement = document.createElement('div');
+        userMarkerElement.innerHTML = `
+            <div style="
+                width: 20px; 
+                height: 20px; 
+                background-color: #4285f4; 
+                border: 2px solid white; 
+                border-radius: 50%; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;
+            "></div>
+        `;
+        userMarker = new google.maps.marker.AdvancedMarkerElement({
+            position: location,
+            map: map,
+            title: 'Tu ubicación',
+            content: userMarkerElement
+        });
     console.log("Map and user marker initialized.");
 }
 
@@ -290,6 +308,13 @@ if (requestDriverButton) {
     // Validar que se haya ingresado origen y destino
     const originInput = document.getElementById('origin-input');
     const destinationInput = document.getElementById('destination-input');
+    
+    // Verificar que los elementos existen
+    if (!originInput || !destinationInput) {
+        console.error('Elementos de entrada no encontrados');
+        alert('Error: No se encontraron los campos de entrada');
+        return;
+    }
     
     if (!originInput.value || !destinationInput.value) {
         alert('Por favor ingresa origen y destino');
@@ -679,7 +704,31 @@ function updateDriverMarker(location) {
     console.log("updateDriverMarker called with location:", location);
     const pos = new google.maps.LatLng(location.lat, location.lng);
     if (!driverMarker) {
-        driverMarker = new google.maps.Marker({ position: pos, map: map, title: 'Tu Conductor', icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" } });
+        // Usar AdvancedMarkerElement en lugar de Marker deprecado
+        const driverMarkerElement = document.createElement('div');
+        driverMarkerElement.innerHTML = `
+            <div style="
+                width: 24px; 
+                height: 24px; 
+                background-color: #34a853; 
+                border: 2px solid white; 
+                border-radius: 50%; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                color: white;
+                font-weight: bold;
+            ">🚗</div>
+        `;
+        driverMarker = new google.maps.marker.AdvancedMarkerElement({
+            position: pos,
+            map: map,
+            title: 'Tu Conductor',
+            content: driverMarkerElement
+        });
     } else { driverMarker.setPosition(pos); }
     updateMapBounds();
 }

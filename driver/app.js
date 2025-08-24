@@ -489,7 +489,28 @@ function createRequestCard(trip, tripId) {
 }
 
 requestsList.addEventListener('click', (e) => { if (e.target.classList.contains('accept-button')) acceptTrip(e.target.dataset.id); });
-function addRequestMarker(position, title) { const marker = new google.maps.Marker({ position, map, title }); requestMarkers[title] = marker; }
+function addRequestMarker(position, title) { 
+    // Usar AdvancedMarkerElement en lugar de Marker deprecado
+    const markerElement = document.createElement('div');
+    markerElement.innerHTML = `
+        <div style="
+            width: 20px; 
+            height: 20px; 
+            background-color: #ea4335; 
+            border: 2px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        "></div>
+    `;
+    const marker = new google.maps.marker.AdvancedMarkerElement({ 
+        position, 
+        map, 
+        title,
+        content: markerElement
+    }); 
+    requestMarkers[title] = marker; 
+}
 function clearRequestMarkers() { Object.values(requestMarkers).forEach(marker => marker.setMap(null)); requestMarkers = {}; }
 
 // --- Accept & Manage Trip ---
@@ -512,7 +533,25 @@ async function acceptTrip(tripId) {
         tripPanel.style.display = 'block';
         tripClientName.textContent = tripData.userName;
         clearRequestMarkers();
-        userMarker = new google.maps.Marker({ position: tripData.userLocation, map, title: tripData.userName });
+        // Usar AdvancedMarkerElement en lugar de Marker deprecado
+        const userMarkerElement = document.createElement('div');
+        userMarkerElement.innerHTML = `
+            <div style="
+                width: 20px; 
+                height: 20px; 
+                background-color: #4285f4; 
+                border: 2px solid white; 
+                border-radius: 50%; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                cursor: pointer;
+            "></div>
+        `;
+        userMarker = new google.maps.marker.AdvancedMarkerElement({ 
+            position: tripData.userLocation, 
+            map, 
+            title: tripData.userName,
+            content: userMarkerElement
+        });
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             calculateAndDisplayRoute(location, tripData.userLocation);
@@ -763,17 +802,23 @@ async function updateTripStatus(status) {
 // --- Location & Map Updates ---
 function startSharingLocation(initialLocation) {
     if (driverMarker) driverMarker.setMap(null);
-    driverMarker = new google.maps.Marker({ 
+    // Usar AdvancedMarkerElement en lugar de Marker deprecado
+    const driverMarkerElement = document.createElement('div');
+    driverMarkerElement.innerHTML = `
+        <div style="
+            width: 16px; 
+            height: 16px; 
+            background-color: #4285F4; 
+            border: 2px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        "></div>
+    `;
+    driverMarker = new google.maps.marker.AdvancedMarkerElement({ 
         position: initialLocation, 
-        map: map, 
-        icon: { 
-            path: google.maps.SymbolPath.CIRCLE, 
-            scale: 8, 
-            fillColor: "#4285F4", 
-            fillOpacity: 1, 
-            strokeWeight: 2, 
-            strokeColor: "white" 
-        } 
+        map: map,
+        content: driverMarkerElement
     });
     
     if (navigationMode) {
