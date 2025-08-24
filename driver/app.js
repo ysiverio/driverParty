@@ -259,8 +259,9 @@ logoutButton.addEventListener('click', () => {
     signOut(auth).catch(err => console.error("Sign Out Error:", err));
 });
 
-// Exponer signOut globalmente para las vistas de rechazado/suspendido
+// Exponer signOut y auth globalmente para las vistas de rechazado/suspendido
 window.signOut = signOut;
+window.auth = auth;
 
 // --- Registration Form Events ---
 const registrationForm = document.getElementById('driver-registration-form');
