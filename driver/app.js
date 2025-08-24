@@ -482,7 +482,7 @@ function goOffline() { onlineStatus.textContent = 'Desconectado'; onlineStatus.s
 
 // --- Ride Request Listening ---
 function listenForRequests() {
-    const q = query(collection(db, "trips"), where("status", "==", "pending"));
+    const q = query(collection(db, "tripRequests"), where("status", "==", "pending"));
     unsubscribeFromRequests = onSnapshot(q, (snapshot) => {
         if (activeTripId) { requestsList.innerHTML = '<p>Completando un viaje...</p>'; return; }
         
@@ -510,7 +510,13 @@ function createRequestCard(trip, tripId) {
     const card = document.createElement('div');
     card.className = 'request-card';
     card.innerHTML = `<h4>${trip.userName || 'Usuario'}</h4><button class="accept-button" data-id="${tripId}">Aceptar</button>`;
-    addRequestMarker(trip.userLocation, trip.userName);
+    
+    // Usar originCoords en lugar de userLocation
+    const userLocation = trip.originCoords || trip.userLocation;
+    if (userLocation) {
+        addRequestMarker(userLocation, trip.userName);
+    }
+    
     requestsList.appendChild(card);
 }
 
@@ -525,7 +531,7 @@ function clearRequestMarkers() { Object.values(requestMarkers).forEach(marker =>
 async function acceptTrip(tripId) {
     if (activeTripId) return;
     activeTripId = tripId;
-    const tripRef = doc(db, "trips", tripId);
+    const tripRef = doc(db, "tripRequests", tripId);
     const driverRef = doc(db, "drivers", currentUser.uid);
     try {
         const driverDoc = await getDoc(driverRef);
@@ -534,18 +540,21 @@ async function acceptTrip(tripId) {
         const tripDoc = await getDoc(tripRef);
         const tripData = tripDoc.data();
         
+        // Usar originCoords en lugar de userLocation
+        const userLocation = tripData.originCoords || tripData.userLocation;
+        
         // Activar modo de navegación
-        activateNavigationMode(tripData.userLocation);
+        activateNavigationMode(userLocation);
         
         requestsPanel.style.display = 'none';
         tripPanel.style.display = 'block';
         tripClientName.textContent = tripData.userName;
         clearRequestMarkers();
         // Crear marcador con fallback para compatibilidad
-        userMarker = createCustomMarker(tripData.userLocation, map, tripData.userName, '#4285f4');
+        userMarker = createCustomMarker(userLocation, map, tripData.userName, '#4285f4');
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            calculateAndDisplayRoute(location, tripData.userLocation);
+            calculateAndDisplayRoute(location, userLocation);
             startSharingLocation(location);
         }, (err) => console.error("Geolocation error:", err));
     } catch (error) { console.error("Error accepting trip: ", error); activeTripId = null; }
@@ -555,7 +564,7 @@ function calculateAndDisplayRoute(origin, destination) {
     directionsService.route({ origin, destination, travelMode: 'DRIVING' }, (result, status) => {
         if (status === 'OK') {
             directionsRenderer.setDirections(result);
-            updateDoc(doc(db, "trips", activeTripId), { routePolyline: result.routes[0].overview_polyline });
+            updateDoc(doc(db, "tripRequests", activeTripId), { routePolyline: result.routes[0].overview_polyline });
             
             // Mostrar información de la ruta
             const route = result.routes[0];
@@ -762,10 +771,10 @@ toggleNavigationBtn.addEventListener('click', toggleNavigationMode);
 
 async function updateTripStatus(status) {
     if (!activeTripId) return;
-    await updateDoc(doc(db, "trips", activeTripId), { status });
+    await updateDoc(doc(db, "tripRequests", activeTripId), { status });
     if (status === 'completed') {
         // Update driver's aggregate rating
-        const tripRef = doc(db, "trips", activeTripId);
+        const tripRef = doc(db, "tripRequests", activeTripId);
         const tripDoc = await getDoc(tripRef);
         const tripData = tripDoc.data();
         const rating = tripData.rating || 0; // Get rating from trip document
@@ -805,7 +814,7 @@ function startSharingLocation(initialLocation) {
     
     locationWatcherId = navigator.geolocation.watchPosition((pos) => {
         const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        updateDoc(doc(db, "trips", activeTripId), { driverLocation });
+        updateDoc(doc(db, "tripRequests", activeTripId), { driverLocation });
         driverMarker.setPosition(driverLocation);
         
         if (navigationMode) {
@@ -934,7 +943,7 @@ async function showTripHistory() {
         // Primero intentar con consulta simple sin ordenar
         console.log("Intentando consulta simple...");
         const simpleQuery = query(
-            collection(db, "trips"), 
+            collection(db, "tripRequests"), 
             where("driverId", "==", currentUser.uid)
         );
         
@@ -1208,7 +1217,7 @@ async function updateRatingStats() {
                 // Intentar obtener distribución detallada de calificaciones
                 try {
                     const q = query(
-                        collection(db, "trips"), 
+                        collection(db, "tripRequests"), 
                         where("driverId", "==", currentUser.uid)
                     );
                     
