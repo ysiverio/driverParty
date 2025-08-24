@@ -677,7 +677,7 @@ async function confirmTripPayment(request) {
             destination: request.destination,
             originCoords: request.originCoords,
             destinationCoords: request.destinationCoords,
-            status: 'payment_confirmed',
+            status: 'accepted', // Cambiar a 'accepted' para que el conductor sepa que el pago está confirmado
             createdAt: serverTimestamp(),
             estimatedDistance: request.estimatedDistance,
             estimatedFare: request.estimatedFare,
@@ -688,16 +688,20 @@ async function confirmTripPayment(request) {
         const tripRef = await addDoc(collection(db, "trips"), tripData);
         currentTripId = tripRef.id;
         
-        // Actualizar la solicitud
+        // Actualizar la solicitud para notificar al conductor
         await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
             status: 'payment_confirmed',
             tripId: tripRef.id,
-            paymentMethod: paymentMethod
+            paymentMethod: paymentMethod,
+            paymentConfirmedAt: serverTimestamp()
         });
         
         // Cerrar modal y mostrar información del viaje
         document.getElementById('payment-confirmation-modal').style.display = 'none';
         tripPanel.style.display = 'block';
+        
+        // Mostrar notificación de éxito
+        showNotificationToast('Pago confirmado. Tu conductor está en camino.');
         
         // Escuchar actualizaciones del viaje
         listenToTripUpdates(currentTripId);
@@ -766,6 +770,8 @@ function getTripRequestStatusInfo(status) {
             return { statusText: 'Solicitud cancelada', details: 'La solicitud ha sido cancelada.' };
         case 'expired': 
             return { statusText: 'Solicitud expirada', details: 'La solicitud ha expirado.' };
+        case 'rejected': 
+            return { statusText: 'Solicitud rechazada', details: 'La solicitud ha sido rechazada.' };
         default: 
             return { statusText: 'Actualizando...', details: '' };
     }
@@ -812,6 +818,11 @@ function listenToTripUpdates(tripId) {
                 setTimeout(() => drawRoute(trip.routePolyline), 500);
             }
         }
+        else if (trip.status === 'payment_confirmed') {
+            console.log("Payment confirmed, updating UI.");
+            showNotificationToast('Pago confirmado. Tu conductor está en camino.');
+            updateTripUI(trip);
+        }
         else if (trip.status === 'in_progress' && !navigationMode) {
             console.log("Trip started, activating navigation mode.");
             activateNavigationMode();
@@ -847,6 +858,7 @@ function getStatusInfo(status) {
     switch (status) {
         case 'pending': return { statusText: 'Buscando conductor', details: 'Tu solicitud está siendo procesada.' };
         case 'accepted': return { statusText: 'Tu conductor está en camino', details: '' };
+        case 'payment_confirmed': return { statusText: 'Pago confirmado', details: 'Tu conductor está en camino.' };
         case 'in_progress': return { statusText: 'Viaje en curso', details: 'Disfruta tu viaje.' };
         case 'completed': return { statusText: 'Viaje completado', details: 'Gracias por viajar con nosotros.' };
         case 'cancelled': return { statusText: 'Viaje cancelado', details: 'Tu viaje ha sido cancelado.' };
@@ -1209,8 +1221,18 @@ async function showDriverCard(driverInfo) {
     // Obtener estadísticas del conductor
     await loadDriverStats(driverInfo.driverId || currentTripDriverId);
     
-    // Mostrar la card
+    // Mostrar la card con opción de cerrar
     driverCard.style.display = 'block';
+    
+    // Agregar botón de cerrar si no existe
+    if (!document.getElementById('driver-card-close-btn')) {
+        const closeBtn = document.createElement('button');
+        closeBtn.id = 'driver-card-close-btn';
+        closeBtn.className = 'driver-card-close-btn';
+        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        closeBtn.onclick = closeDriverCard;
+        driverCard.appendChild(closeBtn);
+    }
     
     // Animar entrada
     setTimeout(() => {
@@ -1312,6 +1334,12 @@ function closeDriverCard() {
     console.log("Closing driver card");
     driverCard.style.display = 'none';
     driverCard.classList.remove('minimized');
+    
+    // Eliminar botón de cerrar si existe
+    const closeBtn = document.getElementById('driver-card-close-btn');
+    if (closeBtn) {
+        closeBtn.remove();
+    }
     
     // Resetear el botón
     minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Minimizar';
