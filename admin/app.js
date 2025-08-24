@@ -631,20 +631,30 @@ function createPendingDriverCard(driverId, driver) {
 // Aprobar driver
 async function approveDriver(driverId) {
     try {
+        // Verificar que el usuario esté autenticado
+        if (!auth.currentUser) {
+            throw new Error('Usuario no autenticado');
+        }
+        
+        console.log('Usuario autenticado:', auth.currentUser.uid);
+        console.log('Intentando aprobar driver:', driverId);
+        
         await updateDoc(doc(db, "drivers", driverId), {
             status: 'approved',
             approvedAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            approvedBy: auth.currentUser.uid
         });
         
         // Recargar datos
         loadDriversData();
         
         console.log('Driver approved:', driverId);
+        UIUtils.showToast('Conductor aprobado exitosamente', 'success');
         
     } catch (error) {
         console.error('Error approving driver:', error);
-        alert('Error al aprobar el conductor');
+        UIUtils.showToast('Error al aprobar el conductor: ' + error.message, 'error');
     }
 }
 
@@ -654,21 +664,31 @@ async function rejectDriver(driverId) {
     if (!reason) return;
     
     try {
+        // Verificar que el usuario esté autenticado
+        if (!auth.currentUser) {
+            throw new Error('Usuario no autenticado');
+        }
+        
+        console.log('Usuario autenticado:', auth.currentUser.uid);
+        console.log('Intentando rechazar driver:', driverId);
+        
         await updateDoc(doc(db, "drivers", driverId), {
             status: 'rejected',
             rejectionReason: reason,
             rejectedAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            rejectedBy: auth.currentUser.uid
         });
         
         // Recargar datos
         loadDriversData();
         
         console.log('Driver rejected:', driverId);
+        UIUtils.showToast('Conductor rechazado exitosamente', 'success');
         
     } catch (error) {
         console.error('Error rejecting driver:', error);
-        alert('Error al rechazar el conductor');
+        UIUtils.showToast('Error al rechazar el conductor: ' + error.message, 'error');
     }
 }
 
