@@ -280,6 +280,26 @@ export class UIUtils {
             loadingElement.parentNode.removeChild(loadingElement);
         }
     }
+
+    // Función para ejecutar reCAPTCHA
+    static async executeRecaptcha(action = 'login') {
+        try {
+            if (typeof grecaptcha === 'undefined') {
+                console.warn('reCAPTCHA no está disponible');
+                return null;
+            }
+            
+            const token = await grecaptcha.enterprise.execute('6LfiK7ArAAAAAH1DaE9lH6icleja0zxoV3JqjaEH', {
+                action: action
+            });
+            
+            console.log('reCAPTCHA token obtenido para acción:', action);
+            return token;
+        } catch (error) {
+            console.error('Error ejecutando reCAPTCHA:', error);
+            return null;
+        }
+    }
     
     static confirmDialog(message, onConfirm, onCancel) {
         const dialog = document.createElement('div');

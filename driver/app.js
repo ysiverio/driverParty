@@ -85,9 +85,23 @@ onAuthStateChanged(auth, (user) => {
     else { currentUser = null; setupUIForLoggedOutUser(); }
 });
 
-loginButton.addEventListener('click', () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch(err => console.error("Auth Error:", err));
+loginButton.addEventListener('click', async () => {
+    try {
+        // Ejecutar reCAPTCHA antes del login
+        const recaptchaToken = await UIUtils.executeRecaptcha('driver_login');
+        
+        if (!recaptchaToken) {
+            alert('Error de verificación de seguridad. Por favor, intenta nuevamente.');
+            return;
+        }
+        
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        console.log('Login exitoso:', result.user);
+    } catch (error) {
+        console.error('Error en login:', error);
+        alert('Error al iniciar sesión: ' + error.message);
+    }
 });
 
 logoutButton.addEventListener('click', () => {

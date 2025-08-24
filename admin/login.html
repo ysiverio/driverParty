@@ -247,6 +247,15 @@
 
             try {
                 setLoading(true);
+                
+                // Ejecutar reCAPTCHA antes del login
+                const recaptchaToken = await executeRecaptcha('admin_login');
+                
+                if (!recaptchaToken) {
+                    showError('Error de verificación de seguridad. Por favor, intenta nuevamente.');
+                    return;
+                }
+                
                 await signInWithEmailAndPassword(auth, email, password);
                 // La redirección se maneja en onAuthStateChanged
             } catch (error) {
@@ -276,6 +285,26 @@
                 setLoading(false);
             }
         });
+        
+        // Función para ejecutar reCAPTCHA
+        async function executeRecaptcha(action = 'login') {
+            try {
+                if (typeof grecaptcha === 'undefined') {
+                    console.warn('reCAPTCHA no está disponible');
+                    return null;
+                }
+                
+                const token = await grecaptcha.enterprise.execute('6LfiK7ArAAAAAH1DaE9lH6icleja0zxoV3JqjaEH', {
+                    action: action
+                });
+                
+                console.log('reCAPTCHA token obtenido para acción:', action);
+                return token;
+            } catch (error) {
+                console.error('Error ejecutando reCAPTCHA:', error);
+                return null;
+            }
+        }
 
         // Manejar recuperación de contraseña
         forgotPassword.addEventListener('click', async (e) => {
@@ -323,5 +352,6 @@
             errorMessage.style.display = 'none';
         }
     </script>
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6LfiK7ArAAAAAH1DaE9lH6icleja0zxoV3JqjaEH"></script>
 </body>
 </html>

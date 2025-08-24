@@ -61,16 +61,23 @@ driverParty/
 - **Notificaciones**: Web Audio API
 
 ### 🔐 Sistema de Autenticación
-- **Conductores y Usuarios**: Google Sign-In
-- **Administración**: Email/Password con Firebase Auth
+- **Conductores y Usuarios**: Google Sign-In con reCAPTCHA Enterprise
+- **Administración**: Email/Password con Firebase Auth y reCAPTCHA Enterprise
 - **Recuperación de contraseña**: Sistema integrado
 - **Sesiones seguras**: Manejo automático de tokens
+- **Protección anti-bot**: reCAPTCHA Enterprise en todos los logins
 
 ### 🔥 Configuración de Firebase
 - **Reglas de Seguridad**: `firestore.rules` - Control de acceso a datos
 - **Índices Optimizados**: Crear manualmente en Firestore (ver sección de índices)
 - **Estructuras Iniciales**: `init-firebase.html` - Configuración por defecto
 - **Setup Administrador**: `setup-admin.html` - Crear usuario administrador
+
+### 🛡️ Seguridad con reCAPTCHA Enterprise
+- **Configuración**: `recaptcha-config.js` - Configuración centralizada
+- **Protección**: Implementado en todos los puntos de autenticación
+- **Acciones**: Diferentes niveles de seguridad por tipo de usuario
+- **Validación**: Sistema de puntuación para detectar bots
 - **Colecciones Principales**:
   - `users` - Datos de usuarios
   - `drivers` - Datos de conductores
@@ -118,21 +125,26 @@ cd driverParty
    - Habilitar Directions API
    - Habilitar Geocoding API
 
-4. **Actualizar configuración**
+4. **Configurar reCAPTCHA Enterprise**
+   - Configurar reCAPTCHA Enterprise en Google Cloud Console
+   - Verificar que la clave del sitio esté correcta en `recaptcha-config.js`
+   - Probar la funcionalidad en los puntos de autenticación
+
+5. **Actualizar configuración**
    - Editar `firebase-config.js` con tus credenciales
    - Agregar API Key de Google Maps en las interfaces
 
-5. **Configurar Firebase**
+6. **Configurar Firebase**
    - **Reglas de Seguridad**: Copiar el contenido de `firestore.rules` a la consola de Firebase
    - **Índices**: Crear manualmente los índices necesarios en Firestore (ver sección de índices)
    - **Estructuras de Datos**: Abrir `init-firebase.html` en el navegador y hacer clic en "Inicializar Firebase"
 
-6. **Configurar usuario administrador**
+7. **Configurar usuario administrador**
    - Abrir `setup-admin.html` en el navegador
    - Hacer clic en "Configurar Administrador"
    - Usar las credenciales generadas para acceder al panel
 
-7. **Ejecutar la aplicación**
+8. **Ejecutar la aplicación**
 ```bash
 # Usar servidor local (ejemplo con Python)
 python -m http.server 8000
