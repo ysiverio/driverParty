@@ -36,6 +36,102 @@
             </div>
         </div>
 
+        <!-- Driver Registration View (Overlay) -->
+        <div id="registration-view" class="overlay-container" style="display: none;">
+            <div class="registration-box">
+                <h2>Registro de Conductor</h2>
+                <p>Completa tu información para solicitar autorización como conductor.</p>
+                
+                <form id="driver-registration-form">
+                    <div class="form-section">
+                        <h3>Información Personal</h3>
+                        <div class="form-group">
+                            <label for="driver-name">Nombre Completo</label>
+                            <input type="text" id="driver-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="driver-phone">Teléfono</label>
+                            <input type="tel" id="driver-phone" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="driver-email">Email</label>
+                            <input type="email" id="driver-email" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Licencia de Conducir</h3>
+                        <div class="form-group">
+                            <label for="driver-license">Número de Licencia</label>
+                            <input type="text" id="driver-license" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="license-expiry">Fecha de Vencimiento</label>
+                            <input type="date" id="license-expiry" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Información del Vehículo</h3>
+                        <div class="form-group">
+                            <label for="vehicle-make">Marca</label>
+                            <input type="text" id="vehicle-make" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle-model">Modelo</label>
+                            <input type="text" id="vehicle-model" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle-year">Año</label>
+                            <input type="number" id="vehicle-year" min="1990" max="2024" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle-color">Color</label>
+                            <input type="text" id="vehicle-color" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vehicle-plate">Matrícula</label>
+                            <input type="text" id="vehicle-plate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Documentos</h3>
+                        <div class="form-group">
+                            <label for="insurance-number">Número de Seguro</label>
+                            <input type="text" id="insurance-number" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="insurance-expiry">Vencimiento del Seguro</label>
+                            <input type="date" id="insurance-expiry" required>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="cancel-registration" class="btn-secondary">Cancelar</button>
+                        <button type="submit" id="submit-registration" class="btn-primary">Enviar Solicitud</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pending Approval View (Overlay) -->
+        <div id="pending-view" class="overlay-container" style="display: none;">
+            <div class="pending-box">
+                <div class="pending-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h2>Solicitud en Revisión</h2>
+                <p>Tu solicitud para ser conductor está siendo revisada por nuestro equipo.</p>
+                <p>Te notificaremos por email cuando tu solicitud sea aprobada o rechazada.</p>
+                <div class="pending-info">
+                    <p><strong>Estado:</strong> <span id="driver-status">Pendiente</span></p>
+                    <p><strong>Fecha de solicitud:</strong> <span id="request-date"></span></p>
+                </div>
+                <button id="logout-pending" class="btn-secondary">Cerrar Sesión</button>
+            </div>
+        </div>
+
         <!-- Main UI (Visible after login) -->
         <div id="main-ui" style="display: none;">
             <button id="menu-btn" class="menu-btn"><i class="fas fa-bars"></i></button>

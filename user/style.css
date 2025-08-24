@@ -278,6 +278,212 @@ body, html {
 }
 
 
+/* --- Payment Confirmation Modal --- */
+.payment-confirmation {
+    max-width: 500px !important;
+    width: 90% !important;
+}
+
+.payment-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.payment-header h2 {
+    color: #333;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
+.payment-header p {
+    color: #666;
+    font-size: 16px;
+}
+
+.trip-details {
+    margin-bottom: 30px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+}
+
+.detail-item i {
+    font-size: 20px;
+    color: #4285F4;
+    margin-right: 15px;
+    width: 25px;
+    text-align: center;
+}
+
+.detail-content {
+    flex: 1;
+}
+
+.detail-label {
+    display: block;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.detail-value {
+    display: block;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.driver-info {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.driver-info h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.driver-card {
+    display: flex;
+    align-items: center;
+}
+
+.driver-photo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-right: 15px;
+    object-fit: cover;
+}
+
+.driver-details h4 {
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.driver-rating {
+    margin-bottom: 5px;
+}
+
+.driver-rating .stars {
+    color: #ffc107;
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+.driver-rating span {
+    color: #666;
+    font-size: 14px;
+}
+
+.vehicle-info {
+    color: #666;
+    font-size: 14px;
+}
+
+.vehicle-info span {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.payment-methods {
+    margin-bottom: 30px;
+}
+
+.payment-methods h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-option {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.payment-option:hover {
+    border-color: #4285F4;
+}
+
+.payment-option input[type="radio"] {
+    margin-right: 15px;
+}
+
+.payment-label {
+    display: flex;
+    align-items: center;
+    color: #333;
+    font-size: 16px;
+}
+
+.payment-label i {
+    margin-right: 10px;
+    color: #4285F4;
+    font-size: 18px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.btn-reject, .btn-confirm {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    flex: 1;
+}
+
+.btn-reject {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-reject:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+}
+
+.btn-confirm {
+    background: #28a745;
+    color: white;
+}
+
+.btn-confirm:hover {
+    background: #218838;
+    transform: translateY(-2px);
+}
+
 /* --- Rating Modal --- */
 .rating-box {
     background: white;

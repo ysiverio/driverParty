@@ -172,7 +172,93 @@
             </div>
         </div>
 
-    <!-- Profile Modal -->
+            <!-- Payment Confirmation Modal -->
+        <div id="payment-confirmation-modal" class="overlay-container" style="display: none;">
+            <div class="modal-box payment-confirmation">
+                <div class="payment-header">
+                    <h2>Confirmar Viaje</h2>
+                    <p>Un conductor ha aceptado tu solicitud</p>
+                </div>
+                
+                <div class="trip-details">
+                    <div class="detail-item">
+                        <i class="fas fa-route"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Distancia</span>
+                            <span class="detail-value" id="trip-distance">-- km</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <i class="fas fa-clock"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Tiempo estimado</span>
+                            <span class="detail-value" id="trip-duration">-- min</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <i class="fas fa-dollar-sign"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Tarifa total</span>
+                            <span class="detail-value" id="trip-fare">$--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="driver-info">
+                    <h3>Información del Conductor</h3>
+                    <div class="driver-card">
+                        <img id="driver-photo" src="../default-avatar.svg" alt="Driver" class="driver-photo">
+                        <div class="driver-details">
+                            <h4 id="driver-name">Nombre del Conductor</h4>
+                            <div class="driver-rating">
+                                <span class="stars" id="driver-stars">★★★★★</span>
+                                <span id="driver-rating-text">5.0 (0 viajes)</span>
+                            </div>
+                            <div class="vehicle-info">
+                                <span id="vehicle-info">Toyota Corolla - Azul</span>
+                                <span id="vehicle-plate">ABC 123</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="payment-methods">
+                    <h3>Método de Pago</h3>
+                    <div class="payment-options">
+                        <label class="payment-option">
+                            <input type="radio" name="payment-method" value="cash" checked>
+                            <span class="payment-label">
+                                <i class="fas fa-money-bill-wave"></i>
+                                Efectivo
+                            </span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment-method" value="card">
+                            <span class="payment-label">
+                                <i class="fas fa-credit-card"></i>
+                                Tarjeta
+                            </span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment-method" value="digital">
+                            <span class="payment-label">
+                                <i class="fas fa-mobile-alt"></i>
+                                Pago Digital
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" id="reject-trip-btn" class="btn-reject">Rechazar</button>
+                    <button type="button" id="confirm-trip-btn" class="btn-confirm">Confirmar y Pagar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Modal -->
         <div id="profile-modal" class="overlay-container" style="display: none;">
             <div class="modal-box">
                 <h2>Mi Perfil</h2>

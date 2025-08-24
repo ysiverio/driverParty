@@ -158,21 +158,24 @@ npx http-server
 ### 👨‍💼 Panel de Administración (`/admin`)
 - **URL**: `http://localhost:8000/admin/`
 - **Login**: `http://localhost:8000/admin/login.html`
-- **Autenticación**: Email/Password con Firebase Auth
+- **Autenticación**: Email/Password con Firebase Auth y reCAPTCHA
 - **Credenciales por defecto**: 
   - Email: `admin@driverparty.com`
   - Contraseña: `AdminDriverParty2024!`
   - **⚠️ IMPORTANTE**: Cambiar la contraseña después del primer acceso
 - **Dashboard**: Métricas en tiempo real
 - **Configuración de Precios**: Gestión completa de tarifas
-- **Gestión de Conductores**: Administración de conductores
+- **Gestión de Conductores**: Administración y aprobación de solicitudes
+- **Solicitudes Pendientes**: Revisión y aprobación de nuevos drivers
 - **Gestión de Usuarios**: Control de usuarios
 - **Historial de Viajes**: Consulta de datos
 - **Analíticas**: Gráficos y estadísticas
 - **Configuración General**: Personalización
 
 ### 🚗 Interfaz de Conductores (`/driver`)
-- **Autenticación**: Google Sign-In
+- **Registro y Autorización**: Formulario completo de registro con validación
+- **Estados de Aprobación**: Pendiente, Aprobado, Rechazado, Suspendido
+- **Autenticación**: Google Sign-In con reCAPTCHA
 - **Mapa Interactivo**: Ubicación en tiempo real
 - **Solicitudes de Viaje**: Notificaciones y aceptación
 - **Modo de Navegación**: Interfaz optimizada para viajes
@@ -182,10 +185,12 @@ npx http-server
 - **Perfil**: Gestión de información personal
 
 ### 👤 Interfaz de Usuarios (`/user`)
-- **Autenticación**: Google Sign-In
-- **Solicitud de Viaje**: Origen y destino
+- **Autenticación**: Google Sign-In con reCAPTCHA
+- **Solicitud de Viaje**: Origen y destino con cálculo de tarifa
+- **Confirmación de Pago**: Modal con información del conductor y tarifa
+- **Estados de Viaje**: Pendiente, Aceptado, Pago Confirmado, En Curso, Completado
 - **Seguimiento en Tiempo Real**: Ubicación del conductor
-- **Información del Conductor**: Perfil y calificaciones
+- **Información del Conductor**: Perfil, calificaciones y vehículo
 - **Modo de Navegación**: Durante el viaje
 - **Historial**: Viajes realizados
 - **Calificaciones**: Rating del conductor
@@ -214,6 +219,18 @@ npx http-server
 - **Comisión Plataforma**: Precio usuario - Ganancia conductor
 
 ## 🔧 Funcionalidades Avanzadas
+
+### 🚗 Sistema de Registro de Conductores
+- **Formulario Completo**: Información personal, licencia, vehículo, seguro
+- **Estados de Aprobación**: Pendiente, Aprobado, Rechazado, Suspendido
+- **Validación de Datos**: Verificación de información requerida
+- **Notificaciones**: Email automático de aprobación/rechazo
+
+### 💳 Sistema de Confirmación de Pago
+- **Cálculo de Tarifa**: Basado en distancia y configuración
+- **Modal de Confirmación**: Información del conductor y tarifa
+- **Métodos de Pago**: Efectivo, Tarjeta, Pago Digital
+- **Estados de Viaje**: Flujo completo desde solicitud hasta completado
 
 ### 🎵 Sistema de Notificaciones
 - **Notificaciones Sonoras**: Tones personalizables

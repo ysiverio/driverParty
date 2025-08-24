@@ -93,11 +93,13 @@ const driverCardClose = document.querySelector('.driver-card-close');
 
 // --- App State ---
 let map, userMarker, driverMarker, tripRoutePolyline;
-let currentUser, currentTripId, currentTripDriverId;
+let currentUser, currentTripId, currentTripRequestId, currentTripDriverId;
 let selectedRating = 0;
 let hasShownDriverInfo = false;
 let notificationSound; // Audio para notificaciones
 let navigationMode = false; // Modo de navegación activo
+let userLocation = null;
+let destinationLocation = null;
 let originalZoom = 15; // Zoom original del mapa
 let navigationZoom = 18; // Zoom para navegación
 
@@ -190,16 +192,48 @@ function initializeMap() {
         console.log("Geolocation available.");
         navigator.geolocation.getCurrentPosition(pos => {
             console.log("Current position obtained:", pos.coords);
-            initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            initMap(userLocation);
         }, 
         () => {
             console.log("Geolocation failed, using default location.");
-            initMap({ lat: 34.0522, lng: -118.2437 });
+            userLocation = { lat: 34.0522, lng: -118.2437 };
+            initMap(userLocation);
         });
     } else {
         console.log("Geolocation not available, using default location.");
-        initMap({ lat: 34.0522, lng: -118.2437 });
+        userLocation = { lat: 34.0522, lng: -118.2437 };
+        initMap(userLocation);
     }
+}
+
+// --- Utility Functions ---
+function calculateDistance(origin, destination) {
+    if (!origin || !destination) return 0;
+    
+    const R = 6371; // Radio de la Tierra en km
+    const lat1 = origin.lat * Math.PI / 180;
+    const lat2 = destination.lat * Math.PI / 180;
+    const deltaLat = (destination.lat - origin.lat) * Math.PI / 180;
+    const deltaLng = (destination.lng - origin.lng) * Math.PI / 180;
+    
+    const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c;
+}
+
+function calculateFare(distance) {
+    if (!pricingCalculator) {
+        // Usar configuración por defecto si no hay calculadora
+        const baseFare = 2.00;
+        const ratePerKm = 3.50;
+        return Math.max(baseFare + (distance * ratePerKm), 5.00);
+    }
+    
+    return pricingCalculator.calculateUserFare(distance);
 }
 
 document.addEventListener('map-ready', () => {
@@ -251,19 +285,246 @@ function closeSideNav() { console.log("Closing side nav."); sideNav.style.width 
 requestDriverButton.addEventListener('click', async () => {
     console.log("Request driver button clicked.");
     if (!currentUser || !map) { console.log("User or map not ready."); return; }
-    const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
+    
+    // Validar que se haya ingresado origen y destino
+    const originInput = document.getElementById('origin-input');
+    const destinationInput = document.getElementById('destination-input');
+    
+    if (!originInput.value || !destinationInput.value) {
+        alert('Por favor ingresa origen y destino');
+        return;
+    }
+    
     try {
-        console.log("Adding trip document to Firestore.");
-        const docRef = await addDoc(collection(db, "trips"), {
-            userId: currentUser.uid, userName: currentUser.displayName, userLocation, status: 'pending', createdAt: new Date()
+        // Ejecutar reCAPTCHA antes de la solicitud
+        const recaptchaToken = await UIUtils.executeRecaptcha('trip_request');
+        
+        if (!recaptchaToken) {
+            alert('Error de verificación de seguridad. Por favor, intenta nuevamente.');
+            return;
+        }
+
+        const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
+        const distance = calculateDistance(userLocation, destinationLocation);
+        const fare = calculateFare(distance);
+
+        console.log("Adding trip request to Firestore.");
+        const docRef = await addDoc(collection(db, "tripRequests"), {
+            userId: currentUser.uid,
+            userName: currentUser.displayName,
+            userPhoto: currentUser.photoURL,
+            origin: originInput.value,
+            destination: destinationInput.value,
+            originCoords: userLocation,
+            destinationCoords: destinationLocation,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            estimatedDistance: distance,
+            estimatedFare: fare,
+            recaptchaToken: recaptchaToken
         });
-        currentTripId = docRef.id;
-        console.log("Trip requested with ID:", currentTripId);
+        
+        currentTripRequestId = docRef.id;
+        console.log("Trip request created with ID:", currentTripRequestId);
         requestPanel.style.display = 'none';
         tripPanel.style.display = 'block';
-        listenToTripUpdates(currentTripId);
-    } catch (e) { console.error("Error requesting trip: ", e); }
+        listenToTripRequestUpdates(currentTripRequestId);
+        
+    } catch (e) { 
+        console.error("Error requesting trip: ", e);
+        alert('Error al solicitar viaje. Por favor, intenta nuevamente.');
+    }
 });
+
+// Escuchar actualizaciones de solicitudes de viaje
+function listenToTripRequestUpdates(requestId) {
+    console.log("Listening to trip request updates for ID:", requestId);
+    const requestRef = doc(db, "tripRequests", requestId);
+    
+    onSnapshot(requestRef, (docSnap) => {
+        console.log("Trip request update received.");
+        if (!docSnap.exists()) { 
+            console.log("Trip request document does not exist."); 
+            resetTripState(); 
+            return; 
+        }
+        
+        const request = docSnap.data();
+        console.log("Trip request data:", request);
+        
+        switch (request.status) {
+            case 'accepted':
+                handleTripAccepted(request);
+                break;
+            case 'cancelled':
+                handleTripCancelled();
+                break;
+            case 'expired':
+                handleTripExpired();
+                break;
+            default:
+                updateTripRequestUI(request);
+        }
+    });
+}
+
+// Manejar cuando un conductor acepta el viaje
+async function handleTripAccepted(request) {
+    console.log("Trip accepted by driver:", request.driverId);
+    
+    // Obtener información del conductor
+    const driverRef = doc(db, "drivers", request.driverId);
+    const driverDoc = await getDoc(driverRef);
+    
+    if (driverDoc.exists()) {
+        const driverData = driverDoc.data();
+        
+        // Mostrar modal de confirmación de pago
+        showPaymentConfirmationModal(request, driverData);
+    }
+}
+
+// Mostrar modal de confirmación de pago
+function showPaymentConfirmationModal(request, driverData) {
+    const modal = document.getElementById('payment-confirmation-modal');
+    
+    // Actualizar información del viaje
+    document.getElementById('trip-distance').textContent = `${request.estimatedDistance.toFixed(1)} km`;
+    document.getElementById('trip-duration').textContent = `${Math.round(request.estimatedDistance * 2)} min`;
+    document.getElementById('trip-fare').textContent = `$${request.estimatedFare.toFixed(2)}`;
+    
+    // Actualizar información del conductor
+    document.getElementById('driver-photo').src = driverData.photoURL || '../default-avatar.svg';
+    document.getElementById('driver-name').textContent = driverData.name || 'Conductor';
+    
+    // Calcular estrellas
+    const rating = driverData.rating || 0;
+    const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+    document.getElementById('driver-stars').textContent = stars;
+    document.getElementById('driver-rating-text').textContent = `${rating.toFixed(1)} (${driverData.totalTrips || 0} viajes)`;
+    
+    // Información del vehículo
+    if (driverData.vehicle) {
+        document.getElementById('vehicle-info').textContent = `${driverData.vehicle.make} ${driverData.vehicle.model} - ${driverData.vehicle.color}`;
+        document.getElementById('vehicle-plate').textContent = driverData.vehicle.plate;
+    }
+    
+    // Event listeners para los botones
+    document.getElementById('confirm-trip-btn').onclick = () => confirmTripPayment(request);
+    document.getElementById('reject-trip-btn').onclick = () => rejectTrip(request);
+    
+    modal.style.display = 'flex';
+}
+
+// Confirmar pago y crear viaje
+async function confirmTripPayment(request) {
+    try {
+        const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
+        
+        // Crear el viaje real
+        const tripData = {
+            userId: request.userId,
+            userName: request.userName,
+            userPhoto: request.userPhoto,
+            driverId: request.driverId,
+            driverName: request.driverName,
+            driverPhoto: request.driverPhoto,
+            origin: request.origin,
+            destination: request.destination,
+            originCoords: request.originCoords,
+            destinationCoords: request.destinationCoords,
+            status: 'payment_confirmed',
+            createdAt: serverTimestamp(),
+            estimatedDistance: request.estimatedDistance,
+            estimatedFare: request.estimatedFare,
+            paymentMethod: paymentMethod,
+            requestId: currentTripRequestId
+        };
+        
+        const tripRef = await addDoc(collection(db, "trips"), tripData);
+        currentTripId = tripRef.id;
+        
+        // Actualizar la solicitud
+        await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
+            status: 'payment_confirmed',
+            tripId: tripRef.id,
+            paymentMethod: paymentMethod
+        });
+        
+        // Cerrar modal y mostrar información del viaje
+        document.getElementById('payment-confirmation-modal').style.display = 'none';
+        tripPanel.style.display = 'block';
+        
+        // Escuchar actualizaciones del viaje
+        listenToTripUpdates(currentTripId);
+        
+        console.log("Trip payment confirmed and trip created:", tripRef.id);
+        
+    } catch (error) {
+        console.error("Error confirming trip payment:", error);
+        alert('Error al confirmar el pago. Por favor, intenta nuevamente.');
+    }
+}
+
+// Rechazar viaje
+async function rejectTrip(request) {
+    try {
+        await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
+            status: 'rejected',
+            rejectedAt: serverTimestamp()
+        });
+        
+        document.getElementById('payment-confirmation-modal').style.display = 'none';
+        resetTripState();
+        
+        console.log("Trip rejected by user");
+        
+    } catch (error) {
+        console.error("Error rejecting trip:", error);
+        alert('Error al rechazar el viaje. Por favor, intenta nuevamente.');
+    }
+}
+
+// Manejar viaje cancelado
+function handleTripCancelled() {
+    console.log("Trip cancelled");
+    resetTripState();
+    alert('El viaje ha sido cancelado.');
+}
+
+// Manejar viaje expirado
+function handleTripExpired() {
+    console.log("Trip expired");
+    resetTripState();
+    alert('La solicitud de viaje ha expirado. Por favor, intenta nuevamente.');
+}
+
+// Actualizar UI de solicitud de viaje
+function updateTripRequestUI(request) {
+    const statusText = getTripRequestStatusInfo(request.status).statusText;
+    const details = getTripRequestStatusInfo(request.status).details;
+    
+    tripStatusHeading.textContent = statusText;
+    tripStatusDetails.textContent = details;
+}
+
+// Información de estados de solicitud de viaje
+function getTripRequestStatusInfo(status) {
+    switch (status) {
+        case 'pending': 
+            return { statusText: 'Buscando conductor', details: 'Tu solicitud está siendo procesada.' };
+        case 'accepted': 
+            return { statusText: 'Conductor encontrado', details: 'Esperando confirmación de pago.' };
+        case 'payment_confirmed': 
+            return { statusText: 'Pago confirmado', details: 'Tu conductor está en camino.' };
+        case 'cancelled': 
+            return { statusText: 'Solicitud cancelada', details: 'La solicitud ha sido cancelada.' };
+        case 'expired': 
+            return { statusText: 'Solicitud expirada', details: 'La solicitud ha expirado.' };
+        default: 
+            return { statusText: 'Actualizando...', details: '' };
+    }
+}
 
 // --- Trip Lifecycle & Updates ---
 function listenToTripUpdates(tripId) {

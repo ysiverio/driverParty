@@ -25,6 +25,25 @@ const initialPricingConfig = {
     updatedAt: serverTimestamp()
 };
 
+// Configuración de estados para drivers
+const driverStatusConfig = {
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    SUSPENDED: 'suspended'
+};
+
+// Configuración de estados para viajes
+const tripStatusConfig = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    PAYMENT_PENDING: 'payment_pending',
+    PAYMENT_CONFIRMED: 'payment_confirmed',
+    IN_PROGRESS: 'in_progress',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled'
+};
+
 // Configuración general de la aplicación
 const initialGeneralConfig = {
     APP_NAME: 'DriverParty',

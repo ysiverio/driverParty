@@ -29,6 +29,8 @@ let currentPricingConfig = null;
 // --- DOM Elements ---
 const loginView = document.getElementById('login-view');
 const mainUI = document.getElementById('main-ui');
+const registrationView = document.getElementById('registration-view');
+const pendingView = document.getElementById('pending-view');
 const loginButton = document.getElementById('login-button');
 const logoutButton = document.getElementById('logout-button');
 const menuBtn = document.getElementById('menu-btn');
@@ -80,10 +82,128 @@ let originalZoom = 14; // Zoom original del mapa
 let navigationZoom = 18; // Zoom para navegación
 
 // --- Authentication ---
-onAuthStateChanged(auth, (user) => {
-    if (user) { currentUser = user; setupUIForLoggedInUser(user); }
-    else { currentUser = null; setupUIForLoggedOutUser(); }
+onAuthStateChanged(auth, async (user) => {
+    if (user) { 
+        currentUser = user; 
+        await checkDriverStatus(user);
+    }
+    else { 
+        currentUser = null; 
+        setupUIForLoggedOutUser(); 
+    }
 });
+
+// Verificar el estado del driver
+async function checkDriverStatus(user) {
+    try {
+        const driverRef = doc(db, "drivers", user.uid);
+        const driverDoc = await getDoc(driverRef);
+        
+        if (!driverDoc.exists()) {
+            // Driver no registrado, mostrar formulario de registro
+            showRegistrationView(user);
+        } else {
+            const driverData = driverDoc.data();
+            
+            switch (driverData.status) {
+                case 'pending':
+                    showPendingView(driverData);
+                    break;
+                case 'approved':
+                    setupUIForLoggedInUser(user);
+                    break;
+                case 'rejected':
+                    showRejectedView(driverData);
+                    break;
+                case 'suspended':
+                    showSuspendedView(driverData);
+                    break;
+                default:
+                    showRegistrationView(user);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking driver status:', error);
+        showRegistrationView(user);
+    }
+}
+
+// Mostrar vista de registro
+function showRegistrationView(user) {
+    loginView.style.display = 'none';
+    mainUI.style.display = 'none';
+    pendingView.style.display = 'none';
+    registrationView.style.display = 'flex';
+    
+    // Pre-llenar campos con datos del usuario
+    document.getElementById('driver-name').value = user.displayName || '';
+    document.getElementById('driver-email').value = user.email || '';
+}
+
+// Mostrar vista de pendiente
+function showPendingView(driverData) {
+    loginView.style.display = 'none';
+    mainUI.style.display = 'none';
+    registrationView.style.display = 'none';
+    pendingView.style.display = 'flex';
+    
+    // Actualizar información
+    document.getElementById('driver-status').textContent = 'Pendiente';
+    document.getElementById('request-date').textContent = driverData.createdAt ? 
+        new Date(driverData.createdAt.toDate()).toLocaleDateString('es-ES') : 'N/A';
+}
+
+// Mostrar vista de rechazado
+function showRejectedView(driverData) {
+    loginView.style.display = 'none';
+    mainUI.style.display = 'none';
+    registrationView.style.display = 'none';
+    pendingView.style.display = 'none';
+    
+    // Crear vista de rechazado
+    const rejectedView = document.createElement('div');
+    rejectedView.className = 'overlay-container';
+    rejectedView.style.display = 'flex';
+    rejectedView.innerHTML = `
+        <div class="pending-box">
+            <div class="pending-icon">
+                <i class="fas fa-times-circle" style="color: #dc3545;"></i>
+            </div>
+            <h2>Solicitud Rechazada</h2>
+            <p>Tu solicitud para ser conductor ha sido rechazada.</p>
+            <p><strong>Motivo:</strong> ${driverData.rejectionReason || 'No especificado'}</p>
+            <p>Si tienes alguna pregunta, contacta a soporte.</p>
+            <button onclick="signOut(auth)" class="btn-secondary">Cerrar Sesión</button>
+        </div>
+    `;
+    document.body.appendChild(rejectedView);
+}
+
+// Mostrar vista de suspendido
+function showSuspendedView(driverData) {
+    loginView.style.display = 'none';
+    mainUI.style.display = 'none';
+    registrationView.style.display = 'none';
+    pendingView.style.display = 'none';
+    
+    // Crear vista de suspendido
+    const suspendedView = document.createElement('div');
+    suspendedView.className = 'overlay-container';
+    suspendedView.style.display = 'flex';
+    suspendedView.innerHTML = `
+        <div class="pending-box">
+            <div class="pending-icon">
+                <i class="fas fa-ban" style="color: #ffc107;"></i>
+            </div>
+            <h2>Cuenta Suspendida</h2>
+            <p>Tu cuenta de conductor ha sido suspendida temporalmente.</p>
+            <p><strong>Motivo:</strong> ${driverData.suspensionReason || 'No especificado'}</p>
+            <p>Contacta a soporte para más información.</p>
+            <button onclick="signOut(auth)" class="btn-secondary">Cerrar Sesión</button>
+        </div>
+    `;
+    document.body.appendChild(suspendedView);
+}
 
 loginButton.addEventListener('click', async () => {
     try {
@@ -109,6 +229,67 @@ logoutButton.addEventListener('click', () => {
     signOut(auth).catch(err => console.error("Sign Out Error:", err));
 });
 
+// --- Registration Form Events ---
+const registrationForm = document.getElementById('driver-registration-form');
+const cancelRegistrationBtn = document.getElementById('cancel-registration');
+const logoutPendingBtn = document.getElementById('logout-pending');
+
+// Manejar envío del formulario de registro
+registrationForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    try {
+        const formData = {
+            name: document.getElementById('driver-name').value,
+            phone: document.getElementById('driver-phone').value,
+            email: document.getElementById('driver-email').value,
+            license: document.getElementById('driver-license').value,
+            licenseExpiry: document.getElementById('license-expiry').value,
+            vehicle: {
+                make: document.getElementById('vehicle-make').value,
+                model: document.getElementById('vehicle-model').value,
+                year: parseInt(document.getElementById('vehicle-year').value),
+                color: document.getElementById('vehicle-color').value,
+                plate: document.getElementById('vehicle-plate').value
+            },
+            insurance: {
+                number: document.getElementById('insurance-number').value,
+                expiry: document.getElementById('insurance-expiry').value
+            },
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            uid: currentUser.uid,
+            photoURL: currentUser.photoURL,
+            rating: 0,
+            totalTrips: 0,
+            totalEarnings: 0
+        };
+        
+        // Guardar en Firestore
+        await setDoc(doc(db, "drivers", currentUser.uid), formData);
+        
+        // Mostrar vista de pendiente
+        showPendingView(formData);
+        
+        console.log('Driver registration submitted successfully');
+        
+    } catch (error) {
+        console.error('Error submitting driver registration:', error);
+        alert('Error al enviar la solicitud. Por favor, intenta nuevamente.');
+    }
+});
+
+// Cancelar registro
+cancelRegistrationBtn.addEventListener('click', () => {
+    signOut(auth).catch(err => console.error("Sign Out Error:", err));
+});
+
+// Cerrar sesión desde vista pendiente
+logoutPendingBtn.addEventListener('click', () => {
+    signOut(auth).catch(err => console.error("Sign Out Error:", err));
+});
+
 function setupUIForLoggedInUser(user) {
     loginView.style.display = 'none';
     mainUI.style.display = 'block';
@@ -116,7 +297,6 @@ function setupUIForLoggedInUser(user) {
     driverProfileName.textContent = user.displayName || 'Conductor';
     updateDriverRatingDisplay(); // Display rating on login
     initializeNotificationSound(); // Initialize audio
-    addDebugButton(); // Agregar botón de debug temporal
     loadPricingConfiguration(); // Cargar configuración de precios
     if (!map) initializeMap();
 }
@@ -1138,59 +1318,4 @@ function showNotificationToast(message) {
     }, 3000);
 }
 
-// --- Debug Functions (Temporary) ---
-function debugDriverStats() {
-    console.log("=== DEBUG: Driver Statistics ===");
-    console.log("Current user:", currentUser);
-    
-    if (!currentUser) {
-        console.log("No current user");
-        return;
-    }
-    
-    console.log("Driver ID:", currentUser.uid);
-    
-    // Verificar documento del conductor
-    const driverRef = doc(db, "drivers", currentUser.uid);
-    getDoc(driverRef).then(docSnap => {
-        console.log("Driver document exists:", docSnap.exists());
-        if (docSnap.exists()) {
-            console.log("Driver data:", docSnap.data());
-        }
-    }).catch(error => {
-        console.error("Error getting driver document:", error);
-    });
-    
-    // Verificar viajes del conductor
-    const tripsQuery = query(collection(db, "trips"), where("driverId", "==", currentUser.uid));
-    getDocs(tripsQuery).then(querySnapshot => {
-        console.log("Total trips for driver:", querySnapshot.size);
-        querySnapshot.forEach(doc => {
-            const trip = doc.data();
-            console.log("Trip:", doc.id, trip);
-        });
-    }).catch(error => {
-        console.error("Error getting trips:", error);
-    });
-}
 
-// Agregar botón de debug temporal
-function addDebugButton() {
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = 'Debug Stats';
-    debugBtn.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 1000;
-        cursor: pointer;
-        font-size: 12px;
-    `;
-    debugBtn.onclick = debugDriverStats;
-    document.body.appendChild(debugBtn);
-}

@@ -171,6 +171,7 @@ function switchSection(sectionName) {
             break;
         case 'drivers':
             loadDriversData();
+            loadPendingDriverRequests();
             break;
         case 'users':
             loadUsersData();
@@ -516,9 +517,130 @@ async function loadDriversData() {
         
         driversTableBody.innerHTML = driversHTML;
         UIUtils.hideLoading(loading);
+        
+        // Cargar solicitudes pendientes
+        await loadPendingDriverRequests();
+        
     } catch (error) {
         console.error('Error loading drivers data:', error);
         UIUtils.showToast('Error al cargar conductores', 'error');
+    }
+}
+
+// Cargar solicitudes de drivers pendientes
+async function loadPendingDriverRequests() {
+    try {
+        const pendingDriversQuery = query(
+            collection(db, "drivers"), 
+            where("status", "==", "pending")
+        );
+        const querySnapshot = await getDocs(pendingDriversQuery);
+        
+        // Crear sección de solicitudes pendientes si no existe
+        let pendingSection = document.getElementById('pending-drivers-section');
+        if (!pendingSection) {
+            pendingSection = document.createElement('div');
+            pendingSection.id = 'pending-drivers-section';
+            pendingSection.className = 'pending-drivers-section';
+            pendingSection.innerHTML = `
+                <h3>Solicitudes Pendientes (${querySnapshot.size})</h3>
+                <div class="pending-drivers-list"></div>
+            `;
+            
+            // Insertar después del título de la sección de drivers
+            const driversSection = document.getElementById('drivers');
+            const driversTitle = driversSection.querySelector('h2');
+            driversSection.insertBefore(pendingSection, driversTitle.nextSibling);
+        }
+        
+        const pendingList = pendingSection.querySelector('.pending-drivers-list');
+        pendingList.innerHTML = '';
+        
+        if (querySnapshot.empty) {
+            pendingList.innerHTML = '<p class="no-pending">No hay solicitudes pendientes</p>';
+            return;
+        }
+        
+        querySnapshot.forEach(doc => {
+            const driver = doc.data();
+            const card = createPendingDriverCard(doc.id, driver);
+            pendingList.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('Error loading pending driver requests:', error);
+    }
+}
+
+// Crear tarjeta de driver pendiente
+function createPendingDriverCard(driverId, driver) {
+    const card = document.createElement('div');
+    card.className = 'pending-driver-card';
+    card.innerHTML = `
+        <div class="driver-info">
+            <img src="${driver.photoURL || '../default-avatar.svg'}" alt="Driver" class="driver-photo">
+            <div class="driver-details">
+                <h4>${driver.name}</h4>
+                <p><strong>Email:</strong> ${driver.email}</p>
+                <p><strong>Teléfono:</strong> ${driver.phone}</p>
+                <p><strong>Licencia:</strong> ${driver.license}</p>
+                <p><strong>Vehículo:</strong> ${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plate})</p>
+                <p><strong>Fecha de solicitud:</strong> ${driver.createdAt ? new Date(driver.createdAt.toDate()).toLocaleDateString('es-ES') : 'N/A'}</p>
+            </div>
+        </div>
+        <div class="driver-actions">
+            <button class="btn-approve" onclick="approveDriver('${driverId}')">
+                <i class="fas fa-check"></i> Aprobar
+            </button>
+            <button class="btn-reject" onclick="rejectDriver('${driverId}')">
+                <i class="fas fa-times"></i> Rechazar
+            </button>
+        </div>
+    `;
+    return card;
+}
+
+// Aprobar driver
+async function approveDriver(driverId) {
+    try {
+        await updateDoc(doc(db, "drivers", driverId), {
+            status: 'approved',
+            approvedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+        
+        // Recargar datos
+        loadDriversData();
+        
+        console.log('Driver approved:', driverId);
+        
+    } catch (error) {
+        console.error('Error approving driver:', error);
+        alert('Error al aprobar el conductor');
+    }
+}
+
+// Rechazar driver
+async function rejectDriver(driverId) {
+    const reason = prompt('Motivo del rechazo:');
+    if (!reason) return;
+    
+    try {
+        await updateDoc(doc(db, "drivers", driverId), {
+            status: 'rejected',
+            rejectionReason: reason,
+            rejectedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+        
+        // Recargar datos
+        loadDriversData();
+        
+        console.log('Driver rejected:', driverId);
+        
+    } catch (error) {
+        console.error('Error rejecting driver:', error);
+        alert('Error al rechazar el conductor');
     }
 }
 
