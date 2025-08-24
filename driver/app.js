@@ -259,6 +259,9 @@ logoutButton.addEventListener('click', () => {
     signOut(auth).catch(err => console.error("Sign Out Error:", err));
 });
 
+// Exponer signOut globalmente para las vistas de rechazado/suspendido
+window.signOut = signOut;
+
 // --- Registration Form Events ---
 const registrationForm = document.getElementById('driver-registration-form');
 const cancelRegistrationBtn = document.getElementById('cancel-registration');
@@ -412,10 +415,32 @@ function initializeMap() {
 document.addEventListener('map-ready', initializeMap);
 
 function initMap(location) {
-    map = new google.maps.Map(document.getElementById('map'), { center: location, zoom: 14, disableDefaultUI: true });
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
-    directionsRenderer.setMap(map);
+    // Verificar que el elemento del mapa existe
+    const mapElement = document.getElementById('map');
+    if (!mapElement) {
+        console.error('Elemento del mapa no encontrado. Verificando si el DOM está listo...');
+        // Intentar de nuevo después de un breve delay
+        setTimeout(() => {
+            const retryMapElement = document.getElementById('map');
+            if (retryMapElement) {
+                console.log('Elemento del mapa encontrado en reintento');
+                initMap(location);
+            } else {
+                console.error('Elemento del mapa no encontrado después del reintento');
+            }
+        }, 100);
+        return;
+    }
+    
+    try {
+        map = new google.maps.Map(mapElement, { center: location, zoom: 14, disableDefaultUI: true });
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
+        directionsRenderer.setMap(map);
+        console.log("Map initialized successfully.");
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
 }
 
 // --- UI Interactions ---

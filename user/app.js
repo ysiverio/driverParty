@@ -243,10 +243,32 @@ document.addEventListener('map-ready', () => {
 
 function initMap(location) {
     console.log("initMap() called with location:", location);
-    map = new google.maps.Map(document.getElementById('map'), { center: location, zoom: 15, disableDefaultUI: true });
-            // Crear marcador con fallback para compatibilidad
+    
+    // Verificar que el elemento del mapa existe
+    const mapElement = document.getElementById('map');
+    if (!mapElement) {
+        console.error('Elemento del mapa no encontrado. Verificando si el DOM está listo...');
+        // Intentar de nuevo después de un breve delay
+        setTimeout(() => {
+            const retryMapElement = document.getElementById('map');
+            if (retryMapElement) {
+                console.log('Elemento del mapa encontrado en reintento');
+                initMap(location);
+            } else {
+                console.error('Elemento del mapa no encontrado después del reintento');
+            }
+        }, 100);
+        return;
+    }
+    
+    try {
+        map = new google.maps.Map(mapElement, { center: location, zoom: 15, disableDefaultUI: true });
+        // Crear marcador con fallback para compatibilidad
         userMarker = createCustomMarker(location, map, 'Tu ubicación', '#4285f4');
-    console.log("Map and user marker initialized.");
+        console.log("Map and user marker initialized successfully.");
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
 }
 
 // --- UI Interactions ---
