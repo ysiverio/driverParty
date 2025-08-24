@@ -6,9 +6,9 @@ Uncaught InvalidValueError: LatLngAltitude: `lat` invalid: NaN is not an accepte
     <anonymous> main.js:332
     set position marker.js:106
     set main.js:192
-    updateMarkerPosition app.js:1745
-    updateDriverMarker app.js:1083
-    tripRequestListener app.js:747
+    updateMarkerPosition app.js:874
+    updateDriverMarker app.js:588
+    tripRequestListener app.js:420
     next reference_impl.ts:714
     Oa bundle_reader_impl.ts:43
     setTimeout handler*Oa bundle_reader_impl.ts:32
@@ -47,11 +47,11 @@ Uncaught InvalidValueError: LatLngAltitude: `lat` invalid: NaN is not an accepte
     od fetchxmlhttpfactory.js:237
     Xa fetchxmlhttpfactory.js:419
     promise callback*qd fetchxmlhttpfactory.js:468
-    Xa fetchxmlhttpfactory.js:425
-    promise callback*qd fetchxmlhttpfactory.js:468
-    Xa fetchxmlhttpfactory.js:425
-    promise callback*qd fetchxmlhttpfactory.js:468
-    Xa fetchxmlhttpfactory.js:425
-    promise callback*qd fetchxmlhttpfactory.js:468
-    Xa fetchxmlhttpfactory.js:425
-main.js:303:423
+    $a fetchxmlhttpfactory.js:359
+    promise callback*m.send fetchxmlhttpfactory.js:277
+    ha xhrio.js:739
+    ic webchanneldebug.js:83
+    Md webchannelbase.js:2079
+    Ma webchannelbase.js:1718
+    ub freelist.js:55
+2 main.js:303:423

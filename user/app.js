@@ -1,4 +1,3 @@
-
 import { 
     auth, 
     db,
@@ -466,9 +465,19 @@ async function confirmTripPayment(request) {
         await updateDoc(doc(db, "tripRequests", currentTripRequestId), { status: 'payment_confirmed', tripId: tripRef.id, paymentMethod: paymentMethod, paymentConfirmedAt: serverTimestamp() });
         document.getElementById('payment-confirmation-modal').style.display = 'none';
         tripPanel.style.display = 'block';
+        
         showNotificationToast('Pago confirmado. Tu conductor está en camino.');
+
+        // Detener el listener de la solicitud, ya no es necesario
+        if (tripRequestListener) {
+            tripRequestListener(); // Llama a la función de desuscripción de onSnapshot
+            tripRequestListener = null;
+            console.log("Listener de la solicitud de viaje detenido.");
+        }
+
+        // Iniciar el listener para el VIAJE real
         listenToTripUpdates(currentTripId);
-        listenToTripRequestUpdates(currentTripRequestId);
+
     } catch (error) {
         console.error("Error confirming trip payment:", error);
         alert('Error al confirmar el pago. Por favor, intenta nuevamente.');
