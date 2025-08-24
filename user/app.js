@@ -261,8 +261,21 @@ function initMap(location) {
         return;
     }
     
+    // Verificar que el elemento del mapa tenga dimensiones
+    if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
+        console.warn('Elemento del mapa sin dimensiones, esperando...');
+        setTimeout(() => initMap(location), 200);
+        return;
+    }
+    
     try {
-        map = new google.maps.Map(mapElement, { center: location, zoom: 15, disableDefaultUI: true });
+        map = new google.maps.Map(mapElement, { 
+            center: location, 
+            zoom: 15, 
+            disableDefaultUI: true,
+            mapId: 'user_map' // Agregar un mapId para evitar el warning
+        });
+        
         // Crear marcador con fallback para compatibilidad
         userMarker = createCustomMarker(location, map, 'Tu ubicación', '#4285f4');
         console.log("Map and user marker initialized successfully.");
@@ -310,19 +323,18 @@ if (requestDriverButton) {
     console.log("Request driver button clicked.");
     if (!currentUser || !map) { console.log("User or map not ready."); return; }
     
-    // Validar que se haya ingresado origen y destino
-    const originInput = document.getElementById('origin-input');
+    // Validar que se haya ingresado destino (el origen es automáticamente la ubicación del usuario)
     const destinationInput = document.getElementById('destination-input');
     
-    // Verificar que los elementos existen
-    if (!originInput || !destinationInput) {
-        console.error('Elementos de entrada no encontrados');
-        alert('Error: No se encontraron los campos de entrada');
+    // Verificar que el elemento existe
+    if (!destinationInput) {
+        console.error('Elemento de destino no encontrado');
+        alert('Error: No se encontró el campo de destino');
         return;
     }
     
-    if (!originInput.value || !destinationInput.value) {
-        alert('Por favor ingresa origen y destino');
+    if (!destinationInput.value.trim()) {
+        alert('Por favor ingresa el destino');
         return;
     }
     
@@ -362,7 +374,7 @@ if (requestDriverButton) {
             userId: currentUser.uid,
             userName: currentUser.displayName,
             userPhoto: currentUser.photoURL,
-            origin: originInput.value,
+            origin: "Mi ubicación actual", // El origen siempre es la ubicación del usuario
             destination: destinationInput.value,
             originCoords: userLocation,
             destinationCoords: destinationLocation,
