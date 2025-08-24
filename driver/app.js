@@ -150,8 +150,30 @@ function showPendingView(driverData) {
     
     // Actualizar información
     document.getElementById('driver-status').textContent = 'Pendiente';
-    document.getElementById('request-date').textContent = driverData.createdAt ? 
-        new Date(driverData.createdAt.toDate()).toLocaleDateString('es-ES') : 'N/A';
+    
+    // Manejar createdAt de forma segura
+    let requestDate = 'N/A';
+    if (driverData.createdAt) {
+        try {
+            if (driverData.createdAt.toDate && typeof driverData.createdAt.toDate === 'function') {
+                // Es un Firestore Timestamp
+                requestDate = new Date(driverData.createdAt.toDate()).toLocaleDateString('es-ES');
+            } else if (driverData.createdAt instanceof Date) {
+                // Es un objeto Date
+                requestDate = driverData.createdAt.toLocaleDateString('es-ES');
+            } else if (typeof driverData.createdAt === 'string') {
+                // Es un string de fecha
+                requestDate = new Date(driverData.createdAt).toLocaleDateString('es-ES');
+            } else if (driverData.createdAt.seconds) {
+                // Es un timestamp con seconds
+                requestDate = new Date(driverData.createdAt.seconds * 1000).toLocaleDateString('es-ES');
+            }
+        } catch (error) {
+            console.error('Error parsing createdAt:', error);
+            requestDate = 'N/A';
+        }
+    }
+    document.getElementById('request-date').textContent = requestDate;
 }
 
 // Mostrar vista de rechazado
@@ -209,7 +231,14 @@ function showSuspendedView(driverData) {
 loginButton.addEventListener('click', async () => {
     try {
         // Ejecutar reCAPTCHA antes del login
-        const recaptchaToken = await UIUtils.executeRecaptcha('driver_login');
+        let recaptchaToken;
+        try {
+            recaptchaToken = await UIUtils.executeRecaptcha('driver_login');
+        } catch (recaptchaError) {
+            console.warn('Error con reCAPTCHA, continuando sin verificación:', recaptchaError);
+            // Continuar sin reCAPTCHA si hay problemas de red
+            recaptchaToken = 'bypass';
+        }
         
         if (!recaptchaToken) {
             alert('Error de verificación de seguridad. Por favor, intenta nuevamente.');
@@ -624,8 +653,10 @@ function startNavigationViewUpdates() {
 function deactivateNavigationMode() {
     navigationMode = false;
     
-    // Restaurar zoom original
-    map.setZoom(originalZoom);
+    // Restaurar zoom original solo si el mapa existe
+    if (map && typeof map.setZoom === 'function') {
+        map.setZoom(originalZoom);
+    }
     
     // Remover indicador de navegación
     const navIndicator = document.getElementById('navigation-indicator');
@@ -634,7 +665,7 @@ function deactivateNavigationMode() {
         navIndicator.style.transform = 'translateY(-20px)';
         navIndicator.style.opacity = '0';
         setTimeout(() => {
-            if (navIndicator.parentNode) {
+            if (navIndicator && navIndicator.parentNode) {
                 navIndicator.parentNode.removeChild(navIndicator);
             }
         }, 300);
@@ -647,7 +678,7 @@ function deactivateNavigationMode() {
         routeInfo.style.transform = 'translateY(-20px)';
         routeInfo.style.opacity = '0';
         setTimeout(() => {
-            if (routeInfo.parentNode) {
+            if (routeInfo && routeInfo.parentNode) {
                 routeInfo.parentNode.removeChild(routeInfo);
             }
         }, 300);
@@ -747,19 +778,27 @@ function updateMapBounds() {
 
 function resetTripState(isLogout = false) {
     if (locationWatcherId) navigator.geolocation.clearWatch(locationWatcherId);
-    if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
-    if (driverMarker) driverMarker.setMap(null);
-    if (userMarker) userMarker.setMap(null);
+    if (directionsRenderer && typeof directionsRenderer.setDirections === 'function') {
+        directionsRenderer.setDirections({ routes: [] });
+    }
+    if (driverMarker && typeof driverMarker.setMap === 'function') {
+        driverMarker.setMap(null);
+    }
+    if (userMarker && typeof userMarker.setMap === 'function') {
+        userMarker.setMap(null);
+    }
     locationWatcherId = null; activeTripId = null; driverMarker = null; userMarker = null;
     
-    // Desactivar modo de navegación
-    deactivateNavigationMode();
+    // Desactivar modo de navegación solo si no es logout
+    if (!isLogout) {
+        deactivateNavigationMode();
+    }
     
     tripPanel.style.display = 'none';
-    if (!isLogout && onlineToggle.checked) {
+    if (!isLogout && onlineToggle && onlineToggle.checked) {
         requestsPanel.style.display = 'block';
         if (!unsubscribeFromRequests) listenForRequests();
-    } else if (isLogout) {
+    } else if (isLogout && onlineToggle) {
         onlineToggle.checked = false;
         goOffline();
     }

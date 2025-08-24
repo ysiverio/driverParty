@@ -549,8 +549,15 @@ async function loadPendingDriverRequests() {
             
             // Insertar después del título de la sección de drivers
             const driversSection = document.getElementById('drivers');
-            const driversTitle = driversSection.querySelector('h2');
-            driversSection.insertBefore(pendingSection, driversTitle.nextSibling);
+            if (driversSection) {
+                const driversTitle = driversSection.querySelector('h2');
+                if (driversTitle && driversTitle.nextSibling) {
+                    driversSection.insertBefore(pendingSection, driversTitle.nextSibling);
+                } else {
+                    // Si no hay título o siguiente elemento, agregar al final
+                    driversSection.appendChild(pendingSection);
+                }
+            }
         }
         
         const pendingList = pendingSection.querySelector('.pending-drivers-list');
@@ -585,7 +592,23 @@ function createPendingDriverCard(driverId, driver) {
                 <p><strong>Teléfono:</strong> ${driver.phone}</p>
                 <p><strong>Licencia:</strong> ${driver.license}</p>
                 <p><strong>Vehículo:</strong> ${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plate})</p>
-                <p><strong>Fecha de solicitud:</strong> ${driver.createdAt ? new Date(driver.createdAt.toDate()).toLocaleDateString('es-ES') : 'N/A'}</p>
+                <p><strong>Fecha de solicitud:</strong> ${(() => {
+                    if (!driver.createdAt) return 'N/A';
+                    try {
+                        if (driver.createdAt.toDate && typeof driver.createdAt.toDate === 'function') {
+                            return new Date(driver.createdAt.toDate()).toLocaleDateString('es-ES');
+                        } else if (driver.createdAt instanceof Date) {
+                            return driver.createdAt.toLocaleDateString('es-ES');
+                        } else if (typeof driver.createdAt === 'string') {
+                            return new Date(driver.createdAt).toLocaleDateString('es-ES');
+                        } else if (driver.createdAt.seconds) {
+                            return new Date(driver.createdAt.seconds * 1000).toLocaleDateString('es-ES');
+                        }
+                    } catch (error) {
+                        console.error('Error parsing createdAt:', error);
+                    }
+                    return 'N/A';
+                })()}</p>
             </div>
         </div>
         <div class="driver-actions">
