@@ -21,7 +21,7 @@ Uncaught TypeError: userMarker.getPosition is not a function
 
 ## Soluciones Implementadas
 
-### 1. Función Helper para Markers en Usuario
+### 1. Funciones Helper para Markers en Usuario
 
 #### Archivo: `user/app.js`
 **Nueva función `getMarkerPosition`**:
@@ -42,15 +42,63 @@ function getMarkerPosition(marker) {
     
     return null;
 }
+
+**Nueva función `updateMarkerPosition`**:
+```javascript
+function updateMarkerPosition(marker, position) {
+    if (!marker || !position) return;
+    
+    // Convertir posición a LatLng si es necesario
+    const latLng = position.lat && position.lng ? 
+        new google.maps.LatLng(position.lat, position.lng) : 
+        position;
+    
+    if (marker && typeof marker.setPosition === 'function') {
+        // Marker tradicional
+        marker.setPosition(latLng);
+    } else if (marker && marker.position) {
+        // AdvancedMarkerElement
+        marker.position = latLng;
+    } else if (marker && marker.latLng) {
+        // Otro tipo de marcador
+        marker.latLng = latLng;
+    }
+}
+```
 ```
 
 **Beneficios**:
 - ✅ **Compatibilidad universal**: Funciona con Marker y AdvancedMarkerElement
 - ✅ **Manejo robusto**: Verifica existencia de marcador
 - ✅ **Fallbacks múltiples**: Maneja diferentes tipos de marcadores
-- ✅ **Sin errores**: Elimina TypeError de getPosition
+- ✅ **Sin errores**: Elimina TypeError de getPosition y setPosition
 
-### 2. Actualización de startUserNavigationViewUpdates
+### 2. Actualización de Funciones de Marcadores
+
+#### Archivo: `user/app.js`
+**Función `updateDriverMarker` corregida**:
+```javascript
+// ANTES
+} else { driverMarker.setPosition(pos); }
+
+// DESPUÉS
+} else { 
+    updateMarkerPosition(driverMarker, pos);
+}
+```
+
+**Función `updateMapBounds` corregida**:
+```javascript
+// ANTES
+bounds.extend(userMarker.getPosition());
+bounds.extend(driverMarker.getPosition());
+
+// DESPUÉS
+bounds.extend(getMarkerPosition(userMarker));
+bounds.extend(getMarkerPosition(driverMarker));
+```
+
+### 3. Actualización de startUserNavigationViewUpdates
 
 #### Archivo: `user/app.js`
 **Función corregida**:
@@ -77,7 +125,7 @@ if (userMarker && driverMarker) {
 - ✅ **Compatibilidad**: Funciona con cualquier tipo de marcador
 - ✅ **Funcionalidad preservada**: Mantiene la funcionalidad de navegación
 
-### 3. Corrección del Sistema de Rating
+### 4. Corrección del Sistema de Rating
 
 #### Archivo: `driver/app.js`
 **Función `updateTripStatus` corregida**:
@@ -126,7 +174,7 @@ async function updateTripStatus(status) {
 - ✅ **Manejo de errores**: Incluye try-catch para robustez
 - ✅ **Notificación al driver**: Informa cuando recibe un rating
 
-### 4. Corrección del Campo de Referencia
+### 5. Corrección del Campo de Referencia
 
 #### Archivo: `user/app.js`
 **En `confirmTripPayment`**:
@@ -182,6 +230,9 @@ tripRequestId: currentTripRequestId
 
 ### 1. `user/app.js`
 - ✅ Nueva función `getMarkerPosition`
+- ✅ Nueva función `updateMarkerPosition`
+- ✅ Actualización de `updateDriverMarker`
+- ✅ Actualización de `updateMapBounds`
 - ✅ Actualización de `startUserNavigationViewUpdates`
 - ✅ Corrección de campo `tripRequestId` en `confirmTripPayment`
 
@@ -193,7 +244,7 @@ tripRequestId: currentTripRequestId
 ## Estado Actual
 
 ✅ **Sistema de rating funcional**: El driver recibe y procesa ratings correctamente
-✅ **Navegación sin errores**: No más TypeError de getPosition
+✅ **Navegación sin errores**: No más TypeError de getPosition y setPosition
 ✅ **Compatibilidad universal**: Funciona con todos los tipos de marcadores
 ✅ **Estadísticas actualizadas**: Driver ve sus ratings y viajes actualizados
 ✅ **Notificaciones**: Driver recibe notificaciones cuando obtiene ratings

@@ -1066,7 +1066,9 @@ function updateDriverMarker(location) {
     if (!driverMarker) {
         // Crear marcador con fallback para compatibilidad
         driverMarker = createCustomMarker(pos, map, 'Tu Conductor', '#34a853', '🚗');
-    } else { driverMarker.setPosition(pos); }
+    } else { 
+        updateMarkerPosition(driverMarker, pos);
+    }
     updateMapBounds();
 }
 
@@ -1074,8 +1076,8 @@ function updateMapBounds() {
     console.log("updateMapBounds called.");
     if (!userMarker || !driverMarker) { console.log("Markers not ready for bounds update."); return; }
     const bounds = new google.maps.LatLngBounds();
-    bounds.extend(userMarker.getPosition());
-    bounds.extend(driverMarker.getPosition());
+    bounds.extend(getMarkerPosition(userMarker));
+    bounds.extend(getMarkerPosition(driverMarker));
     map.fitBounds(bounds, 60); // 60px padding
     console.log("Map bounds updated.");
 }
@@ -1711,4 +1713,25 @@ function getMarkerPosition(marker) {
     }
     
     return null;
+}
+
+// Helper function para actualizar la posición de marcadores compatibles
+function updateMarkerPosition(marker, position) {
+    if (!marker || !position) return;
+    
+    // Convertir posición a LatLng si es necesario
+    const latLng = position.lat && position.lng ? 
+        new google.maps.LatLng(position.lat, position.lng) : 
+        position;
+    
+    if (marker && typeof marker.setPosition === 'function') {
+        // Marker tradicional
+        marker.setPosition(latLng);
+    } else if (marker && marker.position) {
+        // AdvancedMarkerElement
+        marker.position = latLng;
+    } else if (marker && marker.latLng) {
+        // Otro tipo de marcador
+        marker.latLng = latLng;
+    }
 }
