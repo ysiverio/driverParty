@@ -839,8 +839,8 @@ function startNavigationViewUpdates() {
         // Mantener zoom y centrar en la ruta activa
         if (driverMarker && userMarker) {
             const bounds = new google.maps.LatLngBounds();
-            bounds.extend(driverMarker.getPosition());
-            bounds.extend(userMarker.getPosition());
+            bounds.extend(getMarkerPosition(driverMarker));
+            bounds.extend(getMarkerPosition(userMarker));
             map.fitBounds(bounds, 80);
         }
     }, 5000);
@@ -947,8 +947,8 @@ function updateNavigationView() {
     if (!userMarker || !driverMarker) return;
     
     const bounds = new google.maps.LatLngBounds();
-    bounds.extend(userMarker.getPosition());
-    bounds.extend(driverMarker.getPosition());
+    bounds.extend(getMarkerPosition(userMarker));
+    bounds.extend(getMarkerPosition(driverMarker));
     
     // Mantener zoom de navegación y centrar en la ruta
     map.fitBounds(bounds, 80);
@@ -957,8 +957,8 @@ function updateNavigationView() {
 function updateMapBounds() {
     if (!userMarker || !driverMarker) return;
     const bounds = new google.maps.LatLngBounds();
-    bounds.extend(userMarker.getPosition());
-    bounds.extend(driverMarker.getPosition());
+    bounds.extend(getMarkerPosition(userMarker));
+    bounds.extend(getMarkerPosition(driverMarker));
     map.fitBounds(bounds, 60);
 }
 
@@ -1545,6 +1545,18 @@ function showNotificationToast(message) {
 }
 
 // --- Helper Functions ---
+function getMarkerPosition(marker) {
+    // Helper function to get position from both Marker and AdvancedMarkerElement
+    if (marker && typeof marker.getPosition === 'function') {
+        return marker.getPosition();
+    } else if (marker && marker.position) {
+        return marker.position;
+    } else if (marker && marker.latLng) {
+        return marker.latLng;
+    }
+    return null;
+}
+
 function createCustomMarker(position, map, title, color = '#4285f4', emoji = '') {
     try {
         // Intentar usar AdvancedMarkerElement si está disponible

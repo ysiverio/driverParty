@@ -314,7 +314,7 @@ if (soundToggle) soundToggle.addEventListener('change', (e) => {
 });
 
 // --- Autocomplete Functionality ---
-let autocompleteService;
+let autocompleteSuggestion;
 let placesService;
 let selectedSuggestionIndex = -1;
 let suggestions = [];
@@ -322,14 +322,21 @@ let suggestions = [];
 // Initialize autocomplete services
 function initializeAutocompleteServices() {
     if (google && google.maps) {
-        autocompleteService = new google.maps.places.AutocompleteService();
-        placesService = new google.maps.places.PlacesService(map);
+        // Use the new AutocompleteSuggestion API instead of deprecated AutocompleteService
+        try {
+            autocompleteSuggestion = new google.maps.places.AutocompleteSuggestion();
+            placesService = new google.maps.places.PlacesService(map);
+        } catch (error) {
+            console.warn('AutocompleteSuggestion not available, falling back to AutocompleteService:', error);
+            // Fallback to deprecated API if new one is not available
+            autocompleteSuggestion = new google.maps.places.AutocompleteService();
+        }
     }
 }
 
 // Get destination suggestions
 async function getDestinationSuggestions(query) {
-    if (!autocompleteService || !query.trim()) {
+    if (!autocompleteSuggestion || !query.trim()) {
         hideSuggestions();
         return;
     }
@@ -341,15 +348,30 @@ async function getDestinationSuggestions(query) {
             types: ['establishment', 'geocode']
         };
 
-        const results = await new Promise((resolve, reject) => {
-            autocompleteService.getPlacePredictions(request, (predictions, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    resolve(predictions);
-                } else {
-                    resolve([]);
-                }
+        let results = [];
+        
+        // Try new API first, fallback to deprecated API
+        if (autocompleteSuggestion.getPlacePredictions) {
+            // Using deprecated AutocompleteService (fallback)
+            results = await new Promise((resolve, reject) => {
+                autocompleteSuggestion.getPlacePredictions(request, (predictions, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                        resolve(predictions);
+                    } else {
+                        resolve([]);
+                    }
+                });
             });
-        });
+        } else if (autocompleteSuggestion.getSuggestions) {
+            // Using new AutocompleteSuggestion API
+            try {
+                const response = await autocompleteSuggestion.getSuggestions(request);
+                results = response.suggestions || [];
+            } catch (error) {
+                console.warn('Error with new AutocompleteSuggestion API, falling back:', error);
+                results = [];
+            }
+        }
 
         suggestions = results.slice(0, 5); // Limit to 5 suggestions
         showSuggestions(suggestions);
@@ -375,11 +397,29 @@ function showSuggestions(suggestions) {
     suggestions.forEach((suggestion, index) => {
         const suggestionItem = document.createElement('div');
         suggestionItem.className = 'suggestion-item';
+        
+        // Handle both old and new API response formats
+        let mainText, secondaryText;
+        
+        if (suggestion.structured_formatting) {
+            // Old API format (AutocompleteService)
+            mainText = suggestion.structured_formatting.main_text;
+            secondaryText = suggestion.structured_formatting.secondary_text;
+        } else if (suggestion.text) {
+            // New API format (AutocompleteSuggestion)
+            mainText = suggestion.text;
+            secondaryText = suggestion.subtext || '';
+        } else {
+            // Fallback
+            mainText = suggestion.description || suggestion.name || 'Dirección';
+            secondaryText = '';
+        }
+        
         suggestionItem.innerHTML = `
             <i class="fas fa-map-marker-alt suggestion-icon"></i>
             <div class="suggestion-text">
-                <div>${suggestion.structured_formatting.main_text}</div>
-                <div class="suggestion-secondary">${suggestion.structured_formatting.secondary_text}</div>
+                <div>${mainText}</div>
+                <div class="suggestion-secondary">${secondaryText}</div>
             </div>
         `;
         
@@ -412,8 +452,25 @@ function hideSuggestions() {
 function selectSuggestion(suggestion) {
     const destinationInput = document.getElementById('destination-input');
     if (destinationInput) {
-        destinationInput.value = suggestion.description;
-        destinationInput.dataset.placeId = suggestion.place_id;
+        // Handle both old and new API response formats
+        let description, placeId;
+        
+        if (suggestion.description) {
+            // Old API format (AutocompleteService)
+            description = suggestion.description;
+            placeId = suggestion.place_id;
+        } else if (suggestion.text) {
+            // New API format (AutocompleteSuggestion)
+            description = suggestion.text + (suggestion.subtext ? ', ' + suggestion.subtext : '');
+            placeId = suggestion.placeId || suggestion.place_id;
+        } else {
+            // Fallback
+            description = suggestion.name || 'Dirección seleccionada';
+            placeId = suggestion.placeId || suggestion.place_id;
+        }
+        
+        destinationInput.value = description;
+        destinationInput.dataset.placeId = placeId;
     }
     hideSuggestions();
 }
@@ -807,10 +864,16 @@ function listenToTripUpdates(tripId) {
             console.log("Trip cancelled, resetting state."); 
             setTimeout(() => resetTripState(), 3000); 
         }
-        else if (trip.status === 'accepted' && !hasShownDriverInfo) {
-            console.log("Trip accepted, playing notification sound.");
-            playNotificationSound();
-            showNotificationToast('¡Tu viaje ha sido aceptado!');
+        else if (trip.status === 'accepted') {
+            console.log("Trip accepted, updating UI.");
+            if (!hasShownDriverInfo) {
+                console.log("First time accepted, playing notification sound.");
+                playNotificationSound();
+                showNotificationToast('¡Tu viaje ha sido aceptado!');
+            } else {
+                console.log("Trip already accepted, updating UI.");
+                showNotificationToast('Pago confirmado. Tu conductor está en camino.');
+            }
             
             // Si hay ruta disponible, dibujarla inmediatamente
             if (trip.routePolyline) {
@@ -849,6 +912,9 @@ function displayDriverInfo(info) {
     driverDetailsContainer.style.display = 'flex';
     hasShownDriverInfo = true;
     console.log("Driver info displayed.");
+    
+    // Actualizar información del conductor en el modal de pago
+    updatePaymentModalDriverInfo(info);
     
     // Mostrar la card completa del conductor
     showDriverCard(info);
@@ -1310,6 +1376,72 @@ function generateStarsHTML(rating) {
     }
     
     return starsHTML;
+}
+
+// Actualizar información del conductor en el modal de pago
+async function updatePaymentModalDriverInfo(driverInfo) {
+    console.log("Updating payment modal driver info:", driverInfo);
+    
+    // Actualizar información básica
+    const driverPhoto = document.getElementById('driver-photo');
+    const driverName = document.getElementById('driver-name');
+    const vehicleInfo = document.getElementById('vehicle-info');
+    const vehiclePlate = document.getElementById('vehicle-plate');
+    
+    if (driverPhoto) driverPhoto.src = driverInfo.photoURL || '../default-avatar.svg';
+    if (driverName) driverName.textContent = driverInfo.name || 'Conductor';
+    
+    if (driverInfo.vehicle) {
+        if (vehicleInfo) {
+            vehicleInfo.textContent = `${driverInfo.vehicle.make || ''} ${driverInfo.vehicle.model || ''} - ${driverInfo.vehicle.color || ''}`.trim();
+        }
+        if (vehiclePlate) {
+            vehiclePlate.textContent = driverInfo.vehicle.plate || '';
+        }
+    } else {
+        if (vehicleInfo) vehicleInfo.textContent = 'Vehículo no especificado';
+        if (vehiclePlate) vehiclePlate.textContent = '';
+    }
+    
+    // Cargar y actualizar estadísticas del conductor
+    const driverId = driverInfo.driverId || currentTripDriverId;
+    if (driverId) {
+        try {
+            console.log("Loading driver stats for payment modal:", driverId);
+            const driverRef = doc(db, "drivers", driverId);
+            const driverDoc = await getDoc(driverRef);
+            
+            const driverStars = document.getElementById('driver-stars');
+            const driverRatingText = document.getElementById('driver-rating-text');
+            
+            if (driverDoc.exists()) {
+                const data = driverDoc.data();
+                const totalStars = data.totalStars || 0;
+                const numTrips = data.numTrips || 0;
+                
+                if (numTrips > 0) {
+                    const avgRating = (totalStars / numTrips).toFixed(1);
+                    
+                    // Actualizar estrellas y texto de rating
+                    if (driverStars) driverStars.innerHTML = generateStarsHTML(avgRating);
+                    if (driverRatingText) driverRatingText.textContent = `${avgRating} (${numTrips} viaje${numTrips > 1 ? 's' : ''})`;
+                } else {
+                    if (driverStars) driverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
+                    if (driverRatingText) driverRatingText.textContent = '(Sin viajes)';
+                }
+            } else {
+                if (driverStars) driverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
+                if (driverRatingText) driverRatingText.textContent = '(Sin viajes)';
+            }
+        } catch (error) {
+            console.error("Error loading driver stats for payment modal:", error);
+            const driverStars = document.getElementById('driver-stars');
+            const driverRatingText = document.getElementById('driver-rating-text');
+            
+            if (driverStars) driverStars.innerHTML = '<span style="color: #dc3545;">Error</span>';
+            if (driverRatingText) driverRatingText.textContent = '';
+        }
+    }
 }
 
 function minimizeDriverCard() {
