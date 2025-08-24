@@ -81,6 +81,8 @@ let notificationSound; // Audio para notificaciones
 let navigationMode = false; // Modo de navegación activo
 let originalZoom = 14; // Zoom original del mapa
 let navigationZoom = 18; // Zoom para navegación
+let currentTripData = null; // Datos del viaje actual
+let navigationPhase = 'none'; // 'to_client', 'to_destination', 'none'
 
 // --- Persistencia de Estado ---
 const TRIP_STORAGE_KEY = 'driverParty_driver_trip_state';
@@ -791,23 +793,23 @@ async function acceptTrip(tripId) {
         const driverData = driverDoc.exists() ? driverDoc.data() : {};
         await updateDoc(tripRef, { status: 'accepted', driverId: currentUser.uid, driverInfo: { name: currentUser.displayName, photoURL: currentUser.photoURL, vehicle: driverData.vehicle || null } });
         const tripDoc = await getDoc(tripRef);
-        const tripData = tripDoc.data();
+        currentTripData = tripDoc.data();
         
         // Usar originCoords en lugar de userLocation
-        const userLocation = tripData.originCoords || tripData.userLocation;
+        const userLocation = currentTripData.originCoords || currentTripData.userLocation;
         
-        // Activar modo de navegación
-        activateNavigationMode(userLocation);
+        // Iniciar fase 1: Navegación hacia el cliente
+        startNavigationToClient(userLocation);
         
         requestsPanel.style.display = 'none';
         tripPanel.style.display = 'block';
-        tripClientName.textContent = tripData.userName;
+        tripClientName.textContent = currentTripData.userName;
         clearRequestMarkers();
         // Crear marcador con fallback para compatibilidad
-        userMarker = createCustomMarker(userLocation, map, tripData.userName, '#4285f4');
+        userMarker = createCustomMarker(userLocation, map, currentTripData.userName, '#4285f4');
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            calculateAndDisplayRoute(location, userLocation);
+            calculateAndDisplayRoute(location, userLocation, 'to_client');
             startSharingLocation(location);
         }, (err) => console.error("Geolocation error:", err));
         
@@ -819,7 +821,7 @@ async function acceptTrip(tripId) {
     } catch (error) { console.error("Error accepting trip: ", error); activeTripId = null; }
 }
 
-function calculateAndDisplayRoute(origin, destination) {
+function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
     directionsService.route({ origin, destination, travelMode: 'DRIVING' }, (result, status) => {
         if (status === 'OK') {
             directionsRenderer.setDirections(result);
@@ -828,12 +830,12 @@ function calculateAndDisplayRoute(origin, destination) {
             // Mostrar información de la ruta
             const route = result.routes[0];
             const leg = route.legs[0];
-            showRouteInfo(leg.distance.text, leg.duration.text);
+            showRouteInfo(leg.distance.text, leg.duration.text, phase);
         } else { console.error('Directions request failed: ' + status); }
     });
 }
 
-function showRouteInfo(distance, duration) {
+function showRouteInfo(distance, duration, phase = 'to_client') {
     // Crear o actualizar información de ruta
     let routeInfo = document.getElementById('route-info');
     if (!routeInfo) {
@@ -857,7 +859,15 @@ function showRouteInfo(distance, duration) {
         document.body.appendChild(routeInfo);
     }
     
+    const phaseText = phase === 'to_client' ? 'Hacia el cliente' : 'Hacia el destino';
+    const phaseIcon = phase === 'to_client' ? 'fa-user' : 'fa-map-marker-alt';
+    const phaseColor = phase === 'to_client' ? '#4285F4' : '#34A853';
+    
     routeInfo.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: ${phaseColor}; font-weight: 600;">
+            <i class="fas ${phaseIcon}"></i>
+            <span>${phaseText}</span>
+        </div>
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 6px;">
                 <i class="fas fa-road" style="color: #4285F4;"></i>
@@ -1025,7 +1035,7 @@ function deactivateNavigationMode() {
     }
 }
 
-startTripButton.addEventListener('click', () => updateTripStatus('in_progress'));
+startTripButton.addEventListener('click', () => startNavigationToDestination());
 endTripButton.addEventListener('click', () => updateTripStatus('completed'));
 
 // --- Navigation Toggle Events ---
@@ -1129,16 +1139,7 @@ function startSharingLocation(initialLocation) {
     }, (err) => console.error("Watch position error:", err), { enableHighAccuracy: true });
 }
 
-function updateNavigationView() {
-    if (!userMarker || !driverMarker) return;
-    
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(getMarkerPosition(userMarker));
-    bounds.extend(getMarkerPosition(driverMarker));
-    
-    // Mantener zoom de navegación y centrar en la ruta
-    map.fitBounds(bounds, 80);
-}
+
 
 function updateMapBounds() {
     if (!userMarker || !driverMarker) return;
@@ -1160,6 +1161,9 @@ function resetTripState(isLogout = false) {
         userMarker.setMap(null);
     }
     locationWatcherId = null; activeTripId = null; driverMarker = null; userMarker = null;
+    
+    // Resetear estado de navegación
+    resetNavigationState();
     
     // Desactivar modo de navegación solo si no es logout
     if (!isLogout) {
@@ -1823,6 +1827,131 @@ function createCustomMarker(position, map, title, color = '#4285f4', emoji = '')
             title: title
         });
     }
+}
+
+// --- Navigation Functions ---
+function startNavigationToClient(clientLocation) {
+    navigationPhase = 'to_client';
+    navigationMode = true;
+    map.setZoom(navigationZoom);
+    
+    // Mostrar indicador de navegación
+    showNavigationIndicator('Hacia el cliente');
+    
+    console.log('Navegación iniciada hacia el cliente');
+}
+
+function startNavigationToDestination() {
+    if (!currentTripData || !currentTripData.destinationCoords) {
+        console.error('No hay datos de destino disponibles');
+        return;
+    }
+    
+    // Cambiar a fase 2: Navegación hacia el destino
+    navigationPhase = 'to_destination';
+    
+    // Obtener ubicación actual del conductor
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        
+        // Calcular y mostrar ruta hacia el destino
+        calculateAndDisplayRoute(driverLocation, currentTripData.destinationCoords, 'to_destination');
+        
+        // Actualizar estado del viaje
+        updateTripStatus('in_progress');
+        
+        // Actualizar indicador de navegación
+        showNavigationIndicator('Hacia el destino');
+        
+        console.log('Navegación iniciada hacia el destino');
+    }, (err) => {
+        console.error("Error obteniendo ubicación del conductor:", err);
+        alert('Error obteniendo tu ubicación. Por favor, intenta nuevamente.');
+    });
+}
+
+function showNavigationIndicator(phase) {
+    // Crear o actualizar indicador de navegación
+    let navIndicator = document.getElementById('navigation-indicator');
+    if (!navIndicator) {
+        navIndicator = document.createElement('div');
+        navIndicator.id = 'navigation-indicator';
+        navIndicator.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #4285F4, #34A853);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+        document.body.appendChild(navIndicator);
+    }
+    
+    const icon = phase === 'Hacia el cliente' ? 'fa-user' : 'fa-map-marker-alt';
+    navIndicator.innerHTML = `
+        <i class="fas ${icon}"></i>
+        <span>${phase}</span>
+        <i class="fas fa-route"></i>
+    `;
+    
+    // Animar entrada
+    navIndicator.style.transform = 'translateX(-50%) translateY(-20px)';
+    navIndicator.style.opacity = '0';
+    setTimeout(() => {
+        navIndicator.style.transition = 'all 0.3s ease';
+        navIndicator.style.transform = 'translateX(-50%) translateY(0)';
+        navIndicator.style.opacity = '1';
+    }, 100);
+}
+
+function updateNavigationView() {
+    if (!userMarker || !driverMarker) return;
+    
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(getMarkerPosition(userMarker));
+    bounds.extend(getMarkerPosition(driverMarker));
+    
+    // Mantener zoom de navegación y centrar en la ruta
+    map.fitBounds(bounds, 80);
+}
+
+function updateMapBounds() {
+    if (!userMarker || !driverMarker) return;
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(getMarkerPosition(userMarker));
+    bounds.extend(getMarkerPosition(driverMarker));
+    map.fitBounds(bounds, 60);
+}
+
+function resetNavigationState() {
+    navigationMode = false;
+    navigationPhase = 'none';
+    currentTripData = null;
+    
+    // Ocultar indicadores
+    const navIndicator = document.getElementById('navigation-indicator');
+    if (navIndicator) navIndicator.remove();
+    
+    const routeInfo = document.getElementById('route-info');
+    if (routeInfo) routeInfo.remove();
+    
+    // Limpiar ruta
+    if (directionsRenderer) {
+        directionsRenderer.setDirections({ routes: [] });
+    }
+    
+    // Restaurar zoom original
+    map.setZoom(originalZoom);
 }
 
 
