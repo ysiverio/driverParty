@@ -66,6 +66,30 @@ driverParty/
 - **Recuperación de contraseña**: Sistema integrado
 - **Sesiones seguras**: Manejo automático de tokens
 
+### 🔥 Configuración de Firebase
+- **Reglas de Seguridad**: `firestore.rules` - Control de acceso a datos
+- **Índices Optimizados**: Crear manualmente en Firestore (ver sección de índices)
+- **Estructuras Iniciales**: `init-firebase.html` - Configuración por defecto
+- **Setup Administrador**: `setup-admin.html` - Crear usuario administrador
+- **Colecciones Principales**:
+  - `users` - Datos de usuarios
+  - `drivers` - Datos de conductores
+  - `trips` - Historial de viajes
+  - `tripRequests` - Solicitudes activas
+  - `configuration` - Configuración del sistema
+  - `admins` - Usuarios administradores
+
+### 📊 Índices de Firestore Necesarios
+Crear manualmente en la consola de Firebase los siguientes índices compuestos:
+
+**Colección: `trips`**
+- `status` (Ascending) + `createdAt` (Descending)
+- `driverId` (Ascending) + `createdAt` (Descending)
+- `userId` (Ascending) + `createdAt` (Descending)
+
+**Colección: `tripRequests`**
+- `status` (Ascending) + `createdAt` (Descending)
+
 ## 🚀 Instalación y Configuración
 
 ### 📋 Prerrequisitos
@@ -98,12 +122,17 @@ cd driverParty
    - Editar `firebase-config.js` con tus credenciales
    - Agregar API Key de Google Maps en las interfaces
 
-5. **Configurar usuario administrador**
-   - Abrir `setup-admin.js` en el navegador
+5. **Configurar Firebase**
+   - **Reglas de Seguridad**: Copiar el contenido de `firestore.rules` a la consola de Firebase
+   - **Índices**: Crear manualmente los índices necesarios en Firestore (ver sección de índices)
+   - **Estructuras de Datos**: Abrir `init-firebase.html` en el navegador y hacer clic en "Inicializar Firebase"
+
+6. **Configurar usuario administrador**
+   - Abrir `setup-admin.html` en el navegador
    - Hacer clic en "Configurar Administrador"
    - Usar las credenciales generadas para acceder al panel
 
-6. **Ejecutar la aplicación**
+7. **Ejecutar la aplicación**
 ```bash
 # Usar servidor local (ejemplo con Python)
 python -m http.server 8000

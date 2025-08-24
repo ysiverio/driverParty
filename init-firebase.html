@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Inicializar Firebase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .init-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .init-button:hover {
+            background: #218838;
+        }
+        
+        .init-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .steps {
+            text-align: left;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .steps h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .steps ol {
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .steps li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Inicializar Firebase</h1>
+        <p class="description">
+            Este script configurará las estructuras de datos iniciales en Firebase para DriverParty.
+            Solo debe ejecutarse una vez.
+        </p>
+        
+        <button id="initButton" class="init-button" onclick="runInitialization()">
+            Inicializar Firebase
+        </button>
+        
+        <div id="status" class="status"></div>
+        <div id="log" class="log"></div>
+        
+        <div class="steps">
+            <h3>📋 Pasos de Configuración:</h3>
+            <ol>
+                <li><strong>Reglas de Seguridad:</strong> Copiar el contenido de <code>firestore.rules</code> a la consola de Firebase</li>
+                <li><strong>Índices:</strong> Crear manualmente los índices necesarios en Firestore</li>
+                <li><strong>Estructuras:</strong> Hacer clic en "Inicializar Firebase" (este botón)</li>
+                <li><strong>Administrador:</strong> Ejecutar <code>setup-admin.js</code> para crear el usuario admin</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeFirebaseData } from './init-firebase.js';
+        
+        window.runInitialization = async function() {
+            const button = document.getElementById('initButton');
+            const status = document.getElementById('status');
+            const log = document.getElementById('log');
+            
+            // Deshabilitar botón y mostrar estado
+            button.disabled = true;
+            button.textContent = 'Inicializando...';
+            status.style.display = 'block';
+            status.className = 'status';
+            status.textContent = 'Inicializando estructuras de datos...';
+            log.style.display = 'block';
+            log.innerHTML = '';
+            
+            // Capturar logs de la consola
+            const originalLog = console.log;
+            const originalError = console.error;
+            const logs = [];
+            
+            console.log = function(...args) {
+                logs.push('✅ ' + args.join(' '));
+                log.innerHTML = logs.join('<br>');
+                log.scrollTop = log.scrollHeight;
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                logs.push('❌ ' + args.join(' '));
+                log.innerHTML = logs.join('<br>');
+                log.scrollTop = log.scrollHeight;
+                originalError.apply(console, args);
+            };
+            
+            try {
+                await initializeFirebaseData();
+                status.className = 'status success';
+                status.textContent = '✅ Inicialización completada exitosamente';
+                button.textContent = 'Inicialización Completada';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error durante la inicialización';
+                button.textContent = 'Reintentar';
+                button.disabled = false;
+            }
+            
+            // Restaurar console original
+            console.log = originalLog;
+            console.error = originalError;
+        };
+    </script>
+</body>
+</html>

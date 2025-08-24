@@ -86,7 +86,6 @@ const resetSettingsBtn = document.getElementById('resetSettingsBtn');
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
     setupEventListeners();
-    loadConfiguration();
 });
 
 // Autenticación
@@ -104,7 +103,7 @@ function initializeAuth() {
 }
 
 function setupUIForLoggedInUser(user) {
-    adminProfilePic.src = user.photoURL || '../default-avatar.png';
+    adminProfilePic.src = user.photoURL || '../default-avatar.svg';
     adminName.textContent = user.displayName || 'Administrador';
 }
 
@@ -241,13 +240,22 @@ async function loadTripsStats() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const tripsQuery = query(
-            collection(db, "trips"),
-            where("createdAt", ">=", Timestamp.fromDate(today))
-        );
+        // Query simple sin índices compuestos
+        const tripsQuery = query(collection(db, "trips"));
         const snapshot = await getDocs(tripsQuery);
         
-        totalTrips.textContent = snapshot.size;
+        let tripsToday = 0;
+        snapshot.forEach(doc => {
+            const trip = doc.data();
+            const tripDate = trip.createdAt ? trip.createdAt.toDate() : new Date();
+            
+            // Filtrar por fecha en el cliente
+            if (tripDate >= today) {
+                tripsToday++;
+            }
+        });
+        
+        totalTrips.textContent = tripsToday;
     } catch (error) {
         console.error('Error loading trips stats:', error);
         totalTrips.textContent = '0';
@@ -259,18 +267,21 @@ async function loadRevenueStats() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const tripsQuery = query(
-            collection(db, "trips"),
-            where("createdAt", ">=", Timestamp.fromDate(today)),
-            where("status", "==", "completed")
-        );
+        // Query simple sin índices compuestos para evitar errores
+        const tripsQuery = query(collection(db, "trips"));
         const snapshot = await getDocs(tripsQuery);
         
         let totalRevenueAmount = 0;
+        let completedTripsToday = 0;
+        
         snapshot.forEach(doc => {
             const trip = doc.data();
-            if (trip.userFare) {
+            const tripDate = trip.createdAt ? trip.createdAt.toDate() : new Date();
+            
+            // Filtrar por fecha y estado en el cliente
+            if (tripDate >= today && trip.status === "completed" && trip.userFare) {
                 totalRevenueAmount += trip.userFare;
+                completedTripsToday++;
             }
         });
         
@@ -469,8 +480,8 @@ async function loadDriversData() {
             driversHTML += `
                 <tr>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <img src="${driver.photoURL || '../default-avatar.png'}" alt="${driver.name}" style="width: 40px; height: 40px; border-radius: 50%;">
+                                                 <div style="display: flex; align-items: center; gap: 10px;">
+                             <img src="${driver.photoURL || '../default-avatar.svg'}" alt="${driver.name}" style="width: 40px; height: 40px; border-radius: 50%;">
                             <div>
                                 <div style="font-weight: 600;">${driver.name}</div>
                                 <div style="font-size: 12px; color: #666;">${driver.email}</div>
@@ -570,8 +581,8 @@ async function loadUsersData() {
             usersHTML += `
                 <tr>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <img src="${user.photoURL || '../default-avatar.png'}" alt="${user.name}" style="width: 40px; height: 40px; border-radius: 50%;">
+                                                 <div style="display: flex; align-items: center; gap: 10px;">
+                             <img src="${user.photoURL || '../default-avatar.svg'}" alt="${user.name}" style="width: 40px; height: 40px; border-radius: 50%;">
                             <div>
                                 <div style="font-weight: 600;">${user.name}</div>
                                 <div style="font-size: 12px; color: #666;">${user.email}</div>
@@ -607,25 +618,44 @@ async function loadTripsData() {
     try {
         const loading = UIUtils.showLoading('Cargando viajes...');
         
-        const tripsQuery = query(collection(db, "trips"), orderBy("createdAt", "desc"));
+        // Query simple sin orderBy para evitar índices compuestos
+        const tripsQuery = query(collection(db, "trips"));
         const snapshot = await getDocs(tripsQuery);
         
         let tripsHTML = '';
+        const trips = [];
+        
+        // Convertir a array y ordenar en el cliente
         snapshot.forEach(doc => {
             const trip = doc.data();
+            trips.push({
+                id: doc.id,
+                ...trip
+            });
+        });
+        
+        // Ordenar por fecha de creación (más reciente primero)
+        trips.sort((a, b) => {
+            const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
+            const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
+            return dateB - dateA;
+        });
+        
+        trips.forEach(trip => {
             const statusClass = getTripStatusClass(trip.status);
+            const createdAt = trip.createdAt ? trip.createdAt.toDate() : new Date();
             
             tripsHTML += `
                 <tr>
-                    <td>${doc.id.substring(0, 8)}...</td>
+                    <td>${trip.id.substring(0, 8)}...</td>
                     <td>${trip.userName || 'N/A'}</td>
                     <td>${trip.driverName || 'N/A'}</td>
                     <td>${trip.origin} → ${trip.destination}</td>
                     <td>${FormatUtils.formatCurrency(trip.userFare || 0)}</td>
                     <td><span class="${statusClass}">${getTripStatusText(trip.status)}</span></td>
-                    <td>${FormatUtils.formatDateTime(trip.createdAt.toDate())}</td>
+                    <td>${FormatUtils.formatDateTime(createdAt)}</td>
                     <td>
-                        <button class="action-btn view" onclick="viewTrip('${doc.id}')">
+                        <button class="action-btn view" onclick="viewTrip('${trip.id}')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </td>

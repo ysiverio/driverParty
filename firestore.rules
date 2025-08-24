@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir acceso a usuarios autenticados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null; // Los administradores pueden leer todos los usuarios
+    }
+    
+    // Permitir acceso a conductores autenticados
+    match /drivers/{driverId} {
+      allow read, write: if request.auth != null && request.auth.uid == driverId;
+      allow read: if request.auth != null; // Los administradores pueden leer todos los conductores
+    }
+    
+    // Permitir acceso a viajes
+    match /trips/{tripId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Permitir acceso a solicitudes de viaje
+    match /tripRequests/{requestId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Permitir acceso a configuración (solo administradores)
+    match /configuration/{configId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Permitir acceso a administradores
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+  }
+}

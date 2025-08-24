@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Configurar Administrador</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .setup-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .setup-button:hover {
+            background: #0056b3;
+        }
+        
+        .setup-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .credentials {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+        
+        .credentials h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .credentials p {
+            color: #856404;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+        
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            color: #721c24;
+        }
+        
+        .steps {
+            text-align: left;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .steps h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .steps ol {
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .steps li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👨‍💼 Configurar Administrador</h1>
+        <p class="description">
+            Este script creará el usuario administrador en Firebase Auth y configurará los permisos necesarios.
+            Solo debe ejecutarse una vez.
+        </p>
+        
+        <button id="setupButton" class="setup-button" onclick="runSetup()">
+            Configurar Administrador
+        </button>
+        
+        <div id="status" class="status"></div>
+        <div id="log" class="log"></div>
+        <div id="credentials" class="credentials"></div>
+        
+        <div class="warning">
+            <strong>⚠️ IMPORTANTE:</strong> Después del primer acceso, cambia la contraseña por defecto por seguridad.
+        </div>
+        
+        <div class="steps">
+            <h3>📋 Pasos de Configuración:</h3>
+            <ol>
+                <li><strong>Firebase:</strong> Ejecutar <code>init-firebase.html</code> primero</li>
+                <li><strong>Administrador:</strong> Hacer clic en "Configurar Administrador" (este botón)</li>
+                <li><strong>Acceso:</strong> Usar las credenciales generadas para acceder al panel</li>
+                <li><strong>Seguridad:</strong> Cambiar la contraseña después del primer login</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createAdminUser } from './setup-admin.js';
+        
+        window.runSetup = async function() {
+            const button = document.getElementById('setupButton');
+            const status = document.getElementById('status');
+            const log = document.getElementById('log');
+            const credentials = document.getElementById('credentials');
+            
+            // Deshabilitar botón y mostrar estado
+            button.disabled = true;
+            button.textContent = 'Configurando...';
+            status.style.display = 'block';
+            status.className = 'status';
+            status.textContent = 'Creando usuario administrador...';
+            log.style.display = 'block';
+            log.innerHTML = '';
+            credentials.style.display = 'none';
+            
+            // Capturar logs de la consola
+            const originalLog = console.log;
+            const originalError = console.error;
+            const logs = [];
+            
+            console.log = function(...args) {
+                logs.push('✅ ' + args.join(' '));
+                log.innerHTML = logs.join('<br>');
+                log.scrollTop = log.scrollHeight;
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                logs.push('❌ ' + args.join(' '));
+                log.innerHTML = logs.join('<br>');
+                log.scrollTop = log.scrollHeight;
+                originalError.apply(console, args);
+            };
+            
+            try {
+                await createAdminUser();
+                status.className = 'status success';
+                status.textContent = '✅ Usuario administrador creado exitosamente';
+                button.textContent = 'Configuración Completada';
+                
+                // Mostrar credenciales
+                credentials.style.display = 'block';
+                credentials.innerHTML = `
+                    <h3>🔑 Credenciales de Acceso:</h3>
+                    <p><strong>Email:</strong> admin@driverparty.com</p>
+                    <p><strong>Contraseña:</strong> AdminDriverParty2024!</p>
+                    <p><strong>URL Panel:</strong> <a href="admin/login.html" target="_blank">admin/login.html</a></p>
+                `;
+                
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error durante la configuración';
+                button.textContent = 'Reintentar';
+                button.disabled = false;
+            }
+            
+            // Restaurar console original
+            console.log = originalLog;
+            console.error = originalError;
+        };
+    </script>
+</body>
+</html>
