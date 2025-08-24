@@ -345,66 +345,95 @@ body, html {
 
 .driver-info {
     margin-bottom: 30px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 10px;
-    border: 1px solid #e9ecef;
+    padding: 25px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    border: 2px solid #dee2e6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .driver-info h3 {
-    color: #333;
-    margin-bottom: 15px;
-    font-size: 18px;
-    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .driver-card {
     display: flex;
     align-items: center;
     background: white;
-    border-radius: 8px;
-    padding: 15px;
-    border: 1px solid #dee2e6;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid #4285F4;
+    box-shadow: 0 6px 20px rgba(66, 133, 244, 0.15);
+    transition: all 0.3s ease;
+}
+
+.driver-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(66, 133, 244, 0.2);
 }
 
 .driver-photo {
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
-    margin-right: 15px;
+    margin-right: 20px;
     object-fit: cover;
+    border: 3px solid #4285F4;
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
 }
 
 .driver-details h4 {
-    color: #333;
-    margin-bottom: 5px;
-    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 600;
 }
 
 .driver-rating {
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .driver-rating .stars {
     color: #ffc107;
-    font-size: 14px;
-    margin-right: 10px;
+    font-size: 16px;
+    margin-right: 12px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .driver-rating span {
-    color: #666;
-    font-size: 14px;
+    color: #495057;
+    font-size: 15px;
+    font-weight: 500;
 }
 
 .vehicle-info {
-    color: #666;
+    color: #6c757d;
     font-size: 14px;
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 3px solid #4285F4;
 }
 
 .vehicle-info span {
     display: block;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+.vehicle-info span:last-child {
+    margin-bottom: 0;
+    color: #495057;
+    font-weight: 600;
 }
 
 .payment-methods {
@@ -1233,4 +1262,58 @@ body, html {
 
 .input-group {
     position: relative;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modal-box {
+        width: 95%;
+        margin: 20px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .payment-confirmation {
+        max-width: 100%;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .driver-info {
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .driver-info h3 {
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+    
+    .driver-card {
+        padding: 15px;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .driver-photo {
+        width: 60px;
+        height: 60px;
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .driver-details h4 {
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+    
+    .driver-rating {
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+    
+    .vehicle-info {
+        text-align: left;
+        margin-top: 10px;
+    }
 }

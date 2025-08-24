@@ -933,7 +933,9 @@ function startSharingLocation(initialLocation) {
     locationWatcherId = navigator.geolocation.watchPosition((pos) => {
         const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateDoc(doc(db, "tripRequests", activeTripId), { driverLocation });
-        driverMarker.setPosition(driverLocation);
+        
+        // Actualizar posición del marcador de manera compatible
+        updateMarkerPosition(driverMarker, driverLocation);
         
         if (navigationMode) {
             updateNavigationView();
@@ -1555,6 +1557,26 @@ function getMarkerPosition(marker) {
         return marker.latLng;
     }
     return null;
+}
+
+function updateMarkerPosition(marker, position) {
+    if (!marker || !position) return;
+    
+    // Convertir posición a LatLng si es necesario
+    const latLng = position.lat && position.lng ? 
+        new google.maps.LatLng(position.lat, position.lng) : 
+        position;
+    
+    if (marker && typeof marker.setPosition === 'function') {
+        // Marker tradicional
+        marker.setPosition(latLng);
+    } else if (marker && marker.position) {
+        // AdvancedMarkerElement
+        marker.position = latLng;
+    } else if (marker && marker.latLng) {
+        // Otro tipo de marcador
+        marker.latLng = latLng;
+    }
 }
 
 function createCustomMarker(position, map, title, color = '#4285f4', emoji = '') {
