@@ -264,27 +264,61 @@ const registrationForm = document.getElementById('driver-registration-form');
 const cancelRegistrationBtn = document.getElementById('cancel-registration');
 const logoutPendingBtn = document.getElementById('logout-pending');
 
+// Verificar que los elementos existen antes de agregar event listeners
+if (!registrationForm) {
+    console.error('Elemento driver-registration-form no encontrado');
+}
+if (!cancelRegistrationBtn) {
+    console.error('Elemento cancel-registration no encontrado');
+}
+if (!logoutPendingBtn) {
+    console.error('Elemento logout-pending no encontrado');
+}
+
 // Manejar envío del formulario de registro
-registrationForm.addEventListener('submit', async (e) => {
+if (registrationForm) {
+    registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     try {
+        // Verificar que todos los elementos del formulario existen
+        const nameElement = document.getElementById('driver-name');
+        const phoneElement = document.getElementById('driver-phone');
+        const emailElement = document.getElementById('driver-email');
+        const licenseElement = document.getElementById('driver-license');
+        const licenseExpiryElement = document.getElementById('license-expiry');
+        const vehicleMakeElement = document.getElementById('vehicle-make');
+        const vehicleModelElement = document.getElementById('vehicle-model');
+        const vehicleYearElement = document.getElementById('vehicle-year');
+        const vehicleColorElement = document.getElementById('vehicle-color');
+        const vehiclePlateElement = document.getElementById('vehicle-plate');
+        const insuranceNumberElement = document.getElementById('insurance-number');
+        const insuranceExpiryElement = document.getElementById('insurance-expiry');
+        
+        // Verificar que todos los elementos existen
+        if (!nameElement || !phoneElement || !emailElement || !licenseElement || 
+            !licenseExpiryElement || !vehicleMakeElement || !vehicleModelElement || 
+            !vehicleYearElement || !vehicleColorElement || !vehiclePlateElement || 
+            !insuranceNumberElement || !insuranceExpiryElement) {
+            throw new Error('Algunos elementos del formulario no se encontraron');
+        }
+        
         const formData = {
-            name: document.getElementById('driver-name').value,
-            phone: document.getElementById('driver-phone').value,
-            email: document.getElementById('driver-email').value,
-            license: document.getElementById('driver-license').value,
-            licenseExpiry: document.getElementById('license-expiry').value,
+            name: nameElement.value,
+            phone: phoneElement.value,
+            email: emailElement.value,
+            license: licenseElement.value,
+            licenseExpiry: licenseExpiryElement.value,
             vehicle: {
-                make: document.getElementById('vehicle-make').value,
-                model: document.getElementById('vehicle-model').value,
-                year: parseInt(document.getElementById('vehicle-year').value),
-                color: document.getElementById('vehicle-color').value,
-                plate: document.getElementById('vehicle-plate').value
+                make: vehicleMakeElement.value,
+                model: vehicleModelElement.value,
+                year: parseInt(vehicleYearElement.value),
+                color: vehicleColorElement.value,
+                plate: vehiclePlateElement.value
             },
             insurance: {
-                number: document.getElementById('insurance-number').value,
-                expiry: document.getElementById('insurance-expiry').value
+                number: insuranceNumberElement.value,
+                expiry: insuranceExpiryElement.value
             },
             status: 'pending',
             createdAt: serverTimestamp(),
@@ -308,17 +342,22 @@ registrationForm.addEventListener('submit', async (e) => {
         console.error('Error submitting driver registration:', error);
         alert('Error al enviar la solicitud. Por favor, intenta nuevamente.');
     }
-});
+    });
+}
 
 // Cancelar registro
-cancelRegistrationBtn.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error("Sign Out Error:", err));
-});
+if (cancelRegistrationBtn) {
+    cancelRegistrationBtn.addEventListener('click', () => {
+        signOut(auth).catch(err => console.error("Sign Out Error:", err));
+    });
+}
 
 // Cerrar sesión desde vista pendiente
-logoutPendingBtn.addEventListener('click', () => {
-    signOut(auth).catch(err => console.error("Sign Out Error:", err));
-});
+if (logoutPendingBtn) {
+    logoutPendingBtn.addEventListener('click', () => {
+        signOut(auth).catch(err => console.error("Sign Out Error:", err));
+    });
+}
 
 function setupUIForLoggedInUser(user) {
     loginView.style.display = 'none';

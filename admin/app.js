@@ -993,3 +993,12 @@ window.editUser = function(userId) {
 window.viewTrip = function(tripId) {
     UIUtils.showToast(`Ver viaje: ${tripId}`, 'info');
 };
+
+// Funciones para aprobar/rechazar drivers
+window.approveDriver = function(driverId) {
+    approveDriver(driverId);
+};
+
+window.rejectDriver = function(driverId) {
+    rejectDriver(driverId);
+};

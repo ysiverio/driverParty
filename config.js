@@ -285,8 +285,13 @@ export class UIUtils {
     static async executeRecaptcha(action = 'login') {
         try {
             if (typeof grecaptcha === 'undefined') {
-                console.warn('reCAPTCHA no está disponible');
-                return null;
+                console.warn('reCAPTCHA no está disponible, continuando sin verificación');
+                return 'bypass';
+            }
+            
+            if (!grecaptcha.enterprise) {
+                console.warn('reCAPTCHA Enterprise no está disponible, continuando sin verificación');
+                return 'bypass';
             }
             
             const token = await grecaptcha.enterprise.execute('6LfiK7ArAAAAAH1DaE9lH6icleja0zxoV3JqjaEH', {
@@ -296,8 +301,8 @@ export class UIUtils {
             console.log('reCAPTCHA token obtenido para acción:', action);
             return token;
         } catch (error) {
-            console.error('Error ejecutando reCAPTCHA:', error);
-            return null;
+            console.warn('Error ejecutando reCAPTCHA, continuando sin verificación:', error);
+            return 'bypass';
         }
     }
     
