@@ -341,13 +341,15 @@ if (requestDriverButton) {
                 // Fallback a geocodificación si no se usó autocompletado
                 const geocoder = new google.maps.Geocoder();
                 const geocodeResult = await geocoder.geocode({ address: destinationInput.value, componentRestrictions: { country: 'uy' } });
-                if (geocodeResult.results && geocodeResult.results.length > 0) {
+                
+                // SALVAGUARDA: Asegurarse de que el resultado del geocoder es válido
+                if (geocodeResult.results && geocodeResult.results.length > 0 && geocodeResult.results[0].geometry && geocodeResult.results[0].geometry.location) {
                     destinationLocation = {
                         lat: geocodeResult.results[0].geometry.location.lat(),
                         lng: geocodeResult.results[0].geometry.location.lng(),
                     };
                 } else {
-                    throw new Error('No se pudo encontrar la dirección ingresada.');
+                    throw new Error('No se pudo encontrar la dirección ingresada. Por favor, selecciónala de la lista.');
                 }
             }
             
