@@ -1888,14 +1888,6 @@ function updateNavigationView() {
     map.fitBounds(bounds, 80);
 }
 
-function updateMapBounds() {
-    if (!userMarker || !driverMarker) return;
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(getMarkerPosition(userMarker));
-    bounds.extend(getMarkerPosition(driverMarker));
-    map.fitBounds(bounds, 60);
-}
-
 function resetNavigationState() {
     navigationMode = false;
     navigationPhase = 'none';
