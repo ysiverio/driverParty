@@ -7,7 +7,8 @@ import {
     createUserWithEmailAndPassword,
     doc,
     setDoc,
-    collection
+    collection,
+    serverTimestamp
 } from './firebase-config.js';
 
 // Configuración del administrador

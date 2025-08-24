@@ -6,7 +6,8 @@ import {
     db,
     doc,
     setDoc,
-    collection
+    collection,
+    serverTimestamp
 } from './firebase-config.js';
 
 // Configuración inicial de precios
