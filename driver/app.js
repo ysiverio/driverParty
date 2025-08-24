@@ -1055,24 +1055,44 @@ async function updateTripStatus(status) {
             // Lógica de finalización del viaje
             if (status === 'completed') {
                 if (mainTripId) {
-                    const tripDoc = await getDoc(doc(db, "trips", mainTripId));
-                    if (tripDoc.exists()) {
-                        const tripData = tripDoc.data();
-                        const rating = tripData.rating || 0;
+                    // En lugar de buscar inmediatamente, configuramos un listener para detectar cuando se añade la calificación
+                    const tripRef = doc(db, "trips", mainTripId);
+                    const unsubscribeTrip = onSnapshot(tripRef, async (tripDoc) => {
+                        if (tripDoc.exists()) {
+                            const tripData = tripDoc.data();
+                            const rating = tripData.rating || 0;
 
-                        if (rating > 0) {
-                            const driverRef = doc(db, "drivers", currentUser.uid);
-                            const driverDoc = await getDoc(driverRef);
-                            const newNumTrips = (driverDoc.data()?.numTrips || 0) + 1;
-                            const newTotalStars = (driverDoc.data()?.totalStars || 0) + rating;
-                            
-                            await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
-                            updateDriverRatingDisplay();
-                            showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
+                            if (rating > 0) {
+                                // Detener el listener una vez que encontramos la calificación
+                                unsubscribeTrip();
+                                
+                                const driverRef = doc(db, "drivers", currentUser.uid);
+                                const driverDoc = await getDoc(driverRef);
+                                const newNumTrips = (driverDoc.data()?.numTrips || 0) + 1;
+                                const newTotalStars = (driverDoc.data()?.totalStars || 0) + rating;
+                                
+                                await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
+                                updateDriverRatingDisplay();
+                                showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
+                                
+                                // Ahora sí resetear el estado del viaje
+                                resetTripState();
+                            }
                         }
-                    }
+                    }, (error) => {
+                        console.error("Error listening for trip rating:", error);
+                        // Si hay error, resetear el estado después de un tiempo
+                        setTimeout(() => resetTripState(), 5000);
+                    });
+                    
+                    // Si después de 2 minutos no hay calificación, resetear el estado
+                    setTimeout(() => {
+                        unsubscribeTrip();
+                        resetTripState();
+                    }, 120000); // 2 minutos
+                } else {
+                    resetTripState();
                 }
-                resetTripState();
             }
         }
     } catch (error) {
