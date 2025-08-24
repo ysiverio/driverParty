@@ -584,12 +584,34 @@ if (requestDriverButton) {
                 }
             }
             
-            const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                new google.maps.LatLng(userLocation),
-                new google.maps.LatLng(destinationLocation)
-            ) / 1000; // en km
+            // Calcular distancia con fallback
+            let distance;
+            try {
+                if (google.maps.geometry && google.maps.geometry.spherical) {
+                    distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        new google.maps.LatLng(userLocation),
+                        new google.maps.LatLng(destinationLocation)
+                    ) / 1000; // en km
+                } else {
+                    // Fallback: cálculo manual usando la fórmula de Haversine
+                    const R = 6371; // Radio de la Tierra en km
+                    const dLat = (destinationLocation.lat - userLocation.lat) * Math.PI / 180;
+                    const dLon = (destinationLocation.lng - userLocation.lng) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                             Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(destinationLocation.lat * Math.PI / 180) *
+                             Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    distance = R * c;
+                }
+                console.log('Distancia calculada:', distance, 'km');
+            } catch (error) {
+                console.error('Error calculando distancia:', error);
+                // Distancia por defecto si falla el cálculo
+                distance = 5.0;
+            }
 
             const fare = calculateFare(distance);
+            console.log('Tarifa calculada:', fare);
 
             const docRef = await addDoc(collection(db, "tripRequests"), {
                 userId: currentUser.uid,
@@ -701,11 +723,26 @@ function showPaymentConfirmationModal(request, driverData) {
     const durationElement = document.getElementById('trip-duration');
     const fareElement = document.getElementById('trip-fare');
     
-    if (distanceElement) distanceElement.textContent = `${request.estimatedDistance.toFixed(1)} km`;
-    if (durationElement) durationElement.textContent = `${Math.round(request.estimatedDistance * 2)} min`;
-    if (fareElement) fareElement.textContent = `$${request.estimatedFare.toFixed(2)}`;
+    // Verificar y mostrar valores con logs detallados
+    const distance = request.estimatedDistance || 0;
+    const fare = request.estimatedFare || 0;
+    const duration = Math.round(distance * 2); // 2 minutos por km como estimación
     
-    console.log('Trip info set - Distance:', request.estimatedDistance, 'Fare:', request.estimatedFare);
+    console.log('Valores del viaje - Distance:', distance, 'Fare:', fare, 'Duration:', duration);
+    console.log('Elementos del DOM - Distance element:', distanceElement, 'Duration element:', durationElement, 'Fare element:', fareElement);
+    
+    if (distanceElement) {
+        distanceElement.textContent = `${distance.toFixed(1)} km`;
+        console.log('Distancia establecida en DOM:', distanceElement.textContent);
+    }
+    if (durationElement) {
+        durationElement.textContent = `${duration} min`;
+        console.log('Duración establecida en DOM:', durationElement.textContent);
+    }
+    if (fareElement) {
+        fareElement.textContent = `$${fare.toFixed(2)}`;
+        console.log('Tarifa establecida en DOM:', fareElement.textContent);
+    }
     
     // Mostrar información del conductor
     const driverPhotoElement = document.getElementById('driver-photo');
