@@ -701,32 +701,42 @@ if (requestDriverButton) {
 
 // Escuchar actualizaciones de solicitudes de viaje
 function listenToTripRequestUpdates(requestId) {
-    console.log("Listening to trip request updates for ID:", requestId);
+    console.log("Listening to trip request updates for request ID:", requestId);
     const requestRef = doc(db, "tripRequests", requestId);
-    
-    onSnapshot(requestRef, (docSnap) => {
+    tripRequestListener = onSnapshot(requestRef, (docSnap) => {
         console.log("Trip request update received.");
         if (!docSnap.exists()) { 
             console.log("Trip request document does not exist."); 
-            resetTripState(); 
             return; 
         }
-        
         const request = docSnap.data();
         console.log("Trip request data:", request);
         
-        switch (request.status) {
-            case 'accepted':
-                handleTripAccepted(request);
-                break;
-            case 'cancelled':
-                handleTripCancelled();
-                break;
-            case 'expired':
-                handleTripExpired();
-                break;
-            default:
-                updateTripRequestUI(request);
+        // Manejar diferentes estados de la solicitud
+        if (request.status === 'in_progress' && !navigationMode) {
+            console.log("Trip started, activating navigation mode.");
+            activateNavigationMode();
+            showNotificationToast('¡El viaje ha comenzado!');
+        }
+        else if (request.status === 'completed') {
+            console.log("Trip completed via request update.");
+            setTimeout(() => showRatingModal(), 1500);
+        }
+        else if (request.status === 'cancelled') {
+            console.log("Trip cancelled via request update.");
+            setTimeout(() => resetTripState(), 3000);
+        }
+        else if (request.status === 'accepted') {
+            handleTripAccepted(request);
+        }
+        else if (request.status === 'expired') {
+            handleTripExpired();
+        }
+        
+        // Actualizar ubicación del conductor si está disponible
+        if (request.driverLocation) {
+            console.log("Updating driver marker from request.");
+            updateDriverMarker(request.driverLocation);
         }
     });
 }
@@ -904,41 +914,7 @@ function getTripRequestStatusInfo(status) {
     }
 }
 
-// --- Trip Request Updates ---
-function listenToTripRequestUpdates(requestId) {
-    console.log("Listening to trip request updates for request ID:", requestId);
-    const requestRef = doc(db, "tripRequests", requestId);
-    tripRequestListener = onSnapshot(requestRef, (docSnap) => {
-        console.log("Trip request update received.");
-        if (!docSnap.exists()) { 
-            console.log("Trip request document does not exist."); 
-            return; 
-        }
-        const request = docSnap.data();
-        console.log("Trip request data:", request);
-        
-        // Manejar diferentes estados de la solicitud
-        if (request.status === 'in_progress' && !navigationMode) {
-            console.log("Trip started, activating navigation mode.");
-            activateNavigationMode();
-            showNotificationToast('¡El viaje ha comenzado!');
-        }
-        else if (request.status === 'completed') {
-            console.log("Trip completed via request update.");
-            setTimeout(() => showRatingModal(), 1500);
-        }
-        else if (request.status === 'cancelled') {
-            console.log("Trip cancelled via request update.");
-            setTimeout(() => resetTripState(), 3000);
-        }
-        
-        // Actualizar ubicación del conductor si está disponible
-        if (request.driverLocation) {
-            console.log("Updating driver marker from request.");
-            updateDriverMarker(request.driverLocation);
-        }
-    });
-}
+
 
 // --- Trip Lifecycle & Updates ---
 function listenToTripUpdates(tripId) {
