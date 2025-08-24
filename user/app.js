@@ -1,3 +1,4 @@
+
 import { 
     auth, 
     db,
@@ -32,6 +33,7 @@ const loginView = document.getElementById('login-view');
 const mainUI = document.getElementById('main-ui');
 const loginButton = document.getElementById('login-button');
 const logoutButton = document.getElementById('logout-button');
+const destinationInput = document.getElementById('destination-input');
 
 // --- Map & UI Elements ---
 const menuBtn = document.getElementById('menu-btn');
@@ -91,7 +93,7 @@ const minimizeCardBtn = document.getElementById('minimize-card-btn');
 const driverCardClose = document.querySelector('.driver-card-close');
 
 // --- App State ---
-let map, userMarker, driverMarker, tripRoutePolyline;
+let map, userMarker, driverMarker, tripRoutePolyline, autocomplete;
 let currentUser, currentTripId, currentTripRequestId, currentTripDriverId;
 let selectedRating = 0;
 let hasShownDriverInfo = false;
@@ -121,7 +123,6 @@ loginButton.addEventListener('click', async () => {
     try {
         console.log("Login button clicked.");
         
-        // Ejecutar reCAPTCHA antes del login
         const recaptchaToken = await UIUtils.executeRecaptcha('user_login');
         
         if (!recaptchaToken) {
@@ -149,12 +150,11 @@ function setupUIForLoggedInUser(user) {
     mainUI.style.display = 'block';
     userProfilePic.src = user.photoURL || 'default-pic.png';
     userProfileName.textContent = user.displayName || 'Usuario';
-    initializeNotificationSound(); // Initialize audio
-    loadPricingConfiguration(); // Cargar configuración de precios
+    initializeNotificationSound();
+    loadPricingConfiguration();
     if (!map) initializeMap();
 }
 
-// Cargar configuración de precios
 async function loadPricingConfiguration() {
     try {
         const configRef = doc(db, "configuration", "pricing");
@@ -165,14 +165,12 @@ async function loadPricingConfiguration() {
             pricingCalculator = new PricingCalculator(currentPricingConfig);
             console.log('Configuración de precios cargada:', currentPricingConfig);
         } else {
-            // Usar configuración por defecto
             currentPricingConfig = APP_CONFIG.PRICING;
             pricingCalculator = new PricingCalculator(currentPricingConfig);
             console.log('Usando configuración de precios por defecto');
         }
     } catch (error) {
         console.error('Error loading pricing configuration:', error);
-        // Usar configuración por defecto en caso de error
         currentPricingConfig = APP_CONFIG.PRICING;
         pricingCalculator = new PricingCalculator(currentPricingConfig);
     }
@@ -186,86 +184,30 @@ function setupUIForLoggedOutUser() {
     resetTripState();
 }
 
-// --- Map Initialization ---
 function initializeMap() {
     console.log("initializeMap() called.");
     if (navigator.geolocation) {
-        console.log("Geolocation available.");
         navigator.geolocation.getCurrentPosition(pos => {
-            console.log("Current position obtained:", pos.coords);
             userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             initMap(userLocation);
         }, 
         () => {
-            console.log("Geolocation failed, using default location.");
-            userLocation = { lat: 34.0522, lng: -118.2437 };
+            userLocation = { lat: 34.0522, lng: -118.2437 }; // Default location
             initMap(userLocation);
         });
     } else {
-        console.log("Geolocation not available, using default location.");
-        userLocation = { lat: 34.0522, lng: -118.2437 };
+        userLocation = { lat: 34.0522, lng: -118.2437 }; // Default location
         initMap(userLocation);
     }
 }
 
-// --- Utility Functions ---
-function calculateDistance(origin, destination) {
-    if (!origin || !destination) return 0;
-    
-    const R = 6371; // Radio de la Tierra en km
-    const lat1 = origin.lat * Math.PI / 180;
-    const lat2 = destination.lat * Math.PI / 180;
-    const deltaLat = (destination.lat - origin.lat) * Math.PI / 180;
-    const deltaLng = (destination.lng - origin.lng) * Math.PI / 180;
-    
-    const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-              Math.cos(lat1) * Math.cos(lat2) *
-              Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    
-    return R * c;
-}
-
-function calculateFare(distance) {
-    if (!pricingCalculator) {
-        // Usar configuración por defecto si no hay calculadora
-        const baseFare = 2.00;
-        const ratePerKm = 3.50;
-        return Math.max(baseFare + (distance * ratePerKm), 5.00);
-    }
-    
-    return pricingCalculator.calculateUserFare(distance);
-}
-
-document.addEventListener('map-ready', () => {
-    console.log("map-ready event received.");
-    initializeMap();
-});
+document.addEventListener('map-ready', initializeMap);
 
 function initMap(location) {
     console.log("initMap() called with location:", location);
-    
-    // Verificar que el elemento del mapa existe
     const mapElement = document.getElementById('map');
-    if (!mapElement) {
-        console.error('Elemento del mapa no encontrado. Verificando si el DOM está listo...');
-        // Intentar de nuevo después de un breve delay
-        setTimeout(() => {
-            const retryMapElement = document.getElementById('map');
-            if (retryMapElement) {
-                console.log('Elemento del mapa encontrado en reintento');
-                initMap(location);
-            } else {
-                console.error('Elemento del mapa no encontrado después del reintento');
-            }
-        }, 100);
-        return;
-    }
-    
-    // Verificar que el elemento del mapa tenga dimensiones
-    if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
-        console.warn('Elemento del mapa sin dimensiones, esperando...');
-        setTimeout(() => initMap(location), 200);
+    if (!mapElement || mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
+        setTimeout(() => initMap(location), 100); 
         return;
     }
     
@@ -274,465 +216,185 @@ function initMap(location) {
             center: location, 
             zoom: 15, 
             disableDefaultUI: true,
-            mapId: 'user_map' // Agregar un mapId para evitar el warning
+            mapId: 'user_map'
         });
         
-        // Crear marcador con fallback para compatibilidad
         userMarker = createCustomMarker(location, map, 'Tu ubicación', '#4285f4');
         console.log("Map and user marker initialized successfully.");
         
-        // Initialize autocomplete services after map is ready
-        initializeAutocompleteServices();
+        // --- NUEVA INICIALIZACIÓN DE AUTOCOMPLETADO ---
+        initializeAutocomplete();
+
     } catch (error) {
         console.error('Error initializing map:', error);
     }
 }
 
-// --- UI Interactions ---
-if (menuBtn) menuBtn.addEventListener('click', () => { console.log("Menu button clicked."); openSideNav(); });
-if (closeNavBtn) closeNavBtn.addEventListener('click', () => { console.log("Close nav button clicked."); closeSideNav(); });
-if (navOverlay) navOverlay.addEventListener('click', () => { console.log("Nav overlay clicked."); closeSideNav(); });
-if (showHistoryBtn) showHistoryBtn.addEventListener('click', () => { console.log("Show history button clicked."); showTripHistory(); });
-if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', () => { console.log("Close history button clicked."); hideTripHistory(); });
+// --- LÓGICA DE AUTOCOMPLETADO (REFACTORIZADA) ---
+function initializeAutocomplete() {
+    if (!google || !google.maps || !google.maps.places) {
+        console.error("La librería de Google Maps Places no está disponible.");
+        return;
+    }
 
-// --- Profile Modal Events ---
+    const options = {
+        bounds: map.getBounds(),
+        componentRestrictions: { country: "uy" }, // Restringir a Uruguay
+        fields: ["address_components", "geometry", "icon", "name", "place_id"],
+        strictBounds: false,
+    };
+
+    autocomplete = new google.maps.places.Autocomplete(destinationInput, options);
+    autocomplete.setFields(['place_id', 'geometry', 'name']);
+
+    autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+            console.log("El usuario introdujo un lugar sin geometría.");
+            return;
+        }
+
+        // Guardar el place_id para usarlo al solicitar el viaje
+        destinationInput.dataset.placeId = place.place_id;
+        console.log(`Lugar seleccionado: ${place.name}, place_id: ${place.place_id}`);
+
+        // Opcional: Centrar el mapa en el destino seleccionado
+        if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+        } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(17);
+        }
+    });
+}
+
+
+// --- UI Interactions ---
+if (menuBtn) menuBtn.addEventListener('click', () => openSideNav());
+if (closeNavBtn) closeNavBtn.addEventListener('click', () => closeSideNav());
+if (navOverlay) navOverlay.addEventListener('click', () => closeSideNav());
+if (showHistoryBtn) showHistoryBtn.addEventListener('click', () => showTripHistory());
+if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', () => hideTripHistory());
 if (showProfileBtn) showProfileBtn.addEventListener('click', showProfileModal);
 if (closeProfileModalBtn) closeProfileModalBtn.addEventListener('click', hideProfileModal);
-
-// --- Notification Events ---
 if (notificationBtn) notificationBtn.addEventListener('click', showNotifications);
-
-// --- Audio Control Events ---
 if (soundToggle) soundToggle.addEventListener('change', (e) => {
     const icon = e.target.parentElement.querySelector('i');
-    if (e.target.checked) {
-        icon.className = 'fas fa-volume-up';
-        icon.style.color = '#28a745';
-    } else {
-        icon.className = 'fas fa-volume-mute';
-        icon.style.color = '#999';
-    }
+    icon.className = e.target.checked ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+    icon.style.color = e.target.checked ? '#28a745' : '#999';
 });
 
-// --- Autocomplete Functionality ---
-let autocompleteSuggestion;
-let placesService;
-let selectedSuggestionIndex = -1;
-let suggestions = [];
+function openSideNav() { sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
+function closeSideNav() { sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
-// Initialize autocomplete services
-function initializeAutocompleteServices() {
-    if (google && google.maps) {
-        // Use the new AutocompleteSuggestion API instead of deprecated AutocompleteService
-        try {
-            autocompleteSuggestion = new google.maps.places.AutocompleteSuggestion();
-            placesService = new google.maps.places.PlacesService(map);
-        } catch (error) {
-            console.warn('AutocompleteSuggestion not available, falling back to AutocompleteService:', error);
-            // Fallback to deprecated API if new one is not available
-            autocompleteSuggestion = new google.maps.places.AutocompleteService();
-        }
-    }
-}
-
-// Get destination suggestions
-async function getDestinationSuggestions(query) {
-    if (!autocompleteSuggestion || !query.trim()) {
-        hideSuggestions();
-        return;
-    }
-
-    try {
-        const request = {
-            input: query,
-            componentRestrictions: { country: 'uy' }, // Uruguay
-            types: ['establishment', 'geocode']
-        };
-
-        let results = [];
-        
-        // Try new API first, fallback to deprecated API
-        if (autocompleteSuggestion.getPlacePredictions) {
-            // Using deprecated AutocompleteService (fallback)
-            results = await new Promise((resolve, reject) => {
-                autocompleteSuggestion.getPlacePredictions(request, (predictions, status) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK) {
-                        resolve(predictions);
-                    } else {
-                        resolve([]);
-                    }
-                });
-            });
-        } else if (autocompleteSuggestion.getSuggestions) {
-            // Using new AutocompleteSuggestion API
-            try {
-                const response = await autocompleteSuggestion.getSuggestions(request);
-                results = response.suggestions || [];
-            } catch (error) {
-                console.warn('Error with new AutocompleteSuggestion API, falling back:', error);
-                results = [];
-            }
-        }
-
-        suggestions = results.slice(0, 5); // Limit to 5 suggestions
-        showSuggestions(suggestions);
-    } catch (error) {
-        console.error('Error getting suggestions:', error);
-        hideSuggestions();
-    }
-}
-
-// Show suggestions
-function showSuggestions(suggestions) {
-    const suggestionsContainer = document.getElementById('destination-suggestions');
-    if (!suggestionsContainer) return;
-
-    if (suggestions.length === 0) {
-        hideSuggestions();
-        return;
-    }
-
-    suggestionsContainer.innerHTML = '';
-    selectedSuggestionIndex = -1;
-
-    suggestions.forEach((suggestion, index) => {
-        const suggestionItem = document.createElement('div');
-        suggestionItem.className = 'suggestion-item';
-        
-        // Handle both old and new API response formats
-        let mainText, secondaryText;
-        
-        if (suggestion.structured_formatting) {
-            // Old API format (AutocompleteService)
-            mainText = suggestion.structured_formatting.main_text;
-            secondaryText = suggestion.structured_formatting.secondary_text;
-        } else if (suggestion.text) {
-            // New API format (AutocompleteSuggestion)
-            mainText = suggestion.text;
-            secondaryText = suggestion.subtext || '';
-        } else {
-            // Fallback
-            mainText = suggestion.description || suggestion.name || 'Dirección';
-            secondaryText = '';
-        }
-        
-        suggestionItem.innerHTML = `
-            <i class="fas fa-map-marker-alt suggestion-icon"></i>
-            <div class="suggestion-text">
-                <div>${mainText}</div>
-                <div class="suggestion-secondary">${secondaryText}</div>
-            </div>
-        `;
-        
-        suggestionItem.addEventListener('click', () => {
-            selectSuggestion(suggestion);
-        });
-
-        suggestionItem.addEventListener('mouseenter', () => {
-            selectedSuggestionIndex = index;
-            updateSelectedSuggestion();
-        });
-
-        suggestionsContainer.appendChild(suggestionItem);
-    });
-
-    suggestionsContainer.style.display = 'block';
-}
-
-// Hide suggestions
-function hideSuggestions() {
-    const suggestionsContainer = document.getElementById('destination-suggestions');
-    if (suggestionsContainer) {
-        suggestionsContainer.style.display = 'none';
-    }
-    selectedSuggestionIndex = -1;
-    suggestions = [];
-}
-
-// Select a suggestion
-function selectSuggestion(suggestion) {
-    const destinationInput = document.getElementById('destination-input');
-    if (destinationInput) {
-        // Handle both old and new API response formats
-        let description, placeId;
-        
-        if (suggestion.description) {
-            // Old API format (AutocompleteService)
-            description = suggestion.description;
-            placeId = suggestion.place_id;
-        } else if (suggestion.text) {
-            // New API format (AutocompleteSuggestion)
-            description = suggestion.text + (suggestion.subtext ? ', ' + suggestion.subtext : '');
-            placeId = suggestion.placeId || suggestion.place_id;
-        } else {
-            // Fallback
-            description = suggestion.name || 'Dirección seleccionada';
-            placeId = suggestion.placeId || suggestion.place_id;
-        }
-        
-        destinationInput.value = description;
-        destinationInput.dataset.placeId = placeId;
-    }
-    hideSuggestions();
-}
-
-// Update selected suggestion visual
-function updateSelectedSuggestion() {
-    const suggestionItems = document.querySelectorAll('.suggestion-item');
-    suggestionItems.forEach((item, index) => {
-        if (index === selectedSuggestionIndex) {
-            item.classList.add('selected');
-        } else {
-            item.classList.remove('selected');
-        }
-    });
-}
-
-// --- Driver Card Events ---
-if (minimizeCardBtn) minimizeCardBtn.addEventListener('click', minimizeDriverCard);
-if (driverCardClose) driverCardClose.addEventListener('click', closeDriverCard);
-
-function openSideNav() { console.log("Opening side nav."); sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
-function closeSideNav() { console.log("Closing side nav."); sideNav.style.width = "0"; navOverlay.style.display = "none"; }
-
-// --- Autocomplete Event Listeners ---
-const destinationInput = document.getElementById('destination-input');
-if (destinationInput) {
-    let debounceTimer;
-    
-    destinationInput.addEventListener('input', (e) => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            getDestinationSuggestions(e.target.value);
-        }, 300); // Debounce for 300ms
-    });
-
-    destinationInput.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
-            updateSelectedSuggestion();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-            updateSelectedSuggestion();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
-                selectSuggestion(suggestions[selectedSuggestionIndex]);
-            }
-        } else if (e.key === 'Escape') {
-            hideSuggestions();
-        }
-    });
-
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!destinationInput.contains(e.target) && !e.target.closest('.suggestions-container')) {
-            hideSuggestions();
-        }
-    });
-}
 
 // --- Ride Request ---
 if (requestDriverButton) {
     requestDriverButton.addEventListener('click', async () => {
-    console.log("Request driver button clicked.");
-    if (!currentUser || !map) { console.log("User or map not ready."); return; }
-    
-    // Validar que se haya ingresado destino (el origen es automáticamente la ubicación del usuario)
-    const destinationInput = document.getElementById('destination-input');
-    
-    // Verificar que el elemento existe
-    if (!destinationInput) {
-        console.error('Elemento de destino no encontrado');
-        alert('Error: No se encontró el campo de destino');
-        return;
-    }
-    
-    if (!destinationInput.value.trim()) {
-        showNotificationToast('Por favor ingresa el destino', 'warning');
-        return;
-    }
-    
-    // Verificar si se seleccionó una sugerencia válida
-    if (!destinationInput.dataset.placeId) {
-        showNotificationToast('Por favor selecciona una dirección de la lista de sugerencias para mayor precisión', 'warning');
-        // No retornar aquí, permitir que continúe con geocoding tradicional
-    }
-    
-    try {
-        // Ejecutar reCAPTCHA antes de la solicitud
-        const recaptchaToken = await UIUtils.executeRecaptcha('trip_request');
+        console.log("Request driver button clicked.");
+        if (!currentUser || !map) return;
         
-        if (!recaptchaToken) {
-            alert('Error de verificación de seguridad. Por favor, intenta nuevamente.');
+        if (!destinationInput.value.trim()) {
+            showNotificationToast('Por favor ingresa el destino', 'warning');
             return;
         }
-
-        const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
         
-        // Obtener coordenadas del destino usando Place ID si está disponible, o geocodificación
-        let destinationLocation;
-        
-        if (destinationInput.dataset.placeId) {
-            // Usar Place ID para obtener coordenadas precisas
-            const placeResult = await new Promise((resolve, reject) => {
-                placesService.getDetails({
-                    placeId: destinationInput.dataset.placeId,
-                    fields: ['geometry']
-                }, (place, status) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
-                        resolve(place.geometry.location);
-                    } else {
-                        reject(new Error('No se pudo obtener los detalles del lugar'));
-                    }
-                });
-            });
-            destinationLocation = { 
-                lat: placeResult.lat(), 
-                lng: placeResult.lng() 
-            };
-        } else {
-            // Fallback a geocodificación tradicional con mejor manejo de errores
-            const geocoder = new google.maps.Geocoder();
-            const destinationResult = await new Promise((resolve, reject) => {
-                geocoder.geocode({ 
-                    address: destinationInput.value,
-                    componentRestrictions: { country: 'uy' }, // Restringir a Uruguay
-                    bounds: map.getBounds() // Usar los límites del mapa actual
-                }, (results, status) => {
-                    if (status === 'OK' && results && results.length > 0) {
-                        // Filtrar resultados más relevantes
-                        const relevantResults = results.filter(result => 
-                            result.geometry && 
-                            result.geometry.location &&
-                            result.types.some(type => 
-                                ['street_address', 'route', 'establishment', 'premise'].includes(type)
-                            )
-                        );
-                        
-                        if (relevantResults.length > 0) {
-                            resolve(relevantResults[0].geometry.location);
-                        } else {
-                            resolve(results[0].geometry.location); // Usar el primer resultado si no hay filtrados
-                        }
-                    } else {
-                        // Proporcionar mensaje más específico basado en el status
-                        let errorMessage = 'No se pudo geocodificar el destino.';
-                        switch (status) {
-                            case 'ZERO_RESULTS':
-                                errorMessage = 'No se encontró la dirección especificada. Por favor, verifica la dirección o selecciona una de las sugerencias.';
-                                break;
-                            case 'OVER_QUERY_LIMIT':
-                                errorMessage = 'Se ha excedido el límite de consultas. Por favor, intenta nuevamente en unos momentos.';
-                                break;
-                            case 'REQUEST_DENIED':
-                                errorMessage = 'Error de configuración del mapa. Por favor, contacta soporte.';
-                                break;
-                            case 'INVALID_REQUEST':
-                                errorMessage = 'La dirección ingresada no es válida. Por favor, verifica el formato.';
-                                break;
-                            default:
-                                errorMessage = 'Error al procesar la dirección. Por favor, selecciona una dirección de la lista de sugerencias.';
-                        }
-                        reject(new Error(errorMessage));
-                    }
-                });
-            });
-            destinationLocation = { 
-                lat: destinationResult.lat(), 
-                lng: destinationResult.lng() 
-            };
+        if (!destinationInput.dataset.placeId) {
+            showNotificationToast('Por favor selecciona una dirección de la lista para mayor precisión', 'warning');
+            // No se retorna para permitir geocodificación manual si es necesario
         }
-        
-        const distance = calculateDistance(userLocation, destinationLocation);
-        const fare = calculateFare(distance);
-
-        console.log("Adding trip request to Firestore.");
-        const docRef = await addDoc(collection(db, "tripRequests"), {
-            userId: currentUser.uid,
-            userName: currentUser.displayName,
-            userPhoto: currentUser.photoURL,
-            origin: "Mi ubicación actual", // El origen siempre es la ubicación del usuario
-            destination: destinationInput.value,
-            originCoords: userLocation,
-            destinationCoords: destinationLocation,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            estimatedDistance: distance,
-            estimatedFare: fare,
-            recaptchaToken: recaptchaToken
-        });
-        
-        currentTripRequestId = docRef.id;
-        console.log("Trip request created with ID:", currentTripRequestId);
-        requestPanel.style.display = 'none';
-        tripPanel.style.display = 'block';
-        listenToTripRequestUpdates(currentTripRequestId);
-        
-    } catch (e) { 
-        console.error("Error requesting trip: ", e);
-        
-        // Mostrar mensaje de error más específico
-        let errorMessage = 'Error al solicitar viaje. Por favor, intenta nuevamente.';
-        
-        if (e.message) {
-            if (e.message.includes('geocodificar') || e.message.includes('dirección')) {
-                errorMessage = e.message;
-            } else if (e.message.includes('reCAPTCHA')) {
-                errorMessage = 'Error de verificación de seguridad. Por favor, intenta nuevamente.';
-            } else if (e.message.includes('Firestore') || e.message.includes('Firebase')) {
-                errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.';
+    
+        try {
+            const recaptchaToken = await UIUtils.executeRecaptcha('trip_request');
+            if (!recaptchaToken) {
+                alert('Error de verificación de seguridad. Por favor, intenta nuevamente.');
+                return;
             }
+
+            const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
+            let destinationLocation;
+            const placesService = new google.maps.places.PlacesService(map);
+
+            if (destinationInput.dataset.placeId) {
+                const placeResult = await new Promise((resolve, reject) => {
+                    placesService.getDetails({ placeId: destinationInput.dataset.placeId, fields: ['geometry'] }, (place, status) => {
+                        if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
+                            resolve(place.geometry.location);
+                        } else {
+                            reject(new Error('No se pudo obtener los detalles del lugar.'));
+                        }
+                    });
+                });
+                destinationLocation = { lat: placeResult.lat(), lng: placeResult.lng() };
+            } else {
+                // Fallback a geocodificación si no se usó autocompletado
+                const geocoder = new google.maps.Geocoder();
+                const geocodeResult = await geocoder.geocode({ address: destinationInput.value, componentRestrictions: { country: 'uy' } });
+                if (geocodeResult.results && geocodeResult.results.length > 0) {
+                    destinationLocation = {
+                        lat: geocodeResult.results[0].geometry.location.lat(),
+                        lng: geocodeResult.results[0].geometry.location.lng(),
+                    };
+                } else {
+                    throw new Error('No se pudo encontrar la dirección ingresada.');
+                }
+            }
+            
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(userLocation),
+                new google.maps.LatLng(destinationLocation)
+            ) / 1000; // en km
+
+            const fare = calculateFare(distance);
+
+            const docRef = await addDoc(collection(db, "tripRequests"), {
+                userId: currentUser.uid,
+                userName: currentUser.displayName,
+                userPhoto: currentUser.photoURL,
+                origin: "Mi ubicación actual",
+                destination: destinationInput.value,
+                originCoords: userLocation,
+                destinationCoords: destinationLocation,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+                estimatedDistance: distance,
+                estimatedFare: fare,
+                recaptchaToken: recaptchaToken
+            });
+            
+            currentTripRequestId = docRef.id;
+            requestPanel.style.display = 'none';
+            tripPanel.style.display = 'block';
+            listenToTripRequestUpdates(currentTripRequestId);
+            
+        } catch (e) { 
+            console.error("Error requesting trip: ", e);
+            showNotificationToast(e.message || 'Error al solicitar viaje.', 'error');
         }
-        
-        // Mostrar notificación más amigable
-        showNotificationToast(errorMessage, 'error');
-        
-        // También mostrar alert para casos críticos
-        if (errorMessage.includes('geocodificar') || errorMessage.includes('dirección')) {
-            alert(errorMessage);
-        }
-    }
     });
 }
 
 // --- Trip Lifecycle & Updates ---
 
 // PASO 1: Escuchar la SOLICITUD de viaje.
-// Esta función se activa tan pronto como el usuario pide un viaje.
-// Su trabajo es escuchar el documento en la colección 'tripRequests'
-// para saber cuándo un conductor ha aceptado la solicitud.
 function listenToTripRequestUpdates(requestId) {
     console.log("Listening to trip request updates for request ID:", requestId);
     const requestRef = doc(db, "tripRequests", requestId);
     tripRequestListener = onSnapshot(requestRef, (docSnap) => {
-        console.log("Trip request update received.");
-        if (!docSnap.exists()) { 
-            console.log("Trip request document does not exist."); 
-            return; 
-        }
+        if (!docSnap.exists()) { console.log("Trip request document does not exist."); return; }
         const request = docSnap.data();
-        console.log("Trip request data:", request);
         
-        // Manejar diferentes estados de la solicitud
         if (request.status === 'in_progress' && !navigationMode) {
-            console.log("Trip started, activating navigation mode.");
             activateNavigationMode();
             showNotificationToast('¡El viaje ha comenzado!');
         }
         else if (request.status === 'completed') {
-            console.log("Trip completed via request update.");
             setTimeout(() => showRatingModal(), 1500);
         }
         else if (request.status === 'cancelled') {
-            console.log("Trip cancelled via request update.");
             setTimeout(() => resetTripState(), 3000);
         }
         else if (request.status === 'accepted') {
-            console.log("Driver has accepted. Updating UI and showing payment modal.");
-            // Actualizar la UI principal para dar feedback inmediato
             tripStatusHeading.textContent = 'Conductor Encontrado';
             tripStatusDetails.textContent = 'Por favor, confirma los detalles y el pago para comenzar.';
             handleTripAccepted(request);
@@ -741,262 +403,126 @@ function listenToTripRequestUpdates(requestId) {
             handleTripExpired();
         }
         
-        // Actualizar ubicación del conductor si está disponible
         if (request.driverLocation) {
-            console.log("Updating driver marker from request.");
             updateDriverMarker(request.driverLocation);
         }
     });
 }
 
-// Manejar cuando un conductor acepta el viaje
 async function handleTripAccepted(request) {
-    console.log("Trip accepted by driver:", request.driverId);
-    
-    // Obtener información del conductor
     const driverRef = doc(db, "drivers", request.driverId);
     const driverDoc = await getDoc(driverRef);
-    
     if (driverDoc.exists()) {
-        const driverData = driverDoc.data();
-        
-        // Mostrar modal de confirmación de pago
-        showPaymentConfirmationModal(request, driverData);
+        showPaymentConfirmationModal(request, driverDoc.data());
     }
 }
 
-// Mostrar modal de confirmación de pago
 function showPaymentConfirmationModal(request, driverData) {
     const modal = document.getElementById('payment-confirmation-modal');
-    
-    // Actualizar información del viaje
     document.getElementById('trip-distance').textContent = `${request.estimatedDistance.toFixed(1)} km`;
     document.getElementById('trip-duration').textContent = `${Math.round(request.estimatedDistance * 2)} min`;
     document.getElementById('trip-fare').textContent = `$${request.estimatedFare.toFixed(2)}`;
-    
-    // Actualizar información del conductor
     document.getElementById('driver-photo').src = driverData.photoURL || '../default-avatar.svg';
     document.getElementById('driver-name').textContent = driverData.name || 'Conductor';
-    
-    // Calcular estrellas
     const rating = driverData.rating || 0;
-    const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
-    document.getElementById('driver-stars').textContent = stars;
+    document.getElementById('driver-stars').textContent = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
     document.getElementById('driver-rating-text').textContent = `${rating.toFixed(1)} (${driverData.totalTrips || 0} viajes)`;
-    
-    // Información del vehículo
     if (driverData.vehicle) {
         document.getElementById('vehicle-info').textContent = `${driverData.vehicle.make} ${driverData.vehicle.model} - ${driverData.vehicle.color}`;
         document.getElementById('vehicle-plate').textContent = driverData.vehicle.plate;
     }
-    
-    // Event listeners para los botones
     document.getElementById('confirm-trip-btn').onclick = () => confirmTripPayment(request);
     document.getElementById('reject-trip-btn').onclick = () => rejectTrip(request);
     document.getElementById('close-payment-modal').onclick = () => rejectTrip(request);
-    
     modal.style.display = 'flex';
 }
 
 // PASO 2: Confirmar el pago y crear el VIAJE real.
-// Esta función es el puente entre la solicitud y el viaje.
-// Crea el documento final en la colección 'trips' y luego inicia el listener definitivo.
 async function confirmTripPayment(request) {
     try {
         const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
-        
-        // Crear el viaje real
         const tripData = {
-            userId: request.userId,
-            userName: request.userName,
-            userPhoto: request.userPhoto,
-            driverId: request.driverId,
-            driverName: request.driverInfo?.name || 'Conductor',
-            driverPhoto: request.driverInfo?.photoURL || '../default-avatar.svg',
-            origin: request.origin,
-            destination: request.destination,
-            originCoords: request.originCoords,
-            destinationCoords: request.destinationCoords,
-            status: 'accepted', // Cambiar a 'accepted' para que el conductor sepa que el pago está confirmado
-            createdAt: serverTimestamp(),
-            estimatedDistance: request.estimatedDistance,
-            estimatedFare: request.estimatedFare,
-            paymentMethod: paymentMethod,
-            tripRequestId: currentTripRequestId
+            userId: request.userId, userName: request.userName, userPhoto: request.userPhoto,
+            driverId: request.driverId, driverName: request.driverInfo?.name || 'Conductor', driverPhoto: request.driverInfo?.photoURL || '../default-avatar.svg',
+            origin: request.origin, destination: request.destination, originCoords: request.originCoords, destinationCoords: request.destinationCoords,
+            status: 'accepted', createdAt: serverTimestamp(), estimatedDistance: request.estimatedDistance, estimatedFare: request.estimatedFare,
+            paymentMethod: paymentMethod, tripRequestId: currentTripRequestId
         };
-        
         const tripRef = await addDoc(collection(db, "trips"), tripData);
         currentTripId = tripRef.id;
-        
-        // Actualizar la solicitud para notificar al conductor
-        await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
-            status: 'payment_confirmed',
-            tripId: tripRef.id,
-            paymentMethod: paymentMethod,
-            paymentConfirmedAt: serverTimestamp()
-        });
-        
-        // Cerrar modal y mostrar información del viaje
+        await updateDoc(doc(db, "tripRequests", currentTripRequestId), { status: 'payment_confirmed', tripId: tripRef.id, paymentMethod: paymentMethod, paymentConfirmedAt: serverTimestamp() });
         document.getElementById('payment-confirmation-modal').style.display = 'none';
         tripPanel.style.display = 'block';
-        
-        // Mostrar notificación de éxito
         showNotificationToast('Pago confirmado. Tu conductor está en camino.');
-        
-        // PASO 3: Iniciar el listener para el VIAJE.
         listenToTripUpdates(currentTripId);
-        
-        // También escuchar actualizaciones de la solicitud de viaje
         listenToTripRequestUpdates(currentTripRequestId);
-        
-        console.log("Trip payment confirmed and trip created:", tripRef.id);
-        
     } catch (error) {
         console.error("Error confirming trip payment:", error);
         alert('Error al confirmar el pago. Por favor, intenta nuevamente.');
     }
 }
 
-// Rechazar viaje
 async function rejectTrip(request) {
     try {
-        await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
-            status: 'rejected',
-            rejectedAt: serverTimestamp(),
-            rejectedBy: 'user'
-        });
-        
+        await updateDoc(doc(db, "tripRequests", currentTripRequestId), { status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: 'user' });
         document.getElementById('payment-confirmation-modal').style.display = 'none';
         resetTripState();
-        
-        console.log("Trip rejected by user");
-        
     } catch (error) {
         console.error("Error rejecting trip:", error);
         alert('Error al rechazar el viaje. Por favor, intenta nuevamente.');
     }
 }
 
-// Manejar viaje cancelado
-function handleTripCancelled() {
-    console.log("Trip cancelled");
-    resetTripState();
-    alert('El viaje ha sido cancelado.');
-}
-
-// Manejar viaje expirado
-function handleTripExpired() {
-    console.log("Trip expired");
-    resetTripState();
-    alert('La solicitud de viaje ha expirado. Por favor, intenta nuevamente.');
-}
-
-// Actualizar UI de solicitud de viaje
-function updateTripRequestUI(request) {
-    const statusText = getTripRequestStatusInfo(request.status).statusText;
-    const details = getTripRequestStatusInfo(request.status).details;
-    
-    tripStatusHeading.textContent = statusText;
-    tripStatusDetails.textContent = details;
-}
-
-// Información de estados de solicitud de viaje
-function getTripRequestStatusInfo(status) {
-    switch (status) {
-        case 'pending': 
-            return { statusText: 'Buscando conductor', details: 'Tu solicitud está siendo procesada.' };
-        case 'accepted': 
-            return { statusText: 'Conductor encontrado', details: 'Esperando confirmación de pago.' };
-        case 'payment_confirmed': 
-            return { statusText: 'Pago confirmado', details: 'Tu conductor está en camino.' };
-        case 'in_progress': 
-            return { statusText: 'Viaje en curso', details: 'Disfruta tu viaje.' };
-        case 'completed': 
-            return { statusText: 'Viaje completado', details: 'Gracias por viajar con nosotros.' };
-        case 'cancelled': 
-            return { statusText: 'Solicitud cancelada', details: 'La solicitud ha sido cancelada.' };
-        case 'expired': 
-            return { statusText: 'Solicitud expirada', details: 'La solicitud ha expirado.' };
-        case 'rejected': 
-            return { statusText: 'Solicitud rechazada', details: 'La solicitud ha sido rechazada.' };
-        default: 
-            return { statusText: 'Actualizando...', details: '' };
-    }
-}
-
-
+function handleTripCancelled() { resetTripState(); alert('El viaje ha sido cancelado.'); }
+function handleTripExpired() { resetTripState(); alert('La solicitud de viaje ha expirado. Por favor, intenta nuevamente.'); }
 
 // PASO 4: Escuchar el VIAJE real.
-// Esta función se activa DESPUÉS de que el usuario confirma el pago.
-// Se encarga de escuchar el documento en la colección 'trips' para actualizaciones
-// como la finalización del viaje, cancelación, etc.
 function listenToTripUpdates(tripId) {
     console.log("Listening to trip updates for trip ID:", tripId);
     const tripRef = doc(db, "trips", tripId);
     tripListener = onSnapshot(tripRef, (docSnap) => {
-        console.log("Trip update received.");
-        if (!docSnap.exists()) { console.log("Trip document does not exist."); resetTripState(); return; }
+        if (!docSnap.exists()) { resetTripState(); return; }
         const trip = docSnap.data();
-        console.log("Trip data:", trip);
         currentTripDriverId = trip.driverId;
         updateTripUI(trip);
+        if (trip.routePolyline) { drawRoute(trip.routePolyline); }
+        if (trip.driverLocation) { updateDriverMarker(trip.driverLocation); }
+        if (trip.driverInfo && !hasShownDriverInfo) { displayDriverInfo(trip.driverInfo); }
         
-        // Manejar la ruta cuando el conductor la acepta
-        if (trip.routePolyline) { 
-            console.log("Route polyline received, drawing route.");
-            drawRoute(trip.routePolyline); 
-        }
-        
-        if (trip.driverLocation) { console.log("Updating driver marker."); updateDriverMarker(trip.driverLocation); }
-        if (trip.driverInfo && !hasShownDriverInfo) { console.log("Displaying driver info."); displayDriverInfo(trip.driverInfo); }
-        
-        // Manejar diferentes estados del viaje
         if (trip.status === 'completed' && !trip.rating) { 
-            console.log("Trip completed, showing rating modal."); 
             setTimeout(() => showRatingModal(), 1500); 
         }
         else if (trip.status === 'cancelled') { 
-            console.log("Trip cancelled, resetting state."); 
             setTimeout(() => resetTripState(), 3000); 
         }
         else if (trip.status === 'accepted') {
-            console.log("Trip accepted, updating UI.");
             if (!hasShownDriverInfo) {
-                console.log("First time accepted, playing notification sound.");
                 playNotificationSound();
                 showNotificationToast('¡Tu viaje ha sido aceptado!');
             } else {
-                console.log("Trip already accepted, updating UI.");
                 showNotificationToast('Pago confirmado. Tu conductor está en camino.');
             }
-            
-            // Si hay ruta disponible, dibujarla inmediatamente
             if (trip.routePolyline) {
-                console.log("Drawing route immediately after acceptance.");
                 setTimeout(() => drawRoute(trip.routePolyline), 500);
             }
         }
         else if (trip.status === 'payment_confirmed') {
-            console.log("Payment confirmed, updating UI.");
             showNotificationToast('Pago confirmado. Tu conductor está en camino.');
             updateTripUI(trip);
         }
         else if (trip.status === 'in_progress' && !navigationMode) {
-            console.log("Trip started, activating navigation mode.");
             activateNavigationMode();
         }
     });
 }
 
 function updateTripUI(trip) {
-    console.log("updateTripUI called with trip:", trip);
     const { statusText, details } = getStatusInfo(trip.status);
     tripStatusHeading.textContent = statusText;
     tripStatusDetails.textContent = details;
 }
 
 function displayDriverInfo(info) {
-    console.log("displayDriverInfo called with info:", info);
     tripInfoContainer.style.display = 'none';
     tripDriverPic.src = info.photoURL || 'default-pic.png';
     tripDriverName.textContent = info.name || 'Conductor';
@@ -1006,12 +532,7 @@ function displayDriverInfo(info) {
     }
     driverDetailsContainer.style.display = 'flex';
     hasShownDriverInfo = true;
-    console.log("Driver info displayed.");
-    
-    // Actualizar información del conductor en el modal de pago
     updatePaymentModalDriverInfo(info);
-    
-    // Mostrar la card completa del conductor
     showDriverCard(info);
 }
 
@@ -1028,56 +549,27 @@ function getStatusInfo(status) {
 }
 
 function drawRoute(polylineString) {
-    console.log("drawRoute called with polyline:", polylineString);
-    
+    if (tripRoutePolyline) tripRoutePolyline.setMap(null);
+    if (!polylineString || typeof polylineString !== 'string') return;
     try {
-        // Limpiar ruta anterior si existe
-        if (tripRoutePolyline) {
-            tripRoutePolyline.setMap(null);
-            tripRoutePolyline = null;
-        }
-        
-        // Verificar que el polyline string sea válido
-        if (!polylineString || typeof polylineString !== 'string') {
-            console.error("Invalid polyline string:", polylineString);
-            return;
-        }
-        
-        // Decodificar el polyline
         const decodedPath = google.maps.geometry.encoding.decodePath(polylineString);
-        console.log("Decoded path points:", decodedPath.length);
-        
-        if (decodedPath.length === 0) {
-            console.error("Decoded path is empty");
-            return;
-        }
-        
-        // Crear la polyline
-        tripRoutePolyline = new google.maps.Polyline({
-            path: decodedPath,
-            strokeColor: '#4285F4',
-            strokeWeight: 6,
-            strokeOpacity: 0.8,
-            map: map
-        });
-        
-        console.log("Route drawn successfully");
-        
-        // Centrar el mapa en la ruta
+        if (decodedPath.length === 0) return;
+        tripRoutePolyline = new google.maps.Polyline({ path: decodedPath, strokeColor: '#4285F4', strokeWeight: 6, map: map });
         const bounds = new google.maps.LatLngBounds();
         decodedPath.forEach(point => bounds.extend(point));
         map.fitBounds(bounds, 80);
-        
     } catch (error) {
         console.error("Error drawing route:", error);
     }
 }
 
 function updateDriverMarker(location) {
-    console.log("updateDriverMarker called with location:", location);
+    if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+        console.warn("Ubicación de conductor inválida recibida. Omitiendo actualización de marcador.", location);
+        return;
+    }
     const pos = new google.maps.LatLng(location.lat, location.lng);
     if (!driverMarker) {
-        // Crear marcador con fallback para compatibilidad
         driverMarker = createCustomMarker(pos, map, 'Tu Conductor', '#34a853', '🚗');
     } else { 
         updateMarkerPosition(driverMarker, pos);
@@ -1086,28 +578,16 @@ function updateDriverMarker(location) {
 }
 
 function updateMapBounds() {
-    console.log("updateMapBounds called.");
-    if (!userMarker || !driverMarker) { console.log("Markers not ready for bounds update."); return; }
+    if (!userMarker || !driverMarker) return;
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(getMarkerPosition(userMarker));
     bounds.extend(getMarkerPosition(driverMarker));
-    map.fitBounds(bounds, 60); // 60px padding
-    console.log("Map bounds updated.");
+    map.fitBounds(bounds, 60);
 }
 
 function resetTripState() {
-    console.log("resetTripState called.");
-    
-    // Limpiar listeners
-    if (tripListener) {
-        tripListener();
-        tripListener = null;
-    }
-    if (tripRequestListener) {
-        tripRequestListener();
-        tripRequestListener = null;
-    }
-    
+    if (tripListener) { tripListener(); tripListener = null; }
+    if (tripRequestListener) { tripRequestListener(); tripRequestListener = null; }
     tripPanel.style.display = 'none';
     requestPanel.style.display = 'block';
     tripInfoContainer.style.display = 'block';
@@ -1115,36 +595,26 @@ function resetTripState() {
     if (driverMarker) driverMarker.setMap(null);
     if (tripRoutePolyline) tripRoutePolyline.setMap(null);
     driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripDriverId = null; hasShownDriverInfo = false;
-    
-    // Desactivar modo de navegación
     deactivateUserNavigationMode();
-    
-    // Cerrar la card del conductor
     closeDriverCard();
-    
-    console.log("Trip state reset.");
 }
 
 // --- Rating Logic ---
-function showRatingModal() { console.log("Showing rating modal."); ratingModal.style.display = 'flex'; }
+function showRatingModal() { ratingModal.style.display = 'flex'; }
 stars.forEach(star => {
     star.addEventListener('click', () => {
-        console.log("Star clicked.");
         selectedRating = parseInt(star.dataset.value);
         stars.forEach(s => { s.classList.toggle('selected', parseInt(s.dataset.value) <= selectedRating); });
     });
 });
 submitRatingButton.addEventListener('click', async () => {
-    console.log("Submit rating button clicked.");
-    if (selectedRating === 0 || !currentTripId) { console.log("No rating selected or trip ID missing."); return; }
+    if (selectedRating === 0 || !currentTripId) return;
     try {
-        console.log("Updating trip with rating:", selectedRating);
         await updateDoc(doc(db, "trips", currentTripId), { rating: selectedRating });
         ratingModal.style.display = 'none';
         selectedRating = 0;
         stars.forEach(s => s.classList.remove('selected'));
         resetTripState();
-        console.log("Rating submitted successfully.");
     } catch (error) {
         console.error("Error submitting rating: ", error);
         alert("No se pudo enviar tu calificación.");
@@ -1153,28 +623,19 @@ submitRatingButton.addEventListener('click', async () => {
 
 // --- Trip History Logic ---
 async function showTripHistory() {
-    console.log("showTripHistory called.");
-    if (!currentUser) { console.log("No current user."); return; }
+    if (!currentUser) return;
     historyList.innerHTML = '<div class="loader"></div>';
     historyModal.style.display = 'flex';
     closeSideNav();
-    console.log("Fetching trip history for user:", currentUser.uid);
     const q = query(collection(db, "trips"), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
     try {
-        console.log("Executing Firestore query.");
         const querySnapshot = await getDocs(q);
-        console.log("Query snapshot obtained. Empty:", querySnapshot.empty);
         historyList.innerHTML = '';
         if (querySnapshot.empty) {
             historyList.innerHTML = '<p>No has realizado ningún viaje.</p>';
-            console.log("No trips found.");
             return;
         }
-        querySnapshot.forEach(doc => {
-            console.log("Creating history item for trip:", doc.data());
-            createHistoryItem(doc.data());
-        });
-        console.log("Trip history displayed.");
+        querySnapshot.forEach(doc => createHistoryItem(doc.data()));
     } catch (error) {
         console.error("Error getting trip history: ", error);
         historyList.innerHTML = '<p>No se pudo cargar el historial.</p>';
@@ -1182,192 +643,73 @@ async function showTripHistory() {
 }
 
 function createHistoryItem(trip) {
-    console.log("createHistoryItem called with trip:", trip);
     const item = document.createElement('div');
     item.className = 'history-item';
-    // Ensure trip.createdAt is a Firestore Timestamp before calling toDate()
-    const tripDate = trip.createdAt && typeof trip.createdAt.toDate === 'function' 
-        ? trip.createdAt.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
-        : 'Fecha desconocida';
+    const tripDate = trip.createdAt?.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }) || 'Fecha desconocida';
     const statusText = getStatusInfo(trip.status).statusText;
     const rating = trip.rating ? `${trip.rating} <i class="fas fa-star" style="color: #ffc107;"></i>` : 'Sin calificar';
     item.innerHTML = `<h4>Viaje del ${tripDate}</h4><p>Estado: <strong class="status status-${trip.status}">${statusText}</strong></p><p>Calificación: ${rating}</p>`;
     historyList.appendChild(item);
-    console.log("History item appended.");
 }
 
-function hideTripHistory() { console.log("Hiding history modal."); historyModal.style.display = 'none'; }
+function hideTripHistory() { historyModal.style.display = 'none'; }
 
 // --- Audio Notifications ---
 function initializeNotificationSound() {
-    // Crear un sonido de notificación usando Web Audio API
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         notificationSound = createNotificationTone(audioContext);
     } catch (error) {
-        console.log("Audio context not supported, using fallback");
-        // Fallback: usar un archivo de audio externo
         notificationSound = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.wav');
     }
 }
 
 function createNotificationTone(audioContext) {
-    // Crear un tono de notificación simple
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
     oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
     oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
     oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
-    
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-    
-    return {
-        play: () => {
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        }
-    };
+    return { play: () => { oscillator.start(audioContext.currentTime); oscillator.stop(audioContext.currentTime + 0.3); } };
 }
 
 function playNotificationSound() {
     if (notificationSound && soundToggle.checked) {
-        try {
-            notificationSound.play();
-        } catch (error) {
-            console.log("Could not play notification sound:", error);
-        }
+        try { notificationSound.play(); } catch (error) { console.log("Could not play sound"); }
     }
 }
 
 function showNotificationToast(message, type = 'info') {
-    // Crear y mostrar una notificación toast
     const toast = document.createElement('div');
     toast.className = `notification-toast notification-${type}`;
     toast.textContent = message;
-    
-    // Configurar colores según el tipo
-    let backgroundColor, color;
-    switch (type) {
-        case 'error':
-            backgroundColor = '#dc3545';
-            color = 'white';
-            break;
-        case 'warning':
-            backgroundColor = '#ffc107';
-            color = '#212529';
-            break;
-        case 'success':
-            backgroundColor = '#28a745';
-            color = 'white';
-            break;
-        default:
-            backgroundColor = '#007bff';
-            color = 'white';
-    }
-    
-    toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${backgroundColor};
-        color: ${color};
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 1000;
-        font-weight: 500;
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
-        max-width: 300px;
-        word-wrap: break-word;
-    `;
-    
     document.body.appendChild(toast);
-    
-    // Animar entrada
-    setTimeout(() => {
-        toast.style.transform = 'translateX(0)';
-    }, 100);
-    
-    // Remover después de 4 segundos para errores
-    const duration = type === 'error' ? 4000 : 3000;
-    setTimeout(() => {
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 300);
-    }, duration);
+    setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 100);
+    setTimeout(() => { toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
 // --- Navigation Mode Functions for User ---
 function activateNavigationMode() {
     navigationMode = true;
-    
-    // Cambiar zoom del mapa
     map.setZoom(navigationZoom);
-    
-    // Mostrar indicador de modo navegación
     showUserNavigationIndicator();
-    
-    // Configurar actualización automática de vista
     startUserNavigationViewUpdates();
 }
 
 function showUserNavigationIndicator() {
-    // Crear indicador de modo navegación para usuario
     const navIndicator = document.createElement('div');
     navIndicator.id = 'user-navigation-indicator';
-    navIndicator.innerHTML = `
-        <div class="nav-indicator-content">
-            <i class="fas fa-car"></i>
-            <span>Viaje en Curso</span>
-        </div>
-    `;
-    navIndicator.style.cssText = `
-        position: fixed;
-        top: 80px;
-        left: 20px;
-        background: #007bff;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 500;
-        z-index: 1000;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    `;
-    
+    navIndicator.innerHTML = `<div class="nav-indicator-content"><i class="fas fa-car"></i><span>Viaje en Curso</span></div>`;
     document.body.appendChild(navIndicator);
-    
-    // Animar entrada
-    navIndicator.style.transform = 'translateY(-20px)';
-    navIndicator.style.opacity = '0';
-    setTimeout(() => {
-        navIndicator.style.transition = 'all 0.3s ease';
-        navIndicator.style.transform = 'translateY(0)';
-        navIndicator.style.opacity = '1';
-    }, 100);
 }
 
 function startUserNavigationViewUpdates() {
-    // Actualizar vista de navegación cada 5 segundos
     const navigationInterval = setInterval(() => {
-        if (!navigationMode || !currentTripId) {
-            clearInterval(navigationInterval);
-            return;
-        }
-        
-        // Mantener zoom y centrar en la ruta activa
+        if (!navigationMode || !currentTripId) { clearInterval(navigationInterval); return; }
         if (userMarker && driverMarker) {
             const bounds = new google.maps.LatLngBounds();
             bounds.extend(getMarkerPosition(userMarker));
@@ -1379,89 +721,37 @@ function startUserNavigationViewUpdates() {
 
 function deactivateUserNavigationMode() {
     navigationMode = false;
-    
-    // Restaurar zoom original
     map.setZoom(originalZoom);
-    
-    // Remover indicador de navegación
     const navIndicator = document.getElementById('user-navigation-indicator');
-    if (navIndicator) {
-        navIndicator.style.transition = 'all 0.3s ease';
-        navIndicator.style.transform = 'translateY(-20px)';
-        navIndicator.style.opacity = '0';
-        setTimeout(() => {
-            if (navIndicator.parentNode) {
-                navIndicator.parentNode.removeChild(navIndicator);
-            }
-        }, 300);
-    }
+    if (navIndicator) navIndicator.remove();
 }
 
 // --- Driver Card Functions ---
 async function showDriverCard(driverInfo) {
-    console.log("Showing driver card with info:", driverInfo);
-    
-    // Llenar información básica del conductor
     cardDriverPic.src = driverInfo.photoURL || 'default-pic.png';
     cardDriverName.textContent = driverInfo.name || 'Conductor';
-    
-    // Llenar información del vehículo
     if (driverInfo.vehicle) {
         cardVehicleModel.textContent = `${driverInfo.vehicle.make || ''} ${driverInfo.vehicle.model || ''}`.trim() || 'No especificado';
         cardVehicleColor.textContent = driverInfo.vehicle.color || 'No especificado';
         cardVehiclePlate.textContent = driverInfo.vehicle.plate || 'No especificado';
-    } else {
-        cardVehicleModel.textContent = 'No especificado';
-        cardVehicleColor.textContent = 'No especificado';
-        cardVehiclePlate.textContent = 'No especificado';
     }
-    
-    // Obtener estadísticas del conductor
     await loadDriverStats(driverInfo.driverId || currentTripDriverId);
-    
-    // Mostrar la card con opción de cerrar
     driverCard.style.display = 'block';
-    
-    // Agregar botón de cerrar si no existe
-    if (!document.getElementById('driver-card-close-btn')) {
-        const closeBtn = document.createElement('button');
-        closeBtn.id = 'driver-card-close-btn';
-        closeBtn.className = 'driver-card-close-btn';
-        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        closeBtn.onclick = closeDriverCard;
-        driverCard.appendChild(closeBtn);
-    }
-    
-    // Animar entrada
-    setTimeout(() => {
-        driverCard.style.animation = 'slideInFromCenter 0.4s ease';
-    }, 100);
 }
 
 async function loadDriverStats(driverId) {
-    if (!driverId) {
-        console.log("No driver ID available for stats");
-        return;
-    }
-    
+    if (!driverId) return;
     try {
-        console.log("Loading driver stats for:", driverId);
         const driverRef = doc(db, "drivers", driverId);
         const driverDoc = await getDoc(driverRef);
-        
         if (driverDoc.exists()) {
             const data = driverDoc.data();
             const totalStars = data.totalStars || 0;
             const numTrips = data.numTrips || 0;
-            
             if (numTrips > 0) {
                 const avgRating = (totalStars / numTrips).toFixed(1);
-                
-                // Actualizar estadísticas
                 cardDriverAvgRating.textContent = avgRating;
                 cardDriverTrips.textContent = numTrips;
-                
-                // Mostrar estrellas
                 cardDriverStars.innerHTML = generateStarsHTML(avgRating);
                 cardDriverRatingText.textContent = `(${numTrips} viaje${numTrips > 1 ? 's' : ''})`;
             } else {
@@ -1470,18 +760,9 @@ async function loadDriverStats(driverId) {
                 cardDriverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
                 cardDriverRatingText.textContent = '(Sin viajes)';
             }
-        } else {
-            cardDriverAvgRating.textContent = 'N/A';
-            cardDriverTrips.textContent = '0';
-            cardDriverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
-            cardDriverRatingText.textContent = '(Sin viajes)';
         }
     } catch (error) {
         console.error("Error loading driver stats:", error);
-        cardDriverAvgRating.textContent = 'Error';
-        cardDriverTrips.textContent = 'Error';
-        cardDriverStars.innerHTML = '<span style="color: #dc3545;">Error</span>';
-        cardDriverRatingText.textContent = '';
     }
 }
 
@@ -1489,163 +770,63 @@ function generateStarsHTML(rating) {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
     let starsHTML = '';
-    
-    // Estrellas llenas
-    for (let i = 0; i < fullStars; i++) {
-        starsHTML += '<i class="fas fa-star" style="color: #ffc107; margin: 0 1px;"></i>';
-    }
-    
-    // Media estrella si es necesario
-    if (hasHalfStar) {
-        starsHTML += '<i class="fas fa-star-half-alt" style="color: #ffc107; margin: 0 1px;"></i>';
-    }
-    
-    // Estrellas vacías
-    for (let i = 0; i < emptyStars; i++) {
-        starsHTML += '<i class="far fa-star" style="color: #ccc; margin: 0 1px;"></i>';
-    }
-    
+    for (let i = 0; i < fullStars; i++) starsHTML += '<i class="fas fa-star" style="color: #ffc107;"></i>';
+    if (hasHalfStar) starsHTML += '<i class="fas fa-star-half-alt" style="color: #ffc107;"></i>';
+    for (let i = 0; i < emptyStars; i++) starsHTML += '<i class="far fa-star" style="color: #ccc;"></i>';
     return starsHTML;
 }
 
-// Actualizar información del conductor en el modal de pago
 async function updatePaymentModalDriverInfo(driverInfo) {
-    console.log("Updating payment modal driver info:", driverInfo);
-    
-    // Actualizar información básica
     const driverPhoto = document.getElementById('driver-photo');
     const driverName = document.getElementById('driver-name');
     const vehicleInfo = document.getElementById('vehicle-info');
     const vehiclePlate = document.getElementById('vehicle-plate');
-    
     if (driverPhoto) driverPhoto.src = driverInfo.photoURL || '../default-avatar.svg';
     if (driverName) driverName.textContent = driverInfo.name || 'Conductor';
-    
     if (driverInfo.vehicle) {
-        if (vehicleInfo) {
-            vehicleInfo.textContent = `${driverInfo.vehicle.make || ''} ${driverInfo.vehicle.model || ''} - ${driverInfo.vehicle.color || ''}`.trim();
-        }
-        if (vehiclePlate) {
-            vehiclePlate.textContent = driverInfo.vehicle.plate || '';
-        }
-    } else {
-        if (vehicleInfo) vehicleInfo.textContent = 'Vehículo no especificado';
-        if (vehiclePlate) vehiclePlate.textContent = '';
-    }
-    
-    // Cargar y actualizar estadísticas del conductor
-    const driverId = driverInfo.driverId || currentTripDriverId;
-    if (driverId) {
-        try {
-            console.log("Loading driver stats for payment modal:", driverId);
-            const driverRef = doc(db, "drivers", driverId);
-            const driverDoc = await getDoc(driverRef);
-            
-            const driverStars = document.getElementById('driver-stars');
-            const driverRatingText = document.getElementById('driver-rating-text');
-            
-            if (driverDoc.exists()) {
-                const data = driverDoc.data();
-                const totalStars = data.totalStars || 0;
-                const numTrips = data.numTrips || 0;
-                
-                if (numTrips > 0) {
-                    const avgRating = (totalStars / numTrips).toFixed(1);
-                    
-                    // Actualizar estrellas y texto de rating
-                    if (driverStars) driverStars.innerHTML = generateStarsHTML(avgRating);
-                    if (driverRatingText) driverRatingText.textContent = `${avgRating} (${numTrips} viaje${numTrips > 1 ? 's' : ''})`;
-                } else {
-                    if (driverStars) driverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
-                    if (driverRatingText) driverRatingText.textContent = '(Sin viajes)';
-                }
-            } else {
-                if (driverStars) driverStars.innerHTML = '<span style="color: #ccc;">Sin calificaciones</span>';
-                if (driverRatingText) driverRatingText.textContent = '(Sin viajes)';
-            }
-        } catch (error) {
-            console.error("Error loading driver stats for payment modal:", error);
-            const driverStars = document.getElementById('driver-stars');
-            const driverRatingText = document.getElementById('driver-rating-text');
-            
-            if (driverStars) driverStars.innerHTML = '<span style="color: #dc3545;">Error</span>';
-            if (driverRatingText) driverRatingText.textContent = '';
-        }
-    }
+        if (vehicleInfo) vehicleInfo.textContent = `${driverInfo.vehicle.make || ''} ${driverInfo.vehicle.model || ''} - ${driverInfo.vehicle.color || ''}`.trim();
+        if (vehiclePlate) vehiclePlate.textContent = driverInfo.vehicle.plate || '';
+    } 
 }
 
 function minimizeDriverCard() {
-    console.log("Minimizing driver card");
     driverCard.classList.add('minimized');
-    
-    // Cambiar el botón
     minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Expandir';
     minimizeCardBtn.onclick = expandDriverCard;
 }
 
 function expandDriverCard() {
-    console.log("Expanding driver card");
     driverCard.classList.remove('minimized');
-    
-    // Cambiar el botón
     minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Minimizar';
     minimizeCardBtn.onclick = minimizeDriverCard;
 }
 
 function closeDriverCard() {
-    console.log("Closing driver card");
     driverCard.style.display = 'none';
     driverCard.classList.remove('minimized');
-    
-    // Eliminar botón de cerrar si existe
-    const closeBtn = document.getElementById('driver-card-close-btn');
-    if (closeBtn) {
-        closeBtn.remove();
-    }
-    
-    // Resetear el botón
-    minimizeCardBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Minimizar';
-    minimizeCardBtn.onclick = minimizeDriverCard;
 }
 
 // --- Profile Modal Functions ---
 function showProfileModal() {
-    console.log("Showing profile modal.");
     if (!currentUser) return;
-    
     profilePicDisplay.src = currentUser.photoURL || 'default-pic.png';
     profileNameDisplay.textContent = currentUser.displayName || 'Usuario';
-    
     profileModal.style.display = 'flex';
     closeSideNav();
 }
 
 function hideProfileModal() {
-    console.log("Hiding profile modal.");
     profileModal.style.display = 'none';
 }
 
 // --- Notification Functions ---
 function showNotifications() {
-    console.log("Showing notifications.");
-    playNotificationSound(); // Play sound when notifications are shown
-    // Create a simple notification modal
+    playNotificationSound();
     const notificationModal = document.createElement('div');
     notificationModal.className = 'overlay-container';
     notificationModal.style.display = 'flex';
-    notificationModal.innerHTML = `
-        <div class="modal-box">
-            <h2>Notificaciones</h2>
-            <div class="notification-list">
-                <p>No tienes notificaciones nuevas.</p>
-            </div>
-            <div class="modal-actions">
-                <button type="button" onclick="this.closest('.overlay-container').remove()">Cerrar</button>
-            </div>
-        </div>
-    `;
+    notificationModal.innerHTML = `<div class="modal-box"><h2>Notificaciones</h2><p>No tienes notificaciones nuevas.</p><button onclick="this.closest('.overlay-container').remove()">Cerrar</button></div>`;
     document.body.appendChild(notificationModal);
     closeSideNav();
 }
@@ -1653,98 +834,29 @@ function showNotifications() {
 // --- Helper Functions ---
 function createCustomMarker(position, map, title, color = '#4285f4', emoji = '') {
     try {
-        // Intentar usar AdvancedMarkerElement si está disponible
         if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
             const markerElement = document.createElement('div');
-            markerElement.innerHTML = `
-                <div style="
-                    width: ${emoji ? '24px' : '20px'}; 
-                    height: ${emoji ? '24px' : '20px'}; 
-                    background-color: ${color}; 
-                    border: 2px solid white; 
-                    border-radius: 50%; 
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 12px;
-                    color: white;
-                    font-weight: bold;
-                ">${emoji}</div>
-            `;
-            return new google.maps.marker.AdvancedMarkerElement({
-                position: position,
-                map: map,
-                title: title,
-                content: markerElement
-            });
+            markerElement.innerHTML = `<div style="width: ${emoji ? '24px' : '20px'}; height: ${emoji ? '24px' : '20px'}; background-color: ${color}; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">${emoji}</div>`;
+            return new google.maps.marker.AdvancedMarkerElement({ position, map, title, content: markerElement });
         } else {
-            // Fallback a Marker regular con icono personalizado
-            const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/>
-                    <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-family="Arial, sans-serif">${emoji}</text>
-                </svg>
-            `)}`;
-            
-            return new google.maps.Marker({
-                position: position,
-                map: map,
-                title: title,
-                icon: {
-                    url: iconUrl,
-                    scaledSize: new google.maps.Size(24, 24),
-                    anchor: new google.maps.Point(12, 12)
-                }
-            });
+            const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="12">${emoji}</text></svg>`)}`;
+            return new google.maps.Marker({ position, map, title, icon: { url: iconUrl, scaledSize: new google.maps.Size(24, 24), anchor: new google.maps.Point(12, 12) } });
         }
     } catch (error) {
-        console.warn('Error creating custom marker, using default:', error);
-        // Fallback final a marcador básico
-        return new google.maps.Marker({
-            position: position,
-            map: map,
-            title: title
-        });
+        return new google.maps.Marker({ position, map, title });
     }
 }
 
-// Helper function para obtener la posición de marcadores compatibles
 function getMarkerPosition(marker) {
     if (!marker) return null;
-    
-    if (marker && typeof marker.getPosition === 'function') {
-        // Marker tradicional
-        return marker.getPosition();
-    } else if (marker && marker.position) {
-        // AdvancedMarkerElement
-        return marker.position;
-    } else if (marker && marker.latLng) {
-        // Otro tipo de marcador
-        return marker.latLng;
-    }
-    
+    if (marker.getPosition) return marker.getPosition();
+    if (marker.position) return marker.position;
     return null;
 }
 
-// Helper function para actualizar la posición de marcadores compatibles
 function updateMarkerPosition(marker, position) {
     if (!marker || !position) return;
-    
-    // Convertir posición a LatLng si es necesario
-    const latLng = position.lat && position.lng ? 
-        new google.maps.LatLng(position.lat, position.lng) : 
-        position;
-    
-    if (marker && typeof marker.setPosition === 'function') {
-        // Marker tradicional
-        marker.setPosition(latLng);
-    } else if (marker && marker.position) {
-        // AdvancedMarkerElement
-        marker.position = latLng;
-    } else if (marker && marker.latLng) {
-        // Otro tipo de marcador
-        marker.latLng = latLng;
-    }
+    const latLng = position.lat && position.lng ? new google.maps.LatLng(position.lat, position.lng) : position;
+    if (marker.setPosition) marker.setPosition(latLng);
+    else if (marker.position) marker.position = latLng;
 }

@@ -1,55 +1,57 @@
-user/app.js loaded and running!
-app.js:51 Setting up onAuthStateChanged listener.
-js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:292 Google Maps JavaScript API has been loaded directly without loading=async. This can result in suboptimal performance. For best-practice loading patterns please see https://goo.gle/js-api-loading
-Zca @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:292
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:14
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530Understand this warning
-app.js:114 map-ready event received.
-app.js:96 initializeMap() called.
-app.js:98 Uncaught TypeError: navigator.log is not a function
-    at initializeMap (app.js:98:19)
-    at HTMLDocument.<anonymous> (app.js:115:5)
-    at window.initMap (user/:127:22)
-    at js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:297:275
-    at js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296:288
-initializeMap @ app.js:98
-(anonymous) @ app.js:115
-window.initMap @ user/:127
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:297
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296
-Promise.then
-Zca @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:296
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:14
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530
-(anonymous) @ js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry:530Understand this error
-app.js:53 onAuthStateChanged triggered. User: UserImpl {providerId: 'firebase', proactiveRefresh: ProactiveRefresh, reloadUserInfo: {…}, reloadListener: null, uid: 'TGKUBTBYOEXtYOSW4dvnuGbv01Z2', …}
-app.js:75 setupUIForLoggedInUser called.
-app.js:81 Map not initialized, calling initializeMap().
-app.js:96 initializeMap() called.
-app.js:98 Uncaught (in promise) TypeError: navigator.log is not a function
-    at initializeMap (app.js:98:19)
-    at setupUIForLoggedInUser (app.js:82:9)
-    at app.js:56:9
-    at auth_impl.ts:745:7
-initializeMap @ app.js:98
-setupUIForLoggedInUser @ app.js:82
-(anonymous) @ app.js:56
-(anonymous) @ auth_impl.ts:745
-Promise.then
-registerStateListener @ auth_impl.ts:744
-onAuthStateChanged @ auth_impl.ts:545
-onAuthStateChanged @ index.ts:211
-(anonymous) @ app.js:52Understand this error
-app.js:126 Menu button clicked.
-app.js:132 Opening side nav.
-app.js:129 Show history button clicked.
-app.js:269 showTripHistory called.
-app.js:133 Closing side nav.
-app.js:274 Fetching trip history for user: TGKUBTBYOEXtYOSW4dvnuGbv01Z2
-app.js:277 Executing Firestore query.
-app.js:279 Query snapshot obtained. Empty: false
-app.js:287 Creating history item for trip: {userName: 'Manuel Cabrera Trader', createdAt: Timestamp, driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', userLocation: {…}, routePolyline: '|v}sE~wyuIRA', …}
-app.js:298 createHistoryItem called with trip: {userName: 'Manuel Cabrera Trader', createdAt: Timestamp, driverId: '9noAVQFHYaazwTklITQnZxsTXpZ2', userLocation: {…}, routePolyline: '|v}sE~wyuIRA', …}
-app.js:309 History item appended.
-app.js:290 Trip history displayed.
+Uncaught InvalidValueError: LatLngAltitude: `lat` invalid: NaN is not an accepted value
+    Sl main.js:303
+    Ul main.js:154
+    im main.js:159
+    c main.js:332
+    <anonymous> main.js:332
+    set position marker.js:106
+    set main.js:192
+    updateMarkerPosition app.js:1745
+    updateDriverMarker app.js:1083
+    tripRequestListener app.js:747
+    next reference_impl.ts:714
+    Oa bundle_reader_impl.ts:43
+    setTimeout handler*Oa bundle_reader_impl.ts:32
+    next async_observer.ts:45
+    K_ event_manager.ts:317
+    __PRIVATE_eventManagerOnWatchChange event_manager.ts:173
+    __PRIVATE_syncEngineEmitNewSnapsAndNotifyLocalStore local_store_impl.ts:813
+    __PRIVATE_syncEngineApplyRemoteEvent sync_engine_impl.ts:536
+    __PRIVATE_raiseWatchSnapshot remote_store.ts:495
+    __PRIVATE_onWatchStreamChange remote_store.ts:59
+    onMessage persistent_stream.ts:655
+    s_ persistent_stream.ts:529
+    i_ persistent_stream.ts:574
+    enqueue async_queue_impl.ts:137
+    t async_queue_impl.ts:327
+    promise callback*ou async_queue_impl.ts:188
+    enqueue async_queue_impl.ts:135
+    enqueueAndForget async_queue_impl.ts:96
+    i_ persistent_stream.ts:572
+    s_ persistent_stream.ts:527
+    Vo webchannel_connection.ts:56
+    vo webchannel_connection.ts:397
+    __PRIVATE_unguardedEventListen webchannel_connection.ts:298
+    ib eventtarget.js:91
+    C$1 eventtarget.js:490
+    Aa webchannelbasetransport.js:430
+    qc structs.js:194
+    rc channelrequest.js:950
+    Pa channelrequest.js:626
+    nb channelrequest.js:656
+    ib eventtarget.js:91
+    C$1 eventtarget.js:490
+    Ad xhrio.js:1070
+    kb xhrio.js:1052
+    La xhrio.js:1050
+    od fetchxmlhttpfactory.js:237
+    Xa fetchxmlhttpfactory.js:419
+    promise callback*qd fetchxmlhttpfactory.js:468
+    Xa fetchxmlhttpfactory.js:425
+    promise callback*qd fetchxmlhttpfactory.js:468
+    Xa fetchxmlhttpfactory.js:425
+    promise callback*qd fetchxmlhttpfactory.js:468
+    Xa fetchxmlhttpfactory.js:425
+    promise callback*qd fetchxmlhttpfactory.js:468
+    Xa fetchxmlhttpfactory.js:425
+main.js:303:423

@@ -889,39 +889,51 @@ toggleNavigationBtn.addEventListener('click', toggleNavigationMode);
 
 async function updateTripStatus(status) {
     if (!activeTripId) return;
-    await updateDoc(doc(db, "tripRequests", activeTripId), { status });
-    if (status === 'completed') {
-        // Buscar el rating en la colección trips
-        try {
-            const tripsQuery = query(collection(db, "trips"), where("tripRequestId", "==", activeTripId));
-            const tripsSnapshot = await getDocs(tripsQuery);
+
+    try {
+        const tripRequestRef = doc(db, "tripRequests", activeTripId);
+        const tripRequestSnap = await getDoc(tripRequestRef);
+
+        if (tripRequestSnap.exists()) {
+            const tripRequestData = tripRequestSnap.data();
+            const mainTripId = tripRequestData.tripId; // ID del documento en la colección 'trips'
+
+            // Si existe un mainTripId, el usuario ha pagado y debemos actualizar el documento en 'trips'.
+            if (mainTripId) {
+                const tripRef = doc(db, "trips", mainTripId);
+                await updateDoc(tripRef, { status: status });
+                console.log(`Estatus del viaje ${mainTripId} actualizado a: ${status}`);
+            } 
             
-            if (!tripsSnapshot.empty) {
-                const tripDoc = tripsSnapshot.docs[0];
-                const tripData = tripDoc.data();
-                const rating = tripData.rating || 0; // Get rating from trip document
+            // Actualizamos también la solicitud original para mantener la consistencia.
+            await updateDoc(tripRequestRef, { status: status });
 
-                if (rating > 0) { // Only update if a rating was given
-                    const driverRef = doc(db, "drivers", currentUser.uid);
-                    const driverDoc = await getDoc(driverRef);
-                    let newNumTrips = 1;
-                    let newTotalStars = rating;
+            // Lógica de finalización del viaje
+            if (status === 'completed') {
+                if (mainTripId) {
+                    const tripDoc = await getDoc(doc(db, "trips", mainTripId));
+                    if (tripDoc.exists()) {
+                        const tripData = tripDoc.data();
+                        const rating = tripData.rating || 0;
 
-                    if (driverDoc.exists()) {
-                        newNumTrips = (driverDoc.data().numTrips || 0) + 1;
-                        newTotalStars = (driverDoc.data().totalStars || 0) + rating;
+                        if (rating > 0) {
+                            const driverRef = doc(db, "drivers", currentUser.uid);
+                            const driverDoc = await getDoc(driverRef);
+                            const newNumTrips = (driverDoc.data()?.numTrips || 0) + 1;
+                            const newTotalStars = (driverDoc.data()?.totalStars || 0) + rating;
+                            
+                            await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
+                            updateDriverRatingDisplay();
+                            showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
+                        }
                     }
-                    await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
-                    updateDriverRatingDisplay(); // Refresh display
-                    
-                    // Mostrar notificación de calificación recibida
-                    showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
                 }
+                resetTripState();
             }
-        } catch (error) {
-            console.error("Error checking for rating:", error);
         }
-        resetTripState();
+    } catch (error) {
+        console.error("Error al actualizar el estado del viaje:", error);
+        alert("No se pudo actualizar el estado del viaje.");
     }
 }
 
