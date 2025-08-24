@@ -10,7 +10,7 @@ service cloud.firestore {
     // Permitir acceso a conductores autenticados
     match /drivers/{driverId} {
       allow read, write: if request.auth != null && request.auth.uid == driverId;
-      allow read: if request.auth != null; // Los administradores pueden leer todos los conductores
+      allow read, write: if request.auth != null; // Los administradores pueden leer y escribir todos los conductores
     }
     
     // Permitir acceso a viajes

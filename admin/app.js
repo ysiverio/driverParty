@@ -565,8 +565,13 @@ async function loadPendingDriverRequests() {
         
         if (querySnapshot.empty) {
             pendingList.innerHTML = '<p class="no-pending">No hay solicitudes pendientes</p>';
+            // Mostrar la sección aunque esté vacía
+            pendingSection.style.display = 'block';
             return;
         }
+        
+        // Mostrar la sección cuando hay solicitudes
+        pendingSection.style.display = 'block';
         
         querySnapshot.forEach(doc => {
             const driver = doc.data();

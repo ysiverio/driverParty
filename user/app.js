@@ -249,21 +249,21 @@ function initMap(location) {
 }
 
 // --- UI Interactions ---
-menuBtn.addEventListener('click', () => { console.log("Menu button clicked."); openSideNav(); });
-closeNavBtn.addEventListener('click', () => { console.log("Close nav button clicked."); closeSideNav(); });
-navOverlay.addEventListener('click', () => { console.log("Nav overlay clicked."); closeSideNav(); });
-showHistoryBtn.addEventListener('click', () => { console.log("Show history button clicked."); showTripHistory(); });
-closeHistoryBtn.addEventListener('click', () => { console.log("Close history button clicked."); hideTripHistory(); });
+if (menuBtn) menuBtn.addEventListener('click', () => { console.log("Menu button clicked."); openSideNav(); });
+if (closeNavBtn) closeNavBtn.addEventListener('click', () => { console.log("Close nav button clicked."); closeSideNav(); });
+if (navOverlay) navOverlay.addEventListener('click', () => { console.log("Nav overlay clicked."); closeSideNav(); });
+if (showHistoryBtn) showHistoryBtn.addEventListener('click', () => { console.log("Show history button clicked."); showTripHistory(); });
+if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', () => { console.log("Close history button clicked."); hideTripHistory(); });
 
 // --- Profile Modal Events ---
-showProfileBtn.addEventListener('click', showProfileModal);
-closeProfileModalBtn.addEventListener('click', hideProfileModal);
+if (showProfileBtn) showProfileBtn.addEventListener('click', showProfileModal);
+if (closeProfileModalBtn) closeProfileModalBtn.addEventListener('click', hideProfileModal);
 
 // --- Notification Events ---
-notificationBtn.addEventListener('click', showNotifications);
+if (notificationBtn) notificationBtn.addEventListener('click', showNotifications);
 
 // --- Audio Control Events ---
-soundToggle.addEventListener('change', (e) => {
+if (soundToggle) soundToggle.addEventListener('change', (e) => {
     const icon = e.target.parentElement.querySelector('i');
     if (e.target.checked) {
         icon.className = 'fas fa-volume-up';
@@ -275,14 +275,15 @@ soundToggle.addEventListener('change', (e) => {
 });
 
 // --- Driver Card Events ---
-minimizeCardBtn.addEventListener('click', minimizeDriverCard);
-driverCardClose.addEventListener('click', closeDriverCard);
+if (minimizeCardBtn) minimizeCardBtn.addEventListener('click', minimizeDriverCard);
+if (driverCardClose) driverCardClose.addEventListener('click', closeDriverCard);
 
 function openSideNav() { console.log("Opening side nav."); sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
 function closeSideNav() { console.log("Closing side nav."); sideNav.style.width = "0"; navOverlay.style.display = "none"; }
 
 // --- Ride Request ---
-requestDriverButton.addEventListener('click', async () => {
+if (requestDriverButton) {
+    requestDriverButton.addEventListener('click', async () => {
     console.log("Request driver button clicked.");
     if (!currentUser || !map) { console.log("User or map not ready."); return; }
     
@@ -305,6 +306,24 @@ requestDriverButton.addEventListener('click', async () => {
         }
 
         const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
+        
+        // Obtener coordenadas del destino usando el servicio de geocodificación
+        const geocoder = new google.maps.Geocoder();
+        const destinationResult = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address: destinationInput.value }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    resolve(results[0].geometry.location);
+                } else {
+                    reject(new Error('No se pudo geocodificar el destino'));
+                }
+            });
+        });
+        
+        const destinationLocation = { 
+            lat: destinationResult.lat(), 
+            lng: destinationResult.lng() 
+        };
+        
         const distance = calculateDistance(userLocation, destinationLocation);
         const fare = calculateFare(distance);
 
@@ -334,7 +353,8 @@ requestDriverButton.addEventListener('click', async () => {
         console.error("Error requesting trip: ", e);
         alert('Error al solicitar viaje. Por favor, intenta nuevamente.');
     }
-});
+    });
+}
 
 // Escuchar actualizaciones de solicitudes de viaje
 function listenToTripRequestUpdates(requestId) {
