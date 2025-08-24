@@ -184,6 +184,17 @@ function setupUIForLoggedOutUser() {
     resetTripState();
 }
 
+// --- Utility Functions ---
+function calculateFare(distance) {
+    if (!pricingCalculator) {
+        // Fallback to default pricing if calculator isn't available
+        const baseFare = 2.00;
+        const ratePerKm = 3.50;
+        return Math.max(baseFare + (distance * ratePerKm), 5.00);
+    }
+    return pricingCalculator.calculateUserFare(distance);
+}
+
 function initializeMap() {
     console.log("initializeMap() called.");
     if (navigator.geolocation) {
