@@ -8,6 +8,7 @@ import {
     signOut,
     collection, 
     addDoc, 
+    setDoc,
     onSnapshot, 
     doc, 
     updateDoc, 
