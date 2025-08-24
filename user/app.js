@@ -98,6 +98,8 @@ let selectedRating = 0;
 let hasShownDriverInfo = false;
 let notificationSound; // Audio para notificaciones
 let navigationMode = false; // Modo de navegación activo
+let tripListener = null; // Listener para actualizaciones del viaje
+let tripRequestListener = null; // Listener para actualizaciones de la solicitud
 let userLocation = null;
 let destinationLocation = null;
 let originalZoom = 15; // Zoom original del mapa
@@ -824,6 +826,9 @@ async function confirmTripPayment(request) {
         // Escuchar actualizaciones del viaje
         listenToTripUpdates(currentTripId);
         
+        // También escuchar actualizaciones de la solicitud de viaje
+        listenToTripRequestUpdates(currentTripRequestId);
+        
         console.log("Trip payment confirmed and trip created:", tripRef.id);
         
     } catch (error) {
@@ -884,6 +889,10 @@ function getTripRequestStatusInfo(status) {
             return { statusText: 'Conductor encontrado', details: 'Esperando confirmación de pago.' };
         case 'payment_confirmed': 
             return { statusText: 'Pago confirmado', details: 'Tu conductor está en camino.' };
+        case 'in_progress': 
+            return { statusText: 'Viaje en curso', details: 'Disfruta tu viaje.' };
+        case 'completed': 
+            return { statusText: 'Viaje completado', details: 'Gracias por viajar con nosotros.' };
         case 'cancelled': 
             return { statusText: 'Solicitud cancelada', details: 'La solicitud ha sido cancelada.' };
         case 'expired': 
@@ -895,11 +904,47 @@ function getTripRequestStatusInfo(status) {
     }
 }
 
+// --- Trip Request Updates ---
+function listenToTripRequestUpdates(requestId) {
+    console.log("Listening to trip request updates for request ID:", requestId);
+    const requestRef = doc(db, "tripRequests", requestId);
+    tripRequestListener = onSnapshot(requestRef, (docSnap) => {
+        console.log("Trip request update received.");
+        if (!docSnap.exists()) { 
+            console.log("Trip request document does not exist."); 
+            return; 
+        }
+        const request = docSnap.data();
+        console.log("Trip request data:", request);
+        
+        // Manejar diferentes estados de la solicitud
+        if (request.status === 'in_progress' && !navigationMode) {
+            console.log("Trip started, activating navigation mode.");
+            activateNavigationMode();
+            showNotificationToast('¡El viaje ha comenzado!');
+        }
+        else if (request.status === 'completed') {
+            console.log("Trip completed via request update.");
+            setTimeout(() => showRatingModal(), 1500);
+        }
+        else if (request.status === 'cancelled') {
+            console.log("Trip cancelled via request update.");
+            setTimeout(() => resetTripState(), 3000);
+        }
+        
+        // Actualizar ubicación del conductor si está disponible
+        if (request.driverLocation) {
+            console.log("Updating driver marker from request.");
+            updateDriverMarker(request.driverLocation);
+        }
+    });
+}
+
 // --- Trip Lifecycle & Updates ---
 function listenToTripUpdates(tripId) {
     console.log("Listening to trip updates for trip ID:", tripId);
     const tripRef = doc(db, "trips", tripId);
-    onSnapshot(tripRef, (docSnap) => {
+    tripListener = onSnapshot(tripRef, (docSnap) => {
         console.log("Trip update received.");
         if (!docSnap.exists()) { console.log("Trip document does not exist."); resetTripState(); return; }
         const trip = docSnap.data();
@@ -1061,6 +1106,17 @@ function updateMapBounds() {
 
 function resetTripState() {
     console.log("resetTripState called.");
+    
+    // Limpiar listeners
+    if (tripListener) {
+        tripListener();
+        tripListener = null;
+    }
+    if (tripRequestListener) {
+        tripRequestListener();
+        tripRequestListener = null;
+    }
+    
     tripPanel.style.display = 'none';
     requestPanel.style.display = 'block';
     tripInfoContainer.style.display = 'block';
