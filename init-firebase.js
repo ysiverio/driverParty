@@ -20,8 +20,8 @@ const initialPricingConfig = {
     WAITING_FEE_PER_MINUTE: 0.50,
     CANCELLATION_FEE: 3.00,
     PLATFORM_COMMISSION_PERCENTAGE: 15,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
 };
 
 // Configuración general de la aplicación
@@ -36,8 +36,8 @@ const initialGeneralConfig = {
     TOAST_DURATION: 3000,
     MAX_WAITING_TIME: 300, // 5 minutos
     MAX_TRIP_DISTANCE: 100, // 100 km
-    createdAt: new Date(),
-    updatedAt: new Date()
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
 };
 
 async function initializeFirebaseData() {

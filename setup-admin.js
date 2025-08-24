@@ -30,7 +30,7 @@ async function createAdminUser() {
             email: ADMIN_EMAIL,
             name: 'Administrador',
             role: 'admin',
-            createdAt: new Date(),
+            createdAt: serverTimestamp(),
             isActive: true,
             permissions: ['dashboard', 'pricing', 'drivers', 'users', 'trips', 'analytics', 'settings']
         };
