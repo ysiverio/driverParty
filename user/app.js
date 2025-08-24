@@ -525,19 +525,42 @@ if (requestDriverButton) {
 
             const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
             let destinationLocation;
-            const placesService = new google.maps.places.PlacesService(map);
 
             if (destinationInput.dataset.placeId) {
-                const placeResult = await new Promise((resolve, reject) => {
-                    placesService.getDetails({ placeId: destinationInput.dataset.placeId, fields: ['geometry'] }, (place, status) => {
-                        if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
-                            resolve(place.geometry.location);
-                        } else {
-                            reject(new Error('No se pudo obtener los detalles del lugar.'));
-                        }
+                try {
+                    // Usar la nueva API de Place en lugar de PlacesService
+                    const place = await google.maps.places.Place.fetchPlace({
+                        placeId: destinationInput.dataset.placeId,
+                        fields: ['geometry']
                     });
-                });
-                destinationLocation = { lat: placeResult.lat(), lng: placeResult.lng() };
+                    
+                    if (place.geometry && place.geometry.location) {
+                        destinationLocation = { 
+                            lat: place.geometry.location.lat, 
+                            lng: place.geometry.location.lng 
+                        };
+                    } else {
+                        throw new Error('No se pudo obtener los detalles del lugar.');
+                    }
+                } catch (error) {
+                    console.warn('Error usando Place.fetchPlace, fallback a geocodificación:', error);
+                    // Fallback a geocodificación si Place.fetchPlace falla
+                    const geocoder = new google.maps.Geocoder();
+                    const geocodeResult = await geocoder.geocode({ 
+                        address: destinationInput.value, 
+                        componentRestrictions: { country: 'uy' } 
+                    });
+                    
+                    if (geocodeResult.results && geocodeResult.results.length > 0 && 
+                        geocodeResult.results[0].geometry && geocodeResult.results[0].geometry.location) {
+                        destinationLocation = {
+                            lat: geocodeResult.results[0].geometry.location.lat(),
+                            lng: geocodeResult.results[0].geometry.location.lng(),
+                        };
+                    } else {
+                        throw new Error('No se pudo encontrar la dirección ingresada. Por favor, selecciónala de la lista.');
+                    }
+                }
             } else {
                 // Fallback a geocodificación si no se usó autocompletado
                 const geocoder = new google.maps.Geocoder();
