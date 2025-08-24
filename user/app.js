@@ -550,8 +550,14 @@ if (requestDriverButton) {
     }
     
     if (!destinationInput.value.trim()) {
-        alert('Por favor ingresa el destino');
+        showNotificationToast('Por favor ingresa el destino', 'warning');
         return;
+    }
+    
+    // Verificar si se seleccionó una sugerencia válida
+    if (!destinationInput.dataset.placeId) {
+        showNotificationToast('Por favor selecciona una dirección de la lista de sugerencias para mayor precisión', 'warning');
+        // No retornar aquí, permitir que continúe con geocoding tradicional
     }
     
     try {
@@ -587,14 +593,49 @@ if (requestDriverButton) {
                 lng: placeResult.lng() 
             };
         } else {
-            // Fallback a geocodificación tradicional
+            // Fallback a geocodificación tradicional con mejor manejo de errores
             const geocoder = new google.maps.Geocoder();
             const destinationResult = await new Promise((resolve, reject) => {
-                geocoder.geocode({ address: destinationInput.value }, (results, status) => {
-                    if (status === 'OK' && results[0]) {
-                        resolve(results[0].geometry.location);
+                geocoder.geocode({ 
+                    address: destinationInput.value,
+                    componentRestrictions: { country: 'uy' }, // Restringir a Uruguay
+                    bounds: map.getBounds() // Usar los límites del mapa actual
+                }, (results, status) => {
+                    if (status === 'OK' && results && results.length > 0) {
+                        // Filtrar resultados más relevantes
+                        const relevantResults = results.filter(result => 
+                            result.geometry && 
+                            result.geometry.location &&
+                            result.types.some(type => 
+                                ['street_address', 'route', 'establishment', 'premise'].includes(type)
+                            )
+                        );
+                        
+                        if (relevantResults.length > 0) {
+                            resolve(relevantResults[0].geometry.location);
+                        } else {
+                            resolve(results[0].geometry.location); // Usar el primer resultado si no hay filtrados
+                        }
                     } else {
-                        reject(new Error('No se pudo geocodificar el destino. Por favor, selecciona una dirección de la lista de sugerencias.'));
+                        // Proporcionar mensaje más específico basado en el status
+                        let errorMessage = 'No se pudo geocodificar el destino.';
+                        switch (status) {
+                            case 'ZERO_RESULTS':
+                                errorMessage = 'No se encontró la dirección especificada. Por favor, verifica la dirección o selecciona una de las sugerencias.';
+                                break;
+                            case 'OVER_QUERY_LIMIT':
+                                errorMessage = 'Se ha excedido el límite de consultas. Por favor, intenta nuevamente en unos momentos.';
+                                break;
+                            case 'REQUEST_DENIED':
+                                errorMessage = 'Error de configuración del mapa. Por favor, contacta soporte.';
+                                break;
+                            case 'INVALID_REQUEST':
+                                errorMessage = 'La dirección ingresada no es válida. Por favor, verifica el formato.';
+                                break;
+                            default:
+                                errorMessage = 'Error al procesar la dirección. Por favor, selecciona una dirección de la lista de sugerencias.';
+                        }
+                        reject(new Error(errorMessage));
                     }
                 });
             });
@@ -631,7 +672,27 @@ if (requestDriverButton) {
         
     } catch (e) { 
         console.error("Error requesting trip: ", e);
-        alert('Error al solicitar viaje. Por favor, intenta nuevamente.');
+        
+        // Mostrar mensaje de error más específico
+        let errorMessage = 'Error al solicitar viaje. Por favor, intenta nuevamente.';
+        
+        if (e.message) {
+            if (e.message.includes('geocodificar') || e.message.includes('dirección')) {
+                errorMessage = e.message;
+            } else if (e.message.includes('reCAPTCHA')) {
+                errorMessage = 'Error de verificación de seguridad. Por favor, intenta nuevamente.';
+            } else if (e.message.includes('Firestore') || e.message.includes('Firebase')) {
+                errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.';
+            }
+        }
+        
+        // Mostrar notificación más amigable
+        showNotificationToast(errorMessage, 'error');
+        
+        // También mostrar alert para casos críticos
+        if (errorMessage.includes('geocodificar') || errorMessage.includes('dirección')) {
+            alert(errorMessage);
+        }
     }
     });
 }
@@ -1136,17 +1197,38 @@ function playNotificationSound() {
     }
 }
 
-function showNotificationToast(message) {
+function showNotificationToast(message, type = 'info') {
     // Crear y mostrar una notificación toast
     const toast = document.createElement('div');
-    toast.className = 'notification-toast';
+    toast.className = `notification-toast notification-${type}`;
     toast.textContent = message;
+    
+    // Configurar colores según el tipo
+    let backgroundColor, color;
+    switch (type) {
+        case 'error':
+            backgroundColor = '#dc3545';
+            color = 'white';
+            break;
+        case 'warning':
+            backgroundColor = '#ffc107';
+            color = '#212529';
+            break;
+        case 'success':
+            backgroundColor = '#28a745';
+            color = 'white';
+            break;
+        default:
+            backgroundColor = '#007bff';
+            color = 'white';
+    }
+    
     toast.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: #28a745;
-        color: white;
+        background: ${backgroundColor};
+        color: ${color};
         padding: 12px 20px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -1154,6 +1236,8 @@ function showNotificationToast(message) {
         font-weight: 500;
         transform: translateX(100%);
         transition: transform 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
     `;
     
     document.body.appendChild(toast);
@@ -1163,7 +1247,8 @@ function showNotificationToast(message) {
         toast.style.transform = 'translateX(0)';
     }, 100);
     
-    // Remover después de 3 segundos
+    // Remover después de 4 segundos para errores
+    const duration = type === 'error' ? 4000 : 3000;
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
         setTimeout(() => {
@@ -1171,7 +1256,7 @@ function showNotificationToast(message) {
                 toast.parentNode.removeChild(toast);
             }
         }, 300);
-    }, 3000);
+    }, duration);
 }
 
 // --- Navigation Mode Functions for User ---
