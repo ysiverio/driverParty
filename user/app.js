@@ -655,6 +655,7 @@ function showPaymentConfirmationModal(request, driverData) {
     // Event listeners para los botones
     document.getElementById('confirm-trip-btn').onclick = () => confirmTripPayment(request);
     document.getElementById('reject-trip-btn').onclick = () => rejectTrip(request);
+    document.getElementById('close-payment-modal').onclick = () => rejectTrip(request);
     
     modal.style.display = 'flex';
 }
@@ -670,8 +671,8 @@ async function confirmTripPayment(request) {
             userName: request.userName,
             userPhoto: request.userPhoto,
             driverId: request.driverId,
-            driverName: request.driverName,
-            driverPhoto: request.driverPhoto,
+            driverName: request.driverInfo?.name || 'Conductor',
+            driverPhoto: request.driverInfo?.photoURL || '../default-avatar.svg',
             origin: request.origin,
             destination: request.destination,
             originCoords: request.originCoords,
@@ -714,7 +715,8 @@ async function rejectTrip(request) {
     try {
         await updateDoc(doc(db, "tripRequests", currentTripRequestId), {
             status: 'rejected',
-            rejectedAt: serverTimestamp()
+            rejectedAt: serverTimestamp(),
+            rejectedBy: 'user'
         });
         
         document.getElementById('payment-confirmation-modal').style.display = 'none';

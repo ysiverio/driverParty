@@ -408,9 +408,84 @@ function setupUIForLoggedOutUser() {
 // --- Map Initialization ---
 function initializeMap() {
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => initMap({ lat: 34.0522, lng: -118.2437 }));
-    } else { initMap({ lat: 34.0522, lng: -118.2437 }); }
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                // Ocultar banner si está visible
+                hideLocationPermissionBanner();
+                initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            },
+            (error) => {
+                console.warn('Geolocation error:', error);
+                let errorMessage = 'Error de geolocalización';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Acceso a ubicación denegado. Por favor, habilita la ubicación en tu navegador.';
+                        showLocationPermissionBanner();
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Información de ubicación no disponible.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'Tiempo de espera agotado para obtener ubicación.';
+                        break;
+                    default:
+                        errorMessage = 'Error desconocido de geolocalización.';
+                }
+                
+                console.log(errorMessage);
+                // Mostrar notificación al usuario
+                showNotificationToast(errorMessage);
+                
+                // Usar ubicación por defecto
+                initMap({ lat: 34.0522, lng: -118.2437 });
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
+    } else { 
+        console.warn('Geolocation no está disponible en este navegador');
+        initMap({ lat: 34.0522, lng: -118.2437 }); 
+    }
+}
+
+// --- Location Permission Banner Functions ---
+function showLocationPermissionBanner() {
+    const banner = document.getElementById('location-permission-banner');
+    if (banner) {
+        banner.style.display = 'block';
+    }
+}
+
+function hideLocationPermissionBanner() {
+    const banner = document.getElementById('location-permission-banner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
+function requestLocationPermission() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                hideLocationPermissionBanner();
+                showNotificationToast('Ubicación habilitada correctamente');
+                initMap({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            },
+            (error) => {
+                console.warn('Permission request failed:', error);
+                showNotificationToast('No se pudo obtener la ubicación. Verifica los permisos del navegador.');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
+    }
 }
 
 document.addEventListener('map-ready', initializeMap);
@@ -434,7 +509,19 @@ function initMap(location) {
     }
     
     try {
-        map = new google.maps.Map(mapElement, { center: location, zoom: 14, disableDefaultUI: true });
+        // Verificar que el contenedor del mapa tiene dimensiones
+        if (mapElement.offsetWidth === 0 || mapElement.offsetHeight === 0) {
+            console.warn('El contenedor del mapa no tiene dimensiones. Reintentando...');
+            setTimeout(() => initMap(location), 100);
+            return;
+        }
+        
+        map = new google.maps.Map(mapElement, { 
+            center: location, 
+            zoom: 14, 
+            disableDefaultUI: true,
+            mapId: 'driver_map' // Agregar mapId para evitar warnings
+        });
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
         directionsRenderer.setMap(map);
@@ -450,6 +537,18 @@ closeNavBtn.addEventListener('click', closeSideNav);
 navOverlay.addEventListener('click', closeSideNav);
 vehicleBtn.addEventListener('click', showVehicleModal);
 closeVehicleModalBtn.addEventListener('click', () => vehicleModal.style.display = 'none');
+
+// --- Location Permission Banner Events ---
+const enableLocationBtn = document.getElementById('enable-location-btn');
+const dismissLocationBtn = document.getElementById('dismiss-location-btn');
+
+if (enableLocationBtn) {
+    enableLocationBtn.addEventListener('click', requestLocationPermission);
+}
+
+if (dismissLocationBtn) {
+    dismissLocationBtn.addEventListener('click', hideLocationPermissionBanner);
+}
 
 // --- History Modal Events ---
 showHistoryBtn.addEventListener('click', showTripHistory);
@@ -527,6 +626,22 @@ function addRequestMarker(position, title) {
 }
 function clearRequestMarkers() { Object.values(requestMarkers).forEach(marker => marker.setMap(null)); requestMarkers = {}; }
 
+// --- Listen for Trip Rejection ---
+function listenForTripRejection(tripId) {
+    const tripRef = doc(db, "tripRequests", tripId);
+    onSnapshot(tripRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const tripData = docSnap.data();
+            if (tripData.status === 'rejected' && tripData.rejectedBy === 'user') {
+                // Usuario rechazó el viaje
+                console.log("User rejected the trip");
+                showNotificationToast('El usuario rechazó el viaje');
+                resetTripState();
+            }
+        }
+    });
+}
+
 // --- Accept & Manage Trip ---
 async function acceptTrip(tripId) {
     if (activeTripId) return;
@@ -557,6 +672,9 @@ async function acceptTrip(tripId) {
             calculateAndDisplayRoute(location, userLocation);
             startSharingLocation(location);
         }, (err) => console.error("Geolocation error:", err));
+        
+        // Escuchar si el usuario rechaza el viaje
+        listenForTripRejection(tripId);
     } catch (error) { console.error("Error accepting trip: ", error); activeTripId = null; }
 }
 

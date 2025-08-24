@@ -566,6 +566,50 @@ body, html {
     width: 90%;
     max-width: 400px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* --- Payment Modal Specific Styles --- */
+.payment-confirmation {
+    max-width: 450px;
+    text-align: left;
+    padding: 25px;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.payment-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.close-modal-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+
+.close-modal-btn:hover {
+    background-color: #f0f0f0;
+    color: #333;
 }
 
 .modal-box h2 {
