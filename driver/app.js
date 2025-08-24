@@ -934,7 +934,7 @@ function activateNavigationMode(userLocation) {
     map.fitBounds(bounds, 80);
     
     // Mostrar indicador de modo navegación
-    showNavigationIndicator();
+    showNavigationIndicator('Modo Navegación');
     
     // Configurar actualización automática de vista
     startNavigationViewUpdates();
@@ -943,44 +943,7 @@ function activateNavigationMode(userLocation) {
     saveTripState();
 }
 
-function showNavigationIndicator() {
-    // Crear indicador de modo navegación
-    const navIndicator = document.createElement('div');
-    navIndicator.id = 'navigation-indicator';
-    navIndicator.innerHTML = `
-        <div class="nav-indicator-content">
-            <i class="fas fa-route"></i>
-            <span>Modo Navegación</span>
-        </div>
-    `;
-    navIndicator.style.cssText = `
-        position: fixed;
-        top: 80px;
-        left: 20px;
-        background: #28a745;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 500;
-        z-index: 1000;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    `;
-    
-    document.body.appendChild(navIndicator);
-    
-    // Animar entrada
-    navIndicator.style.transform = 'translateY(-20px)';
-    navIndicator.style.opacity = '0';
-    setTimeout(() => {
-        navIndicator.style.transition = 'all 0.3s ease';
-        navIndicator.style.transform = 'translateY(0)';
-        navIndicator.style.opacity = '1';
-    }, 100);
-}
+
 
 function startNavigationViewUpdates() {
     // Actualizar vista de navegación cada 5 segundos
