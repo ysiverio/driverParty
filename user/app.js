@@ -657,31 +657,109 @@ function listenToTripRequestUpdates(requestId) {
 }
 
 async function handleTripAccepted(request) {
-    const driverRef = doc(db, "drivers", request.driverId);
-    const driverDoc = await getDoc(driverRef);
-    if (driverDoc.exists()) {
-        showPaymentConfirmationModal(request, driverDoc.data());
+    try {
+        console.log('Trip accepted, fetching driver data for:', request.driverId);
+        const driverRef = doc(db, "drivers", request.driverId);
+        const driverDoc = await getDoc(driverRef);
+        
+        if (driverDoc.exists()) {
+            const driverData = driverDoc.data();
+            console.log('Driver data retrieved:', driverData);
+            showPaymentConfirmationModal(request, driverData);
+        } else {
+            console.error('Driver document does not exist for ID:', request.driverId);
+            // Mostrar modal con datos mínimos si no se encuentra el conductor
+            showPaymentConfirmationModal(request, {
+                name: 'Conductor',
+                photoURL: '../default-avatar.svg',
+                totalStars: 0,
+                numTrips: 0,
+                vehicle: null
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching driver data:', error);
+        // Mostrar modal con datos mínimos en caso de error
+        showPaymentConfirmationModal(request, {
+            name: 'Conductor',
+            photoURL: '../default-avatar.svg',
+            totalStars: 0,
+            numTrips: 0,
+            vehicle: null
+        });
     }
 }
 
 function showPaymentConfirmationModal(request, driverData) {
+    console.log('Showing payment confirmation modal with request:', request);
+    console.log('Driver data:', driverData);
+    
     const modal = document.getElementById('payment-confirmation-modal');
-    document.getElementById('trip-distance').textContent = `${request.estimatedDistance.toFixed(1)} km`;
-    document.getElementById('trip-duration').textContent = `${Math.round(request.estimatedDistance * 2)} min`;
-    document.getElementById('trip-fare').textContent = `$${request.estimatedFare.toFixed(2)}`;
-    document.getElementById('driver-photo').src = driverData.photoURL || '../default-avatar.svg';
-    document.getElementById('driver-name').textContent = driverData.name || 'Conductor';
-    const rating = driverData.rating || 0;
-    document.getElementById('driver-stars').textContent = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
-    document.getElementById('driver-rating-text').textContent = `${rating.toFixed(1)} (${driverData.totalTrips || 0} viajes)`;
+    
+    // Mostrar información del viaje
+    const distanceElement = document.getElementById('trip-distance');
+    const durationElement = document.getElementById('trip-duration');
+    const fareElement = document.getElementById('trip-fare');
+    
+    if (distanceElement) distanceElement.textContent = `${request.estimatedDistance.toFixed(1)} km`;
+    if (durationElement) durationElement.textContent = `${Math.round(request.estimatedDistance * 2)} min`;
+    if (fareElement) fareElement.textContent = `$${request.estimatedFare.toFixed(2)}`;
+    
+    console.log('Trip info set - Distance:', request.estimatedDistance, 'Fare:', request.estimatedFare);
+    
+    // Mostrar información del conductor
+    const driverPhotoElement = document.getElementById('driver-photo');
+    const driverNameElement = document.getElementById('driver-name');
+    
+    if (driverPhotoElement) driverPhotoElement.src = driverData.photoURL || '../default-avatar.svg';
+    if (driverNameElement) driverNameElement.textContent = driverData.name || 'Conductor';
+    
+    // Calcular rating y viajes del conductor
+    const totalStars = driverData.totalStars || 0;
+    const numTrips = driverData.numTrips || 0;
+    const avgRating = numTrips > 0 ? (totalStars / numTrips).toFixed(1) : '0.0';
+    
+    console.log('Driver stats - Total stars:', totalStars, 'Num trips:', numTrips, 'Avg rating:', avgRating);
+    
+    // Mostrar estrellas
+    const fullStars = Math.floor(avgRating);
+    const hasHalfStar = avgRating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let starsHTML = '';
+    for (let i = 0; i < fullStars; i++) starsHTML += '★';
+    if (hasHalfStar) starsHTML += '☆';
+    for (let i = 0; i < emptyStars; i++) starsHTML += '☆';
+    
+    const driverStarsElement = document.getElementById('driver-stars');
+    const driverRatingTextElement = document.getElementById('driver-rating-text');
+    
+    if (driverStarsElement) driverStarsElement.textContent = starsHTML;
+    if (driverRatingTextElement) driverRatingTextElement.textContent = `${avgRating} (${numTrips} viaje${numTrips !== 1 ? 's' : ''})`;
+    
+    // Mostrar información del vehículo
+    const vehicleInfoElement = document.getElementById('vehicle-info');
+    const vehiclePlateElement = document.getElementById('vehicle-plate');
+    
     if (driverData.vehicle) {
-        document.getElementById('vehicle-info').textContent = `${driverData.vehicle.make} ${driverData.vehicle.model} - ${driverData.vehicle.color}`;
-        document.getElementById('vehicle-plate').textContent = driverData.vehicle.plate;
+        if (vehicleInfoElement) vehicleInfoElement.textContent = `${driverData.vehicle.make} ${driverData.vehicle.model} - ${driverData.vehicle.color}`;
+        if (vehiclePlateElement) vehiclePlateElement.textContent = driverData.vehicle.plate;
+    } else {
+        if (vehicleInfoElement) vehicleInfoElement.textContent = 'Información del vehículo no disponible';
+        if (vehiclePlateElement) vehiclePlateElement.textContent = '';
     }
-    document.getElementById('confirm-trip-btn').onclick = () => confirmTripPayment(request);
-    document.getElementById('reject-trip-btn').onclick = () => rejectTrip(request);
-    document.getElementById('close-payment-modal').onclick = () => rejectTrip(request);
+    
+    // Configurar botones
+    const confirmBtn = document.getElementById('confirm-trip-btn');
+    const rejectBtn = document.getElementById('reject-trip-btn');
+    const closeBtn = document.getElementById('close-payment-modal');
+    
+    if (confirmBtn) confirmBtn.onclick = () => confirmTripPayment(request);
+    if (rejectBtn) rejectBtn.onclick = () => rejectTrip(request);
+    if (closeBtn) closeBtn.onclick = () => rejectTrip(request);
+    
     modal.style.display = 'flex';
+    console.log('Payment confirmation modal displayed');
 }
 
 // PASO 2: Confirmar el pago y crear el VIAJE real.
