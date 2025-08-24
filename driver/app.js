@@ -490,25 +490,7 @@ function createRequestCard(trip, tripId) {
 
 requestsList.addEventListener('click', (e) => { if (e.target.classList.contains('accept-button')) acceptTrip(e.target.dataset.id); });
 function addRequestMarker(position, title) { 
-    // Usar AdvancedMarkerElement en lugar de Marker deprecado
-    const markerElement = document.createElement('div');
-    markerElement.innerHTML = `
-        <div style="
-            width: 20px; 
-            height: 20px; 
-            background-color: #ea4335; 
-            border: 2px solid white; 
-            border-radius: 50%; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-        "></div>
-    `;
-    const marker = new google.maps.marker.AdvancedMarkerElement({ 
-        position, 
-        map, 
-        title,
-        content: markerElement
-    }); 
+    const marker = createCustomMarker(position, map, title, '#ea4335');
     requestMarkers[title] = marker; 
 }
 function clearRequestMarkers() { Object.values(requestMarkers).forEach(marker => marker.setMap(null)); requestMarkers = {}; }
@@ -533,25 +515,8 @@ async function acceptTrip(tripId) {
         tripPanel.style.display = 'block';
         tripClientName.textContent = tripData.userName;
         clearRequestMarkers();
-        // Usar AdvancedMarkerElement en lugar de Marker deprecado
-        const userMarkerElement = document.createElement('div');
-        userMarkerElement.innerHTML = `
-            <div style="
-                width: 20px; 
-                height: 20px; 
-                background-color: #4285f4; 
-                border: 2px solid white; 
-                border-radius: 50%; 
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                cursor: pointer;
-            "></div>
-        `;
-        userMarker = new google.maps.marker.AdvancedMarkerElement({ 
-            position: tripData.userLocation, 
-            map, 
-            title: tripData.userName,
-            content: userMarkerElement
-        });
+        // Crear marcador con fallback para compatibilidad
+        userMarker = createCustomMarker(tripData.userLocation, map, tripData.userName, '#4285f4');
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             calculateAndDisplayRoute(location, tripData.userLocation);
@@ -802,24 +767,8 @@ async function updateTripStatus(status) {
 // --- Location & Map Updates ---
 function startSharingLocation(initialLocation) {
     if (driverMarker) driverMarker.setMap(null);
-    // Usar AdvancedMarkerElement en lugar de Marker deprecado
-    const driverMarkerElement = document.createElement('div');
-    driverMarkerElement.innerHTML = `
-        <div style="
-            width: 16px; 
-            height: 16px; 
-            background-color: #4285F4; 
-            border: 2px solid white; 
-            border-radius: 50%; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-        "></div>
-    `;
-    driverMarker = new google.maps.marker.AdvancedMarkerElement({ 
-        position: initialLocation, 
-        map: map,
-        content: driverMarkerElement
-    });
+    // Crear marcador con fallback para compatibilidad
+    driverMarker = createCustomMarker(initialLocation, map, 'Tu ubicación', '#4285F4');
     
     if (navigationMode) {
         // En modo navegación, centrar en la ruta completa
@@ -1440,6 +1389,66 @@ function showNotificationToast(message) {
             }
         }, 300);
     }, 3000);
+}
+
+// --- Helper Functions ---
+function createCustomMarker(position, map, title, color = '#4285f4', emoji = '') {
+    try {
+        // Intentar usar AdvancedMarkerElement si está disponible
+        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+            const markerElement = document.createElement('div');
+            markerElement.innerHTML = `
+                <div style="
+                    width: ${emoji ? '24px' : '20px'}; 
+                    height: ${emoji ? '24px' : '20px'}; 
+                    background-color: ${color}; 
+                    border: 2px solid white; 
+                    border-radius: 50%; 
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    color: white;
+                    font-weight: bold;
+                ">${emoji}</div>
+            `;
+            return new google.maps.marker.AdvancedMarkerElement({
+                position: position,
+                map: map,
+                title: title,
+                content: markerElement
+            });
+        } else {
+            // Fallback a Marker regular con icono personalizado
+            const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/>
+                    <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-family="Arial, sans-serif">${emoji}</text>
+                </svg>
+            `)}`;
+            
+            return new google.maps.Marker({
+                position: position,
+                map: map,
+                title: title,
+                icon: {
+                    url: iconUrl,
+                    scaledSize: new google.maps.Size(24, 24),
+                    anchor: new google.maps.Point(12, 12)
+                }
+            });
+        }
+    } catch (error) {
+        console.warn('Error creating custom marker, using default:', error);
+        // Fallback final a marcador básico
+        return new google.maps.Marker({
+            position: position,
+            map: map,
+            title: title
+        });
+    }
 }
 
 

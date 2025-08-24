@@ -244,25 +244,8 @@ document.addEventListener('map-ready', () => {
 function initMap(location) {
     console.log("initMap() called with location:", location);
     map = new google.maps.Map(document.getElementById('map'), { center: location, zoom: 15, disableDefaultUI: true });
-            // Usar AdvancedMarkerElement en lugar de Marker deprecado
-        const userMarkerElement = document.createElement('div');
-        userMarkerElement.innerHTML = `
-            <div style="
-                width: 20px; 
-                height: 20px; 
-                background-color: #4285f4; 
-                border: 2px solid white; 
-                border-radius: 50%; 
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                cursor: pointer;
-            "></div>
-        `;
-        userMarker = new google.maps.marker.AdvancedMarkerElement({
-            position: location,
-            map: map,
-            title: 'Tu ubicación',
-            content: userMarkerElement
-        });
+            // Crear marcador con fallback para compatibilidad
+        userMarker = createCustomMarker(location, map, 'Tu ubicación', '#4285f4');
     console.log("Map and user marker initialized.");
 }
 
@@ -704,31 +687,8 @@ function updateDriverMarker(location) {
     console.log("updateDriverMarker called with location:", location);
     const pos = new google.maps.LatLng(location.lat, location.lng);
     if (!driverMarker) {
-        // Usar AdvancedMarkerElement en lugar de Marker deprecado
-        const driverMarkerElement = document.createElement('div');
-        driverMarkerElement.innerHTML = `
-            <div style="
-                width: 24px; 
-                height: 24px; 
-                background-color: #34a853; 
-                border: 2px solid white; 
-                border-radius: 50%; 
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 12px;
-                color: white;
-                font-weight: bold;
-            ">🚗</div>
-        `;
-        driverMarker = new google.maps.marker.AdvancedMarkerElement({
-            position: pos,
-            map: map,
-            title: 'Tu Conductor',
-            content: driverMarkerElement
-        });
+        // Crear marcador con fallback para compatibilidad
+        driverMarker = createCustomMarker(pos, map, 'Tu Conductor', '#34a853', '🚗');
     } else { driverMarker.setPosition(pos); }
     updateMapBounds();
 }
@@ -1179,4 +1139,64 @@ function showNotifications() {
     `;
     document.body.appendChild(notificationModal);
     closeSideNav();
+}
+
+// --- Helper Functions ---
+function createCustomMarker(position, map, title, color = '#4285f4', emoji = '') {
+    try {
+        // Intentar usar AdvancedMarkerElement si está disponible
+        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+            const markerElement = document.createElement('div');
+            markerElement.innerHTML = `
+                <div style="
+                    width: ${emoji ? '24px' : '20px'}; 
+                    height: ${emoji ? '24px' : '20px'}; 
+                    background-color: ${color}; 
+                    border: 2px solid white; 
+                    border-radius: 50%; 
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    color: white;
+                    font-weight: bold;
+                ">${emoji}</div>
+            `;
+            return new google.maps.marker.AdvancedMarkerElement({
+                position: position,
+                map: map,
+                title: title,
+                content: markerElement
+            });
+        } else {
+            // Fallback a Marker regular con icono personalizado
+            const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/>
+                    <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-family="Arial, sans-serif">${emoji}</text>
+                </svg>
+            `)}`;
+            
+            return new google.maps.Marker({
+                position: position,
+                map: map,
+                title: title,
+                icon: {
+                    url: iconUrl,
+                    scaledSize: new google.maps.Size(24, 24),
+                    anchor: new google.maps.Point(12, 12)
+                }
+            });
+        }
+    } catch (error) {
+        console.warn('Error creating custom marker, using default:', error);
+        // Fallback final a marcador básico
+        return new google.maps.Marker({
+            position: position,
+            map: map,
+            title: title
+        });
+    }
 }
