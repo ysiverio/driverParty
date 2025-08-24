@@ -1,4 +1,3 @@
-
 import { 
     auth, 
     db,
@@ -699,7 +698,12 @@ if (requestDriverButton) {
     });
 }
 
-// Escuchar actualizaciones de solicitudes de viaje
+// --- Trip Lifecycle & Updates ---
+
+// PASO 1: Escuchar la SOLICITUD de viaje.
+// Esta función se activa tan pronto como el usuario pide un viaje.
+// Su trabajo es escuchar el documento en la colección 'tripRequests'
+// para saber cuándo un conductor ha aceptado la solicitud.
 function listenToTripRequestUpdates(requestId) {
     console.log("Listening to trip request updates for request ID:", requestId);
     const requestRef = doc(db, "tripRequests", requestId);
@@ -727,6 +731,10 @@ function listenToTripRequestUpdates(requestId) {
             setTimeout(() => resetTripState(), 3000);
         }
         else if (request.status === 'accepted') {
+            console.log("Driver has accepted. Updating UI and showing payment modal.");
+            // Actualizar la UI principal para dar feedback inmediato
+            tripStatusHeading.textContent = 'Conductor Encontrado';
+            tripStatusDetails.textContent = 'Por favor, confirma los detalles y el pago para comenzar.';
             handleTripAccepted(request);
         }
         else if (request.status === 'expired') {
@@ -790,7 +798,9 @@ function showPaymentConfirmationModal(request, driverData) {
     modal.style.display = 'flex';
 }
 
-// Confirmar pago y crear viaje
+// PASO 2: Confirmar el pago y crear el VIAJE real.
+// Esta función es el puente entre la solicitud y el viaje.
+// Crea el documento final en la colección 'trips' y luego inicia el listener definitivo.
 async function confirmTripPayment(request) {
     try {
         const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
@@ -833,7 +843,7 @@ async function confirmTripPayment(request) {
         // Mostrar notificación de éxito
         showNotificationToast('Pago confirmado. Tu conductor está en camino.');
         
-        // Escuchar actualizaciones del viaje
+        // PASO 3: Iniciar el listener para el VIAJE.
         listenToTripUpdates(currentTripId);
         
         // También escuchar actualizaciones de la solicitud de viaje
@@ -916,7 +926,10 @@ function getTripRequestStatusInfo(status) {
 
 
 
-// --- Trip Lifecycle & Updates ---
+// PASO 4: Escuchar el VIAJE real.
+// Esta función se activa DESPUÉS de que el usuario confirma el pago.
+// Se encarga de escuchar el documento en la colección 'trips' para actualizaciones
+// como la finalización del viaje, cancelación, etc.
 function listenToTripUpdates(tripId) {
     console.log("Listening to trip updates for trip ID:", tripId);
     const tripRef = doc(db, "trips", tripId);
