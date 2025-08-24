@@ -57,7 +57,8 @@
                 </div>
                 <div class="input-group">
                     <i class="fas fa-location-arrow"></i>
-                    <input type="text" id="destination-input" placeholder="¿A dónde vas?">
+                    <input type="text" id="destination-input" placeholder="¿A dónde vas?" autocomplete="off">
+                    <div id="destination-suggestions" class="suggestions-container" style="display: none;"></div>
                 </div>
                 <button id="request-driver-button">Pedir un Conductor</button>
             </div>
@@ -283,6 +284,6 @@
             document.dispatchEvent(new CustomEvent('map-ready'));
         };
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry,marker&loading=async"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8&callback=initMap&libraries=geometry,marker,places&loading=async"></script>
 </body>
 </html>

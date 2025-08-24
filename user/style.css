@@ -1095,3 +1095,65 @@ body, html {
 .driver-card.minimized .driver-card-actions {
     display: none;
 }
+
+/* --- Autocomplete Suggestions --- */
+.suggestions-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item.selected {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.suggestion-icon {
+    color: #666;
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.suggestion-text {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+}
+
+.suggestion-secondary {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.input-group {
+    position: relative;
+}

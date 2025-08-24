@@ -279,6 +279,9 @@ function initMap(location) {
         // Crear marcador con fallback para compatibilidad
         userMarker = createCustomMarker(location, map, 'Tu ubicación', '#4285f4');
         console.log("Map and user marker initialized successfully.");
+        
+        // Initialize autocomplete services after map is ready
+        initializeAutocompleteServices();
     } catch (error) {
         console.error('Error initializing map:', error);
     }
@@ -310,12 +313,168 @@ if (soundToggle) soundToggle.addEventListener('change', (e) => {
     }
 });
 
+// --- Autocomplete Functionality ---
+let autocompleteService;
+let placesService;
+let selectedSuggestionIndex = -1;
+let suggestions = [];
+
+// Initialize autocomplete services
+function initializeAutocompleteServices() {
+    if (google && google.maps) {
+        autocompleteService = new google.maps.places.AutocompleteService();
+        placesService = new google.maps.places.PlacesService(map);
+    }
+}
+
+// Get destination suggestions
+async function getDestinationSuggestions(query) {
+    if (!autocompleteService || !query.trim()) {
+        hideSuggestions();
+        return;
+    }
+
+    try {
+        const request = {
+            input: query,
+            componentRestrictions: { country: 'uy' }, // Uruguay
+            types: ['establishment', 'geocode']
+        };
+
+        const results = await new Promise((resolve, reject) => {
+            autocompleteService.getPlacePredictions(request, (predictions, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    resolve(predictions);
+                } else {
+                    resolve([]);
+                }
+            });
+        });
+
+        suggestions = results.slice(0, 5); // Limit to 5 suggestions
+        showSuggestions(suggestions);
+    } catch (error) {
+        console.error('Error getting suggestions:', error);
+        hideSuggestions();
+    }
+}
+
+// Show suggestions
+function showSuggestions(suggestions) {
+    const suggestionsContainer = document.getElementById('destination-suggestions');
+    if (!suggestionsContainer) return;
+
+    if (suggestions.length === 0) {
+        hideSuggestions();
+        return;
+    }
+
+    suggestionsContainer.innerHTML = '';
+    selectedSuggestionIndex = -1;
+
+    suggestions.forEach((suggestion, index) => {
+        const suggestionItem = document.createElement('div');
+        suggestionItem.className = 'suggestion-item';
+        suggestionItem.innerHTML = `
+            <i class="fas fa-map-marker-alt suggestion-icon"></i>
+            <div class="suggestion-text">
+                <div>${suggestion.structured_formatting.main_text}</div>
+                <div class="suggestion-secondary">${suggestion.structured_formatting.secondary_text}</div>
+            </div>
+        `;
+        
+        suggestionItem.addEventListener('click', () => {
+            selectSuggestion(suggestion);
+        });
+
+        suggestionItem.addEventListener('mouseenter', () => {
+            selectedSuggestionIndex = index;
+            updateSelectedSuggestion();
+        });
+
+        suggestionsContainer.appendChild(suggestionItem);
+    });
+
+    suggestionsContainer.style.display = 'block';
+}
+
+// Hide suggestions
+function hideSuggestions() {
+    const suggestionsContainer = document.getElementById('destination-suggestions');
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+    selectedSuggestionIndex = -1;
+    suggestions = [];
+}
+
+// Select a suggestion
+function selectSuggestion(suggestion) {
+    const destinationInput = document.getElementById('destination-input');
+    if (destinationInput) {
+        destinationInput.value = suggestion.description;
+        destinationInput.dataset.placeId = suggestion.place_id;
+    }
+    hideSuggestions();
+}
+
+// Update selected suggestion visual
+function updateSelectedSuggestion() {
+    const suggestionItems = document.querySelectorAll('.suggestion-item');
+    suggestionItems.forEach((item, index) => {
+        if (index === selectedSuggestionIndex) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
 // --- Driver Card Events ---
 if (minimizeCardBtn) minimizeCardBtn.addEventListener('click', minimizeDriverCard);
 if (driverCardClose) driverCardClose.addEventListener('click', closeDriverCard);
 
 function openSideNav() { console.log("Opening side nav."); sideNav.style.width = "280px"; navOverlay.style.display = "block"; }
 function closeSideNav() { console.log("Closing side nav."); sideNav.style.width = "0"; navOverlay.style.display = "none"; }
+
+// --- Autocomplete Event Listeners ---
+const destinationInput = document.getElementById('destination-input');
+if (destinationInput) {
+    let debounceTimer;
+    
+    destinationInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            getDestinationSuggestions(e.target.value);
+        }, 300); // Debounce for 300ms
+    });
+
+    destinationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
+            updateSelectedSuggestion();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+            updateSelectedSuggestion();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+                selectSuggestion(suggestions[selectedSuggestionIndex]);
+            }
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!destinationInput.contains(e.target) && !e.target.closest('.suggestions-container')) {
+            hideSuggestions();
+        }
+    });
+}
 
 // --- Ride Request ---
 if (requestDriverButton) {
@@ -349,22 +508,44 @@ if (requestDriverButton) {
 
         const userLocation = { lat: map.getCenter().lat(), lng: map.getCenter().lng() };
         
-        // Obtener coordenadas del destino usando el servicio de geocodificación
-        const geocoder = new google.maps.Geocoder();
-        const destinationResult = await new Promise((resolve, reject) => {
-            geocoder.geocode({ address: destinationInput.value }, (results, status) => {
-                if (status === 'OK' && results[0]) {
-                    resolve(results[0].geometry.location);
-                } else {
-                    reject(new Error('No se pudo geocodificar el destino'));
-                }
-            });
-        });
+        // Obtener coordenadas del destino usando Place ID si está disponible, o geocodificación
+        let destinationLocation;
         
-        const destinationLocation = { 
-            lat: destinationResult.lat(), 
-            lng: destinationResult.lng() 
-        };
+        if (destinationInput.dataset.placeId) {
+            // Usar Place ID para obtener coordenadas precisas
+            const placeResult = await new Promise((resolve, reject) => {
+                placesService.getDetails({
+                    placeId: destinationInput.dataset.placeId,
+                    fields: ['geometry']
+                }, (place, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
+                        resolve(place.geometry.location);
+                    } else {
+                        reject(new Error('No se pudo obtener los detalles del lugar'));
+                    }
+                });
+            });
+            destinationLocation = { 
+                lat: placeResult.lat(), 
+                lng: placeResult.lng() 
+            };
+        } else {
+            // Fallback a geocodificación tradicional
+            const geocoder = new google.maps.Geocoder();
+            const destinationResult = await new Promise((resolve, reject) => {
+                geocoder.geocode({ address: destinationInput.value }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        resolve(results[0].geometry.location);
+                    } else {
+                        reject(new Error('No se pudo geocodificar el destino. Por favor, selecciona una dirección de la lista de sugerencias.'));
+                    }
+                });
+            });
+            destinationLocation = { 
+                lat: destinationResult.lat(), 
+                lng: destinationResult.lng() 
+            };
+        }
         
         const distance = calculateDistance(userLocation, destinationLocation);
         const fare = calculateFare(distance);
