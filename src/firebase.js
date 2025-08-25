@@ -23,13 +23,14 @@ import {
 // Firebase configuration
 // Replace with your actual Firebase config
 const firebaseConfig = {
-    apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    authDomain: "your-project.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
-};
+    apiKey: "AIzaSyC7qU1MGpcsh52kQmYWtBv0YPKgFxketH0",
+    authDomain: "driverparty-d28cc.firebaseapp.com",
+    projectId: "driverparty-d28cc",
+    storageBucket: "driverparty-d28cc.firebasestorage.app",
+    messagingSenderId: "1019227765471",
+    appId: "1:1019227765471:web:de5ae2dc4e2486fb92c76a",
+    measurementId: "G-YF8261PLRK"
+  };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
