@@ -2,8 +2,11 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
     getAuth, 
-    signInAnonymously, 
-    onAuthStateChanged 
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    updateProfile
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { 
     getFirestore, 
@@ -39,30 +42,86 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Auto-sign in anonymously
+// User authentication state
 let currentUser = null;
 
-async function initializeAuth() {
+// Register new user with profile data
+async function registerUser(email, password, userData) {
     try {
-        // Sign in anonymously
-        const userCredential = await signInAnonymously(auth);
-        currentUser = userCredential.user;
-        console.log('Signed in anonymously:', currentUser.uid);
-        return currentUser;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Update user profile with additional data
+        await updateProfile(user, {
+            displayName: userData.name,
+            photoURL: userData.photoURL || null
+        });
+        
+        // Save additional user data to Firestore
+        await saveUserData(user.uid, userData);
+        
+        console.log('User registered successfully:', user.uid);
+        return user;
     } catch (error) {
-        console.error('Error signing in anonymously:', error);
+        console.error('Error registering user:', error);
+        throw error;
+    }
+}
+
+// Sign in existing user
+async function signInUser(email, password) {
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log('User signed in successfully:', user.uid);
+        return user;
+    } catch (error) {
+        console.error('Error signing in user:', error);
+        throw error;
+    }
+}
+
+// Sign out user
+async function signOutUser() {
+    try {
+        await signOut(auth);
+        console.log('User signed out successfully');
+    } catch (error) {
+        console.error('Error signing out user:', error);
+        throw error;
+    }
+}
+
+// Save user data to Firestore
+async function saveUserData(userId, userData) {
+    try {
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, {
+            ...userData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+        console.log('User data saved to Firestore');
+    } catch (error) {
+        console.error('Error saving user data:', error);
+        throw error;
+    }
+}
+
+// Get user data from Firestore
+async function getUserData(userId) {
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
         
-        // Check if anonymous auth is disabled
-        if (error.code === 'auth/admin-restricted-operation') {
-            console.error('Anonymous authentication is disabled. Please enable it in Firebase Console:');
-            console.error('1. Go to Firebase Console > Authentication > Sign-in method');
-            console.error('2. Enable Anonymous authentication');
-            console.error('3. Save the changes');
+        if (userSnap.exists()) {
+            return { id: userSnap.id, ...userSnap.data() };
+        } else {
+            return null;
         }
-        
-        // For now, continue without authentication
-        console.warn('Continuing without authentication. Some features may not work.');
-        return null;
+    } catch (error) {
+        console.error('Error getting user data:', error);
+        throw error;
     }
 }
 
@@ -71,14 +130,27 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
         console.log('User is signed in:', user.uid);
+        
+        // Check if user has complete profile data
+        checkUserProfile(user);
     } else {
         currentUser = null;
         console.log('User is signed out');
     }
 });
 
-// Initialize auth when module is loaded
-initializeAuth().catch(console.error);
+// Check if user has complete profile data
+async function checkUserProfile(user) {
+    try {
+        const userData = await getUserData(user.uid);
+        if (!userData || !userData.phone || !userData.name) {
+            console.log('User profile incomplete, redirecting to profile setup');
+            // You can redirect to profile setup here
+        }
+    } catch (error) {
+        console.error('Error checking user profile:', error);
+    }
+}
 
 // Export Firebase services
 export { 
@@ -95,5 +167,10 @@ export {
     where,
     orderBy,
     limit,
-    serverTimestamp
+    serverTimestamp,
+    registerUser,
+    signInUser,
+    signOutUser,
+    saveUserData,
+    getUserData
 };

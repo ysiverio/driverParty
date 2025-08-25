@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Autenticación</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <div class="logo">
+                <i class="fas fa-car"></i>
+                <h1>DriverParty</h1>
+                <p>Inicia sesión o regístrate para continuar</p>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form">
+                <h2>Iniciar Sesión</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Contraseña</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="auth-btn primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Iniciar Sesión
+                    </button>
+                </form>
+                <div class="auth-switch">
+                    <p>¿No tienes cuenta? <a href="#" id="showRegister">Regístrate aquí</a></p>
+                </div>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="register-form" class="auth-form" style="display: none;">
+                <h2>Crear Cuenta</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerName">Nombre Completo</label>
+                        <input type="text" id="registerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPhone">Teléfono</label>
+                        <input type="tel" id="registerPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Contraseña</label>
+                        <input type="password" id="registerPassword" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerConfirmPassword">Confirmar Contraseña</label>
+                        <input type="password" id="registerConfirmPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userType">Tipo de Usuario</label>
+                        <select id="userType" required>
+                            <option value="">Selecciona tu rol</option>
+                            <option value="client">Cliente</option>
+                            <option value="driver">Conductor</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="auth-btn primary">
+                        <i class="fas fa-user-plus"></i>
+                        Crear Cuenta
+                    </button>
+                </form>
+                <div class="auth-switch">
+                    <p>¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia sesión aquí</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../src/firebase.js"></script>
+    <script type="module" src="../src/utils.js"></script>
+    
+    <script type="module">
+        import { registerUser, signInUser, currentUser } from '../src/firebase.js';
+        import { UIUtils, ValidationUtils } from '../config.js';
+
+        // DOM elements
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const showRegisterBtn = document.getElementById('showRegister');
+        const showLoginBtn = document.getElementById('showLogin');
+        const loginFormElement = document.getElementById('loginForm');
+        const registerFormElement = document.getElementById('registerForm');
+
+        // Switch between login and register forms
+        showRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+        });
+
+        showLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+
+        // Handle login form submission
+        loginFormElement.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!ValidationUtils.isValidEmail(email)) {
+                UIUtils.showToast('Por favor ingresa un email válido', 'error');
+                return;
+            }
+            
+            try {
+                UIUtils.showLoading('Iniciando sesión...');
+                await signInUser(email, password);
+                UIUtils.showToast('Sesión iniciada exitosamente', 'success');
+                
+                // Redirect to role selection
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'Error al iniciar sesión';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = 'Usuario no encontrado';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Contraseña incorrecta';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Demasiados intentos. Intenta más tarde';
+                        break;
+                }
+                
+                UIUtils.showToast(errorMessage, 'error');
+            } finally {
+                UIUtils.hideLoading();
+            }
+        });
+
+        // Handle register form submission
+        registerFormElement.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const phone = document.getElementById('registerPhone').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('registerConfirmPassword').value;
+            const userType = document.getElementById('userType').value;
+            
+            // Validation
+            if (!ValidationUtils.isValidEmail(email)) {
+                UIUtils.showToast('Por favor ingresa un email válido', 'error');
+                return;
+            }
+            
+            if (!ValidationUtils.isValidPhone(phone)) {
+                UIUtils.showToast('Por favor ingresa un teléfono válido', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                UIUtils.showToast('Las contraseñas no coinciden', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                UIUtils.showToast('La contraseña debe tener al menos 8 caracteres', 'error');
+                return;
+            }
+            
+            if (!userType) {
+                UIUtils.showToast('Por favor selecciona tu tipo de usuario', 'error');
+                return;
+            }
+            
+            try {
+                UIUtils.showLoading('Creando cuenta...');
+                
+                const userData = {
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    userType: userType,
+                    createdAt: new Date(),
+                    isActive: true
+                };
+                
+                await registerUser(email, password, userData);
+                UIUtils.showToast('Cuenta creada exitosamente', 'success');
+                
+                // Redirect to role selection
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Registration error:', error);
+                let errorMessage = 'Error al crear la cuenta';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'Este email ya está registrado';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'La contraseña es muy débil';
+                        break;
+                }
+                
+                UIUtils.showToast(errorMessage, 'error');
+            } finally {
+                UIUtils.hideLoading();
+            }
+        });
+
+        // Check if user is already logged in
+        if (currentUser) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

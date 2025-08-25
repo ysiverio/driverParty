@@ -67,6 +67,9 @@
     </div>
 
     <script type="module">
+        import { currentUser, signOutUser } from '../src/firebase.js';
+        import { UIUtils } from '../config.js';
+        
         let selectedRole = null;
         
         // Elementos del DOM
@@ -81,6 +84,17 @@
         const clientJoinBtn = document.getElementById('client-join-btn');
         const driverBackBtn = document.getElementById('driver-back-btn');
         const clientBackBtn = document.getElementById('client-back-btn');
+        
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!currentUser) {
+                // Redirect to auth page if not logged in
+                window.location.href = 'auth.html';
+                return;
+            }
+            
+            console.log('User authenticated:', currentUser.uid);
+        });
         
         // Event listeners
         driverBtn.addEventListener('click', () => selectRole('driver'));
