@@ -84,6 +84,20 @@ let navigationZoom = 18; // Zoom para navegación
 let currentTripData = null; // Datos del viaje actual
 let navigationPhase = 'none'; // 'to_client', 'to_destination', 'none'
 
+// --- Navigation Screen Elements ---
+const drivingToClientScreen = document.getElementById('driving-to-client-screen');
+const drivingToDestinationScreen = document.getElementById('driving-to-destination-screen');
+const arrivedAtClientBtn = document.getElementById('arrived-at-client-btn');
+const completeTripBtn = document.getElementById('complete-trip-btn');
+
+// --- Navigation Info Elements ---
+const navClientName = document.getElementById('nav-client-name');
+const navTimeToClient = document.getElementById('nav-time-to-client');
+const navDistanceToClient = document.getElementById('nav-distance-to-client');
+const navDestination = document.getElementById('nav-destination');
+const navTimeToDestination = document.getElementById('nav-time-to-destination');
+const navDistanceToDestination = document.getElementById('nav-distance-to-destination');
+
 // --- Persistencia de Estado ---
 const TRIP_STORAGE_KEY = 'driverParty_driver_trip_state';
 const SESSION_STORAGE_KEY = 'driverParty_driver_session';
@@ -885,15 +899,190 @@ function showRouteInfo(distance, duration, phase = 'to_client') {
             </div>
         </div>
     `;
+}
+
+// --- Navigation Flow Functions ---
+function startNavigationToClient(clientLocation) {
+    console.log('Starting navigation to client:', clientLocation);
     
-    // Animar entrada
-    routeInfo.style.transform = 'translateY(-20px)';
-    routeInfo.style.opacity = '0';
-    setTimeout(() => {
-        routeInfo.style.transition = 'all 0.3s ease';
-        routeInfo.style.transform = 'translateY(0)';
-        routeInfo.style.opacity = '1';
-    }, 100);
+    // Ocultar paneles normales
+    requestsPanel.style.display = 'none';
+    tripPanel.style.display = 'none';
+    
+    // Mostrar pantalla de navegación hacia el cliente
+    drivingToClientScreen.style.display = 'flex';
+    
+    // Actualizar información en la pantalla
+    if (navClientName && currentTripData) {
+        navClientName.textContent = currentTripData.userName || 'Cliente';
+    }
+    
+    // Calcular y mostrar ruta hacia el cliente
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        calculateAndDisplayRoute(driverLocation, clientLocation, 'to_client');
+        
+        // Actualizar información de tiempo y distancia
+        updateNavigationInfo(driverLocation, clientLocation, 'to_client');
+        
+        // Iniciar actualizaciones de ubicación en tiempo real
+        startLocationUpdates();
+    }, (err) => {
+        console.error("Error getting driver location:", err);
+    });
+    
+    // Cambiar fase de navegación
+    navigationPhase = 'to_client';
+    
+    // Notificar al usuario que el conductor está en camino
+    notifyUserDriverEnRoute();
+}
+
+function startNavigationToDestination() {
+    console.log('Starting navigation to destination');
+    
+    // Ocultar pantalla de navegación hacia el cliente
+    drivingToClientScreen.style.display = 'none';
+    
+    // Mostrar pantalla de navegación hacia el destino
+    drivingToDestinationScreen.style.display = 'flex';
+    
+    // Actualizar información en la pantalla
+    if (navDestination && currentTripData) {
+        navDestination.textContent = currentTripData.destination || 'Destino';
+    }
+    
+    // Calcular y mostrar ruta hacia el destino
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        calculateAndDisplayRoute(driverLocation, currentTripData.destinationCoords, 'to_destination');
+        
+        // Actualizar información de tiempo y distancia
+        updateNavigationInfo(driverLocation, currentTripData.destinationCoords, 'to_destination');
+    }, (err) => {
+        console.error("Error getting driver location:", err);
+    });
+    
+    // Cambiar fase de navegación
+    navigationPhase = 'to_destination';
+    
+    // Notificar al usuario que el viaje ha comenzado
+    notifyUserTripStarted();
+}
+
+function arrivedAtClient() {
+    console.log('Driver arrived at client');
+    
+    // Ocultar pantalla de navegación hacia el cliente
+    drivingToClientScreen.style.display = 'none';
+    
+    // Mostrar panel de viaje normal
+    tripPanel.style.display = 'block';
+    
+    // Actualizar estado del viaje
+    updateTripStatus('in_progress');
+    
+    // Notificar al usuario que el conductor ha llegado
+    notifyUserDriverArrived();
+    
+    // Cambiar fase de navegación
+    navigationPhase = 'none';
+}
+
+function completeTrip() {
+    console.log('Completing trip');
+    
+    // Ocultar pantalla de navegación hacia el destino
+    drivingToDestinationScreen.style.display = 'none';
+    
+    // Finalizar el viaje
+    updateTripStatus('completed');
+    
+    // Cambiar fase de navegación
+    navigationPhase = 'none';
+}
+
+function updateNavigationInfo(origin, destination, phase) {
+    // Calcular distancia y tiempo estimado
+    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+        new google.maps.LatLng(origin),
+        new google.maps.LatLng(destination)
+    ) / 1000; // en km
+    
+    const timeMinutes = Math.round(distance * 2); // Estimación: 2 minutos por km
+    
+    // Actualizar elementos según la fase
+    if (phase === 'to_client') {
+        if (navTimeToClient) navTimeToClient.textContent = `${timeMinutes} MIN`;
+        if (navDistanceToClient) navDistanceToClient.textContent = `${distance.toFixed(1)} KM`;
+    } else if (phase === 'to_destination') {
+        if (navTimeToDestination) navTimeToDestination.textContent = `${timeMinutes} MIN`;
+        if (navDistanceToDestination) navDistanceToDestination.textContent = `${distance.toFixed(1)} KM`;
+    }
+}
+
+function startLocationUpdates() {
+    // Actualizar ubicación cada 10 segundos
+    const locationInterval = setInterval(() => {
+        if (!activeTripId || navigationPhase === 'none') {
+            clearInterval(locationInterval);
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            
+            // Actualizar ubicación en Firestore
+            updateDoc(doc(db, "tripRequests", activeTripId), {
+                driverLocation: location,
+                lastLocationUpdate: serverTimestamp()
+            });
+            
+            // Actualizar marcador del conductor en el mapa
+            if (driverMarker) {
+                updateMarkerPosition(driverMarker, location);
+            }
+            
+            // Actualizar información de navegación si es necesario
+            if (navigationPhase === 'to_client' && currentTripData?.originCoords) {
+                updateNavigationInfo(location, currentTripData.originCoords, 'to_client');
+            } else if (navigationPhase === 'to_destination' && currentTripData?.destinationCoords) {
+                updateNavigationInfo(location, currentTripData.destinationCoords, 'to_destination');
+            }
+        }, (err) => {
+            console.error("Error updating location:", err);
+        });
+    }, 10000);
+}
+
+function notifyUserDriverEnRoute() {
+    // Notificar al usuario que el conductor está en camino
+    if (currentTripData) {
+        updateDoc(doc(db, "tripRequests", activeTripId), {
+            driverEnRoute: true,
+            driverEnRouteAt: serverTimestamp()
+        });
+    }
+}
+
+function notifyUserDriverArrived() {
+    // Notificar al usuario que el conductor ha llegado
+    if (currentTripData) {
+        updateDoc(doc(db, "tripRequests", activeTripId), {
+            driverArrived: true,
+            driverArrivedAt: serverTimestamp()
+        });
+    }
+}
+
+function notifyUserTripStarted() {
+    // Notificar al usuario que el viaje ha comenzado
+    if (currentTripData) {
+        updateDoc(doc(db, "tripRequests", activeTripId), {
+            tripStarted: true,
+            tripStartedAt: serverTimestamp()
+        });
+    }
 }
 
 function updateNextInstruction(instruction) {
@@ -1003,6 +1192,19 @@ endTripButton.addEventListener('click', () => updateTripStatus('completed'));
 
 // --- Navigation Toggle Events ---
 toggleNavigationBtn.addEventListener('click', toggleNavigationMode);
+
+// --- Navigation Screen Event Listeners ---
+if (arrivedAtClientBtn) {
+    arrivedAtClientBtn.addEventListener('click', () => {
+        arrivedAtClient();
+    });
+}
+
+if (completeTripBtn) {
+    completeTripBtn.addEventListener('click', () => {
+        completeTrip();
+    });
+}
 
 async function updateTripStatus(status) {
     if (!activeTripId) return;

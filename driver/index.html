@@ -186,6 +186,115 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Navigation Mode Screens -->
+            <!-- Screen 1: Driving to Client -->
+            <div id="driving-to-client-screen" class="navigation-screen" style="display: none;">
+                <div class="navigation-content">
+                    <div class="navigation-header">
+                        <div class="navigation-title">
+                            <h2>CONDUCIENDO</h2>
+                            <h1>HACIA EL CLIENTE</h1>
+                        </div>
+                        <div class="navigation-status">
+                            <span class="status-text">EN CAMINO</span>
+                        </div>
+                    </div>
+                    
+                    <div class="navigation-info">
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">CLIENTE</span>
+                                <span class="info-value" id="nav-client-name">Cargando...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">TIEMPO ESTIMADO</span>
+                                <span class="info-value" id="nav-time-to-client">--</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">DISTANCIA</span>
+                                <span class="info-value" id="nav-distance-to-client">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="navigation-actions">
+                        <button id="arrived-at-client-btn" class="btn-arrived">
+                            <i class="fas fa-check"></i>
+                            LLEGUÉ AL CLIENTE
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 2: Driving to Destination -->
+            <div id="driving-to-destination-screen" class="navigation-screen" style="display: none;">
+                <div class="navigation-content">
+                    <div class="navigation-header">
+                        <div class="navigation-title">
+                            <h2>CONDUCIENDO</h2>
+                            <h1>HACIA EL DESTINO</h1>
+                        </div>
+                        <div class="navigation-status">
+                            <span class="status-text">VIAJE EN CURSO</span>
+                        </div>
+                    </div>
+                    
+                    <div class="navigation-info">
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">DESTINO</span>
+                                <span class="info-value" id="nav-destination">Cargando...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">TIEMPO RESTANTE</span>
+                                <span class="info-value" id="nav-time-to-destination">--</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <div class="info-icon">
+                                <i class="fas fa-route"></i>
+                            </div>
+                            <div class="info-content">
+                                <span class="info-label">DISTANCIA RESTANTE</span>
+                                <span class="info-value" id="nav-distance-to-destination">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="navigation-actions">
+                        <button id="complete-trip-btn" class="btn-complete">
+                            <i class="fas fa-flag-checkered"></i>
+                            COMPLETAR VIAJE
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

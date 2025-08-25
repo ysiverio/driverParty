@@ -692,6 +692,21 @@ function listenToTripRequestUpdates(requestId) {
             activateNavigationMode();
             showNotificationToast('¡El viaje ha comenzado!');
         }
+        else if (request.driverEnRoute && !request.driverArrived) {
+            // Driver is on the way to client
+            showNotificationToast('Tu conductor está en camino hacia ti');
+        }
+        else if (request.driverArrived && !request.tripStarted) {
+            // Driver has arrived at client
+            showNotificationToast('¡Tu conductor ha llegado!');
+        }
+        else if (request.tripStarted) {
+            // Trip has started - both in navigation mode
+            if (!navigationMode) {
+                activateNavigationMode();
+            }
+            showNotificationToast('¡El viaje ha comenzado!');
+        }
         else if (request.status === 'completed') {
             setTimeout(() => showRatingModal(), 1500);
         }
