@@ -63,7 +63,102 @@
                 <button id="request-driver-button">Pedir un Conductor</button>
             </div>
 
-            <!-- Waiting/Trip Panel -->
+            <!-- New Trip Status Screens -->
+            <!-- Screen 1: Searching for Driver -->
+            <div id="searching-screen" class="trip-status-screen" style="display: none;">
+                <div class="status-content">
+                    <div class="status-header">
+                        <h1 class="status-title">WE ARE FINDING</h1>
+                        <h2 class="status-subtitle">A RIDE FOR YOU</h2>
+                    </div>
+                    <div class="status-indicator">
+                        <p class="status-text">SEARCHING...</p>
+                        <div class="pulse-animation">
+                            <div class="pulse-circle"></div>
+                            <div class="pulse-circle"></div>
+                            <div class="pulse-circle"></div>
+                        </div>
+                        <div class="location-marker">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                    </div>
+                    <div class="status-footer">
+                        <p class="wait-text">WAIT A COUPLE OF MINUTES</p>
+                        <button id="cancel-search-btn" class="cancel-btn">CANCEL</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 2: Driver En Route -->
+            <div id="driver-enroute-screen" class="trip-status-screen" style="display: none;">
+                <div class="driver-info-section">
+                    <div class="driver-profile">
+                        <div class="driver-avatar">
+                            <img id="enroute-driver-pic" src="" alt="Driver">
+                        </div>
+                        <div class="driver-details">
+                            <h3 id="enroute-driver-name">NAME SURNAME</h3>
+                            <p class="driver-role">TAXI DRIVER</p>
+                            <div class="driver-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="driver-actions">
+                        <button class="action-btn call-btn">
+                            <i class="fas fa-phone"></i>
+                            CALL
+                        </button>
+                        <button class="action-btn message-btn">
+                            <i class="fas fa-comment"></i>
+                            MESSAGE
+                        </button>
+                    </div>
+                </div>
+                <div class="map-section">
+                    <div class="trip-details-box">
+                        <div class="detail-item">
+                            <span class="detail-label">TIME</span>
+                            <span id="enroute-time" class="detail-value">5 MIN</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">DISTANCE</span>
+                            <span id="enroute-distance" class="detail-value">2 KM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 3: Taxi Arrived -->
+            <div id="taxi-arrived-screen" class="trip-status-screen" style="display: none;">
+                <div class="arrival-content">
+                    <div class="arrival-header">
+                        <h1 class="arrival-title">YOUR</h1>
+                        <h2 class="arrival-subtitle">TAXI</h2>
+                    </div>
+                    <div class="taxi-illustration">
+                        <div class="taxi-car">
+                            <div class="taxi-body">
+                                <div class="taxi-headlights"></div>
+                                <div class="taxi-grille"></div>
+                                <div class="taxi-pattern"></div>
+                            </div>
+                            <div class="taxi-sign"></div>
+                        </div>
+                    </div>
+                    <div class="arrival-footer">
+                        <h3 class="arrival-message">HAS</h3>
+                        <h4 class="arrival-submessage">ARRIVED</h4>
+                        <button id="ok-arrival-btn" class="ok-btn">OK</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waiting/Trip Panel (Legacy - will be hidden) -->
             <div id="trip-panel" class="bottom-panel" style="display: none;">
                 <div id="trip-info-container">
                     <h2 id="trip-status-heading">Buscando conductor...</h2>

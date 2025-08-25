@@ -91,6 +91,19 @@ const cardVehiclePlate = document.getElementById('card-vehicle-plate');
 const minimizeCardBtn = document.getElementById('minimize-card-btn');
 const driverCardClose = document.querySelector('.driver-card-close');
 
+// --- New Trip Status Screens ---
+const searchingScreen = document.getElementById('searching-screen');
+const driverEnrouteScreen = document.getElementById('driver-enroute-screen');
+const taxiArrivedScreen = document.getElementById('taxi-arrived-screen');
+const cancelSearchBtn = document.getElementById('cancel-search-btn');
+const okArrivalBtn = document.getElementById('ok-arrival-btn');
+
+// --- Enroute Screen Elements ---
+const enrouteDriverPic = document.getElementById('enroute-driver-pic');
+const enrouteDriverName = document.getElementById('enroute-driver-name');
+const enrouteTime = document.getElementById('enroute-time');
+const enrouteDistance = document.getElementById('enroute-distance');
+
 // --- App State ---
 let map, userMarker, driverMarker, tripRoutePolyline, autocomplete;
 let currentUser, currentTripId, currentTripRequestId, currentTripDriverId;
@@ -98,6 +111,7 @@ let selectedRating = 0;
 let hasShownDriverInfo = false;
 let notificationSound; // Audio para notificaciones
 let navigationMode = false; // Modo de navegación activo
+let currentTripStatus = 'none'; // 'searching', 'enroute', 'arrived', 'none'
 let tripListener = null; // Listener para actualizaciones del viaje
 let tripRequestListener = null; // Listener para actualizaciones de la solicitud
 let userLocation = null;
@@ -319,6 +333,24 @@ onAuthStateChanged(auth, (user) => {
         clearTripState(); // Limpiar estado al cerrar sesión
     }
 });
+
+// --- New Trip Status Screen Event Listeners ---
+if (cancelSearchBtn) {
+    cancelSearchBtn.addEventListener('click', () => {
+        cancelTripRequest();
+    });
+}
+
+if (okArrivalBtn) {
+    okArrivalBtn.addEventListener('click', () => {
+        hideAllTripScreens();
+        // Continue with trip flow
+        if (currentTripId) {
+            // Trip can continue normally
+            console.log('User acknowledged taxi arrival');
+        }
+    });
+}
 
 loginButton.addEventListener('click', async () => {
     try {
@@ -630,7 +662,8 @@ if (requestDriverButton) {
             
             currentTripRequestId = docRef.id;
             requestPanel.style.display = 'none';
-            tripPanel.style.display = 'block';
+            // Show searching screen instead of trip panel
+            showTripStatusScreen('searching');
             listenToTripRequestUpdates(currentTripRequestId);
             
             // Guardar estado del viaje
@@ -654,6 +687,8 @@ function listenToTripRequestUpdates(requestId) {
         const request = docSnap.data();
         
         if (request.status === 'in_progress' && !navigationMode) {
+            // Show taxi arrived screen
+            showTripStatusScreen('arrived');
             activateNavigationMode();
             showNotificationToast('¡El viaje ha comenzado!');
         }
@@ -664,8 +699,8 @@ function listenToTripRequestUpdates(requestId) {
             setTimeout(() => resetTripState(), 3000);
         }
         else if (request.status === 'accepted') {
-            tripStatusHeading.textContent = 'Conductor Encontrado';
-            tripStatusDetails.textContent = 'Por favor, confirma los detalles y el pago para comenzar.';
+            // Show driver enroute screen
+            showTripStatusScreen('enroute');
             handleTripAccepted(request);
         }
         else if (request.status === 'expired') {
@@ -687,6 +722,8 @@ async function handleTripAccepted(request) {
         if (driverDoc.exists()) {
             const driverData = driverDoc.data();
             console.log('Driver data retrieved:', driverData);
+            // Update enroute screen with driver data
+            updateEnrouteScreen(driverData, request);
             showPaymentConfirmationModal(request, driverData);
         } else {
             console.error('Driver document does not exist for ID:', request.driverId);
@@ -963,6 +1000,10 @@ function updateMapBounds() {
 function resetTripState() {
     if (tripListener) { tripListener(); tripListener = null; }
     if (tripRequestListener) { tripRequestListener(); tripRequestListener = null; }
+    
+    // Hide all trip status screens
+    hideAllTripScreens();
+    
     tripPanel.style.display = 'none';
     requestPanel.style.display = 'block';
     tripInfoContainer.style.display = 'block';
@@ -972,6 +1013,9 @@ function resetTripState() {
     driverMarker = null; tripRoutePolyline = null; currentTripId = null; currentTripRequestId = null; currentTripDriverId = null; hasShownDriverInfo = false;
     deactivateUserNavigationMode();
     closeDriverCard();
+    
+    // Reset trip status
+    currentTripStatus = 'none';
     
     // Limpiar estado persistente
     clearTripState();
@@ -1210,6 +1254,75 @@ function showNotifications() {
     notificationModal.innerHTML = `<div class="modal-box"><h2>Notificaciones</h2><p>No tienes notificaciones nuevas.</p><button onclick="this.closest('.overlay-container').remove()">Cerrar</button></div>`;
     document.body.appendChild(notificationModal);
     closeSideNav();
+}
+
+// --- Trip Status Screen Management ---
+function showTripStatusScreen(status) {
+    // Hide all screens first
+    hideAllTripScreens();
+    
+    // Show the appropriate screen
+    switch (status) {
+        case 'searching':
+            searchingScreen.style.display = 'flex';
+            currentTripStatus = 'searching';
+            break;
+        case 'enroute':
+            driverEnrouteScreen.style.display = 'flex';
+            currentTripStatus = 'enroute';
+            break;
+        case 'arrived':
+            taxiArrivedScreen.style.display = 'flex';
+            currentTripStatus = 'arrived';
+            break;
+        case 'none':
+        default:
+            currentTripStatus = 'none';
+            break;
+    }
+}
+
+function hideAllTripScreens() {
+    searchingScreen.style.display = 'none';
+    driverEnrouteScreen.style.display = 'none';
+    taxiArrivedScreen.style.display = 'none';
+}
+
+function cancelTripRequest() {
+    if (currentTripRequestId) {
+        updateDoc(doc(db, "tripRequests", currentTripRequestId), {
+            status: 'cancelled',
+            cancelledBy: 'user'
+        }).then(() => {
+            console.log('Trip request cancelled by user');
+            hideAllTripScreens();
+            requestPanel.style.display = 'block';
+            resetTripState();
+        }).catch(error => {
+            console.error('Error cancelling trip request:', error);
+        });
+    }
+}
+
+function updateEnrouteScreen(driverData, tripData) {
+    if (enrouteDriverPic && driverData.photoURL) {
+        enrouteDriverPic.src = driverData.photoURL;
+    } else if (enrouteDriverPic) {
+        enrouteDriverPic.src = 'https://maps.google.com/mapfiles/kml/shapes/auth_maps_pic.png';
+    }
+    
+    if (enrouteDriverName) {
+        enrouteDriverName.textContent = driverData.name || 'Conductor';
+    }
+    
+    // Update time and distance if available
+    if (enrouteTime && tripData.estimatedDuration) {
+        enrouteTime.textContent = `${Math.round(tripData.estimatedDuration)} MIN`;
+    }
+    
+    if (enrouteDistance && tripData.estimatedDistance) {
+        enrouteDistance.textContent = `${tripData.estimatedDistance.toFixed(1)} KM`;
+    }
 }
 
 // --- Helper Functions ---
