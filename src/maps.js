@@ -52,12 +52,12 @@ function getGoogleMapsAPIKey() {
     const apiKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
     
     // If no environment variable, try to get from a config file or use a default
-    if (!apiKey || apiKey === 'AIzaSyC7qU1MGpcsh52kQmYWtBv0YPKgFxketH0') {
+    if (!apiKey || apiKey === 'AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8') {
         // You can replace this with your actual API key for development
         // In production, this should come from environment variables
-        const defaultApiKey = 'AIzaSyC7qU1MGpcsh52kQmYWtBv0YPKgFxketH0'; // Replace with your actual key
+        const defaultApiKey = 'AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8'; // Replace with your actual key
         
-        if (defaultApiKey && defaultApiKey !== 'AIzaSyC7qU1MGpcsh52kQmYWtBv0YPKgFxketH0') {
+        if (defaultApiKey && defaultApiKey !== 'AIzaSyA52yOcPfK4EoW-KrsjlWJ2oyIs5P1Qvc8') {
             console.warn('Using default API key. For production, set VITE_GOOGLE_MAPS_API_KEY in your .env file');
             return defaultApiKey;
         }
