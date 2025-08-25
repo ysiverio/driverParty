@@ -28,14 +28,37 @@
                 </button>
             </div>
             
-            <div class="trip-input" style="display: none;">
-                <h3>Ingresa el ID del viaje</h3>
-                <input type="text" id="trip-id-input" placeholder="Ej: trip_123456" />
+            <!-- Panel para conductor: unirse a viaje existente -->
+            <div class="trip-input driver-panel" style="display: none;">
+                <h3>Ingresa el ID del viaje para conducir</h3>
+                <input type="text" id="driver-trip-id-input" placeholder="Ej: trip_123456" />
                 <button id="join-trip-btn" class="join-btn">
                     <i class="fas fa-sign-in-alt"></i>
                     Unirse al viaje
                 </button>
-                <button id="back-btn" class="back-btn">
+                <button id="driver-back-btn" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver
+                </button>
+            </div>
+            
+            <!-- Panel para cliente: crear nuevo viaje -->
+            <div class="trip-input client-panel" style="display: none;">
+                <h3>Crear nuevo viaje</h3>
+                <p class="client-description">Como cliente, puedes crear un nuevo viaje y compartir el ID con tu conductor</p>
+                <button id="create-trip-btn" class="create-btn">
+                    <i class="fas fa-plus"></i>
+                    Crear nuevo viaje
+                </button>
+                <div class="or-divider">
+                    <span>o</span>
+                </div>
+                <input type="text" id="client-trip-id-input" placeholder="Unirse a viaje existente (opcional)" />
+                <button id="client-join-btn" class="join-btn secondary">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Unirse al viaje
+                </button>
+                <button id="client-back-btn" class="back-btn">
                     <i class="fas fa-arrow-left"></i>
                     Volver
                 </button>
@@ -49,42 +72,61 @@
         // Elementos del DOM
         const driverBtn = document.getElementById('driver-btn');
         const clientBtn = document.getElementById('client-btn');
-        const tripInput = document.querySelector('.trip-input');
-        const tripIdInput = document.getElementById('trip-id-input');
+        const driverPanel = document.querySelector('.driver-panel');
+        const clientPanel = document.querySelector('.client-panel');
+        const driverTripIdInput = document.getElementById('driver-trip-id-input');
+        const clientTripIdInput = document.getElementById('client-trip-id-input');
         const joinTripBtn = document.getElementById('join-trip-btn');
-        const backBtn = document.getElementById('back-btn');
+        const createTripBtn = document.getElementById('create-trip-btn');
+        const clientJoinBtn = document.getElementById('client-join-btn');
+        const driverBackBtn = document.getElementById('driver-back-btn');
+        const clientBackBtn = document.getElementById('client-back-btn');
         
         // Event listeners
         driverBtn.addEventListener('click', () => selectRole('driver'));
         clientBtn.addEventListener('click', () => selectRole('client'));
-        joinTripBtn.addEventListener('click', joinTrip);
-        backBtn.addEventListener('click', goBack);
+        joinTripBtn.addEventListener('click', () => joinTrip('driver'));
+        createTripBtn.addEventListener('click', createNewTrip);
+        clientJoinBtn.addEventListener('click', () => joinTrip('client'));
+        driverBackBtn.addEventListener('click', goBack);
+        clientBackBtn.addEventListener('click', goBack);
         
         // Función para seleccionar rol
         function selectRole(role) {
             selectedRole = role;
             document.querySelector('.role-buttons').style.display = 'none';
-            tripInput.style.display = 'block';
             
-            // Cambiar título según el rol
-            const title = tripInput.querySelector('h3');
             if (role === 'driver') {
-                title.textContent = 'Ingresa el ID del viaje para conducir';
+                driverPanel.style.display = 'block';
+                clientPanel.style.display = 'none';
             } else {
-                title.textContent = 'Ingresa el ID del viaje para seguir';
+                clientPanel.style.display = 'block';
+                driverPanel.style.display = 'none';
             }
         }
         
         // Función para volver atrás
         function goBack() {
             selectedRole = null;
-            tripInput.style.display = 'none';
+            driverPanel.style.display = 'none';
+            clientPanel.style.display = 'none';
             document.querySelector('.role-buttons').style.display = 'flex';
-            tripIdInput.value = '';
+            driverTripIdInput.value = '';
+            clientTripIdInput.value = '';
+        }
+        
+        // Función para crear nuevo viaje
+        function createNewTrip() {
+            // Generar ID único para el viaje
+            const tripId = 'trip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Redirigir al cliente con el nuevo ID
+            window.location.href = `client.html?tripId=${encodeURIComponent(tripId)}&new=true`;
         }
         
         // Función para unirse al viaje
-        function joinTrip() {
+        function joinTrip(role) {
+            const tripIdInput = role === 'driver' ? driverTripIdInput : clientTripIdInput;
             const tripId = tripIdInput.value.trim();
             
             if (!tripId) {
@@ -93,7 +135,7 @@
             }
             
             // Redirigir según el rol
-            const url = selectedRole === 'driver' 
+            const url = role === 'driver' 
                 ? `driver.html?tripId=${encodeURIComponent(tripId)}`
                 : `client.html?tripId=${encodeURIComponent(tripId)}`;
             
@@ -101,9 +143,15 @@
         }
         
         // Permitir Enter para unirse
-        tripIdInput.addEventListener('keypress', (e) => {
+        driverTripIdInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                joinTrip();
+                joinTrip('driver');
+            }
+        });
+        
+        clientTripIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinTrip('client');
             }
         });
         
@@ -113,9 +161,14 @@
         
         if (tripId) {
             // Si hay un tripId, mostrar directamente la selección de rol
-            tripIdInput.value = tripId;
-            // Por defecto, seleccionar cliente si hay tripId
-            selectRole('client');
+            if (urlParams.get('new') === 'true') {
+                // Es un viaje nuevo, ir directamente al cliente
+                window.location.href = `client.html?tripId=${encodeURIComponent(tripId)}&new=true`;
+            } else {
+                // Es un viaje existente, mostrar selección de rol
+                selectRole('client');
+                clientTripIdInput.value = tripId;
+            }
         }
     </script>
 </body>

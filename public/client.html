@@ -109,6 +109,7 @@
             // Obtener tripId de la URL
             const urlParams = new URLSearchParams(window.location.search);
             tripId = urlParams.get('tripId');
+            const isNewTrip = urlParams.get('new') === 'true';
             
             if (!tripId) {
                 alert('No se proporcionó un ID de viaje');
@@ -126,6 +127,11 @@
                 return;
             }
 
+            // Si es un viaje nuevo, crear el documento en Firestore
+            if (isNewTrip) {
+                await createNewTripDocument();
+            }
+
             // Escuchar cambios en el viaje
             listenTrip(tripId, handleTripUpdate);
             
@@ -137,6 +143,98 @@
             
             // Ocultar loading
             loading.style.display = 'none';
+        }
+
+        // Crear nuevo documento de viaje
+        async function createNewTripDocument() {
+            try {
+                const { createTrip } = await import('../src/trips.js');
+                
+                // Obtener ubicación actual del cliente
+                const position = await getCurrentPosition();
+                
+                const tripData = {
+                    tripId: tripId,
+                    clientId: auth.currentUser?.uid || 'anonymous',
+                    status: 'requested',
+                    pickup: {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        address: 'Ubicación actual'
+                    },
+                    destination: {
+                        lat: 0,
+                        lng: 0,
+                        address: ''
+                    },
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+
+                await createTrip(tripData);
+                console.log('Nuevo viaje creado:', tripId);
+                
+                // Mostrar mensaje de éxito
+                showTripCreatedMessage();
+                
+            } catch (error) {
+                console.error('Error creando viaje:', error);
+                alert('Error al crear el viaje');
+            }
+        }
+
+        // Mostrar mensaje de viaje creado
+        function showTripCreatedMessage() {
+            const message = document.createElement('div');
+            message.className = 'trip-created-message';
+            message.innerHTML = `
+                <div class="message-content">
+                    <h3>¡Viaje creado exitosamente!</h3>
+                    <p>ID del viaje: <strong>${tripId}</strong></p>
+                    <p>Comparte este ID con tu conductor para que pueda unirse.</p>
+                    <button onclick="copyTripId()" class="copy-btn">
+                        <i class="fas fa-copy"></i>
+                        Copiar ID
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(message);
+            
+            // Remover mensaje después de 5 segundos
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.parentNode.removeChild(message);
+                }
+            }, 5000);
+        }
+
+        // Copiar ID del viaje al portapapeles
+        function copyTripId() {
+            navigator.clipboard.writeText(tripId).then(() => {
+                alert('ID del viaje copiado al portapapeles');
+            }).catch(() => {
+                alert('No se pudo copiar el ID');
+            });
+        }
+
+        // Hacer la función global para que funcione desde el HTML
+        window.copyTripId = copyTripId;
+
+        // Obtener posición actual
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocalización no soportada'));
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                });
+            });
         }
 
         // Configurar event listeners
