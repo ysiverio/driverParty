@@ -1,7 +1,7 @@
 // Trips module
 // Handles trip data operations and driver presence
 
-import { db, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js';
+import { db, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, collection } from './firebase.js';
 
 // Get trip data
 async function getTrip(tripId) {
@@ -64,17 +64,17 @@ async function updateTrip(tripId, data) {
 // Create new trip
 async function createTrip(tripData) {
     try {
-        const tripRef = doc(collection(db, 'trips'));
+        // Use the provided tripId as the document ID
+        const tripRef = doc(db, 'trips', tripData.tripId);
         const newTrip = {
-            tripId: tripRef.id,
             ...tripData,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         };
         
         await setDoc(tripRef, newTrip);
-        console.log('Trip created:', tripRef.id);
-        return tripRef.id;
+        console.log('Trip created:', tripData.tripId);
+        return tripData.tripId;
     } catch (error) {
         console.error('Error creating trip:', error);
         throw error;
