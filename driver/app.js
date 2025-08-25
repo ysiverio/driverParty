@@ -1994,46 +1994,7 @@ function createCustomMarker(position, map, title, color = '#4285f4', emoji = '')
     }
 }
 
-// --- Navigation Functions ---
-function startNavigationToClient(clientLocation) {
-    navigationPhase = 'to_client';
-    navigationMode = true;
-    map.setZoom(navigationZoom);
-    
-    // Mostrar indicador de navegación
-    showNavigationIndicator('Hacia el cliente');
-    
-    console.log('Navegación iniciada hacia el cliente');
-}
 
-function startNavigationToDestination() {
-    if (!currentTripData || !currentTripData.destinationCoords) {
-        console.error('No hay datos de destino disponibles');
-        return;
-    }
-    
-    // Cambiar a fase 2: Navegación hacia el destino
-    navigationPhase = 'to_destination';
-    
-    // Obtener ubicación actual del conductor
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        
-        // Calcular y mostrar ruta hacia el destino
-        calculateAndDisplayRoute(driverLocation, currentTripData.destinationCoords, 'to_destination');
-        
-        // Actualizar estado del viaje
-        updateTripStatus('in_progress');
-        
-        // Actualizar indicador de navegación
-        showNavigationIndicator('Hacia el destino');
-        
-        console.log('Navegación iniciada hacia el destino');
-    }, (err) => {
-        console.error("Error obteniendo ubicación del conductor:", err);
-        alert('Error obteniendo tu ubicación. Por favor, intenta nuevamente.');
-    });
-}
 
 function showNavigationIndicator(phase) {
     // Crear o actualizar indicador de navegación
