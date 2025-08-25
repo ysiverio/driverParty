@@ -489,6 +489,23 @@ body, html {
     justify-content: center;
 }
 
+.btn-close {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 8px;
+}
+
+.btn-close:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
 .btn-reject, .btn-confirm {
     padding: 15px 30px;
     border: none;

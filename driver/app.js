@@ -878,8 +878,29 @@ async function acceptTrip(tripId) {
 }
 
 function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
-    directionsService.route({ origin, destination, travelMode: 'DRIVING' }, (result, status) => {
+    directionsService.route({ 
+        origin, 
+        destination, 
+        travelMode: 'DRIVING',
+        provideRouteAlternatives: false,
+        drivingOptions: {
+            departureTime: new Date(),
+            trafficModel: 'best_guess'
+        }
+    }, (result, status) => {
         if (status === 'OK') {
+            // Configurar el renderizador para mostrar la ruta como en Google Maps
+            directionsRenderer.setOptions({
+                suppressMarkers: true, // No mostrar marcadores automáticos
+                preserveViewport: false, // Permitir que el mapa se ajuste a la ruta
+                polylineOptions: {
+                    strokeColor: phase === 'to_client' ? '#4285F4' : '#34A853',
+                    strokeWeight: 6,
+                    strokeOpacity: 0.8,
+                    zIndex: 1000
+                }
+            });
+            
             directionsRenderer.setDirections(result);
             updateDoc(doc(db, "tripRequests", activeTripId), { routePolyline: result.routes[0].overview_polyline });
             
@@ -887,7 +908,23 @@ function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
             const route = result.routes[0];
             const leg = route.legs[0];
             showRouteInfo(leg.distance.text, leg.duration.text, phase, leg.steps);
-        } else { console.error('Directions request failed: ' + status); }
+            
+            // Ajustar el mapa para mostrar toda la ruta
+            const bounds = new google.maps.LatLngBounds();
+            route.legs.forEach(leg => {
+                bounds.extend(leg.start_location);
+                bounds.extend(leg.end_location);
+            });
+            map.fitBounds(bounds, 80); // 80px de padding
+            
+            // Mostrar marcadores personalizados en origen y destino
+            showRouteMarkers(origin, destination, phase);
+            
+        } else { 
+            console.error('Directions request failed: ' + status);
+            // Fallback: mostrar ruta simple
+            showSimpleRoute(origin, destination, phase);
+        }
     });
 }
 
@@ -1062,6 +1099,48 @@ function showAllInstructions(steps, phase) {
         </div>
     `;
     document.body.appendChild(instructionsModal);
+}
+
+// --- Route Visualization Functions ---
+function showRouteMarkers(origin, destination, phase) {
+    // Limpiar marcadores anteriores de ruta
+    if (window.routeOriginMarker) routeOriginMarker.setMap(null);
+    if (window.routeDestinationMarker) routeDestinationMarker.setMap(null);
+    
+    const originTitle = phase === 'to_client' ? 'Tu ubicación' : 'Cliente';
+    const destinationTitle = phase === 'to_client' ? 'Cliente' : 'Destino';
+    
+    // Marcador de origen (conductor)
+    window.routeOriginMarker = createCustomMarker(origin, map, originTitle, '#4285F4', '🚗');
+    
+    // Marcador de destino
+    const destColor = phase === 'to_client' ? '#34A853' : '#FF6B35';
+    const destEmoji = phase === 'to_client' ? '👤' : '🎯';
+    window.routeDestinationMarker = createCustomMarker(destination, map, destinationTitle, destColor, destEmoji);
+}
+
+function showSimpleRoute(origin, destination, phase) {
+    // Crear una línea recta simple entre origen y destino
+    const simpleRoute = new google.maps.Polyline({
+        path: [origin, destination],
+        geodesic: true,
+        strokeColor: phase === 'to_client' ? '#4285F4' : '#34A853',
+        strokeOpacity: 0.8,
+        strokeWeight: 6,
+        map: map
+    });
+    
+    // Mostrar marcadores
+    showRouteMarkers(origin, destination, phase);
+    
+    // Ajustar vista
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(origin);
+    bounds.extend(destination);
+    map.fitBounds(bounds, 80);
+    
+    // Guardar referencia para limpiar después
+    window.simpleRoute = simpleRoute;
 }
 
 // --- Navigation Flow Functions ---
@@ -2258,6 +2337,20 @@ function resetNavigationState() {
     // Limpiar ruta
     if (directionsRenderer) {
         directionsRenderer.setDirections({ routes: [] });
+    }
+    
+    // Limpiar marcadores de ruta
+    if (window.routeOriginMarker) {
+        window.routeOriginMarker.setMap(null);
+        window.routeOriginMarker = null;
+    }
+    if (window.routeDestinationMarker) {
+        window.routeDestinationMarker.setMap(null);
+        window.routeDestinationMarker = null;
+    }
+    if (window.simpleRoute) {
+        window.simpleRoute.setMap(null);
+        window.simpleRoute = null;
     }
     
     // Restaurar zoom original

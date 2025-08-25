@@ -845,7 +845,11 @@ function showPaymentConfirmationModal(request, driverData) {
     
     if (confirmBtn) confirmBtn.onclick = () => confirmTripPayment(request);
     if (rejectBtn) rejectBtn.onclick = () => rejectTrip(request);
-    if (closeBtn) closeBtn.onclick = () => rejectTrip(request);
+    if (closeBtn) closeBtn.onclick = () => {
+        document.getElementById('payment-confirmation-modal').style.display = 'none';
+        // Mostrar la pantalla de enroute para que el usuario pueda ver la información del conductor
+        showTripStatusScreen('enroute');
+    };
     
     modal.style.display = 'flex';
     console.log('Payment confirmation modal displayed');
