@@ -347,7 +347,10 @@
                 
                 // Calcular ruta al pickup
                 const route = await fetchRoute({
-                    origin: position,
+                    origin: {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    },
                     destination: tripData.pickup,
                     travelMode: 'DRIVING'
                 });
@@ -369,10 +372,28 @@
         // Marcar como llegado
         async function markArrived() {
             try {
+                // Validar que pickup y destination tengan la estructura correcta
+                console.log('Pickup data:', tripData.pickup);
+                console.log('Destination data:', tripData.destination);
+                
+                if (!tripData.pickup || !tripData.pickup.lat || !tripData.pickup.lng) {
+                    throw new Error('Pickup location is missing or invalid');
+                }
+                
+                if (!tripData.destination || !tripData.destination.lat || !tripData.destination.lng) {
+                    throw new Error('Destination location is missing or invalid');
+                }
+                
                 // Calcular ruta al destino
                 const route = await fetchRoute({
-                    origin: tripData.pickup,
-                    destination: tripData.destination,
+                    origin: {
+                        lat: parseFloat(tripData.pickup.lat),
+                        lng: parseFloat(tripData.pickup.lng)
+                    },
+                    destination: {
+                        lat: parseFloat(tripData.destination.lat),
+                        lng: parseFloat(tripData.destination.lng)
+                    },
                     travelMode: 'DRIVING'
                 });
 
