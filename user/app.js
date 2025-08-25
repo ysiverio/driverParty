@@ -97,6 +97,7 @@ const driverEnrouteScreen = document.getElementById('driver-enroute-screen');
 const taxiArrivedScreen = document.getElementById('taxi-arrived-screen');
 const cancelSearchBtn = document.getElementById('cancel-search-btn');
 const okArrivalBtn = document.getElementById('ok-arrival-btn');
+const cancelEnrouteBtn = document.getElementById('cancel-enroute-btn');
 
 // --- Enroute Screen Elements ---
 const enrouteDriverPic = document.getElementById('enroute-driver-pic');
@@ -349,6 +350,12 @@ if (okArrivalBtn) {
             // Trip can continue normally
             console.log('User acknowledged taxi arrival');
         }
+    });
+}
+
+if (cancelEnrouteBtn) {
+    cancelEnrouteBtn.addEventListener('click', () => {
+        cancelTripRequest();
     });
 }
 
@@ -724,6 +731,20 @@ function listenToTripRequestUpdates(requestId) {
         
         if (request.driverLocation) {
             updateDriverMarker(request.driverLocation);
+            
+            // Update enroute screen with real-time driver location if we're in enroute status
+            if (currentTripStatus === 'enroute' && request.driverId) {
+                // Get driver data and update enroute screen
+                getDoc(doc(db, "drivers", request.driverId)).then(driverDoc => {
+                    if (driverDoc.exists()) {
+                        const driverData = driverDoc.data();
+                        driverData.currentLocation = request.driverLocation;
+                        updateEnrouteScreen(driverData, request);
+                    }
+                }).catch(error => {
+                    console.error('Error fetching driver data for enroute update:', error);
+                });
+            }
         }
     });
 }
@@ -1334,13 +1355,69 @@ function updateEnrouteScreen(driverData, tripData) {
         enrouteDriverName.textContent = driverData.name || 'Conductor';
     }
     
-    // Update time and distance if available
-    if (enrouteTime && tripData.estimatedDuration) {
-        enrouteTime.textContent = `${Math.round(tripData.estimatedDuration)} MIN`;
-    }
-    
-    if (enrouteDistance && tripData.estimatedDistance) {
-        enrouteDistance.textContent = `${tripData.estimatedDistance.toFixed(1)} KM`;
+    // Calculate real-time distance and time based on driver's current location
+    if (driverData.currentLocation && userLocation) {
+        const driverLatLng = new google.maps.LatLng(
+            driverData.currentLocation.latitude || driverData.currentLocation.lat,
+            driverData.currentLocation.longitude || driverData.currentLocation.lng
+        );
+        const userLatLng = new google.maps.LatLng(userLocation.lat, userLocation.lng);
+        
+        // Calculate distance using Google Maps geometry library
+        let distance = 0;
+        let duration = 0;
+        
+        try {
+            if (google.maps.geometry && google.maps.geometry.spherical) {
+                distance = google.maps.geometry.spherical.computeDistanceBetween(driverLatLng, userLatLng) / 1000; // Convert to km
+            } else {
+                // Fallback to Haversine formula
+                distance = calculateHaversineDistance(
+                    driverData.currentLocation.latitude || driverData.currentLocation.lat,
+                    driverData.currentLocation.longitude || driverData.currentLocation.lng,
+                    userLocation.lat,
+                    userLocation.lng
+                );
+            }
+            
+            // Estimate time (assuming average speed of 30 km/h in city)
+            duration = Math.max(1, Math.round(distance * 2)); // Rough estimate: 2 minutes per km
+            
+        } catch (error) {
+            console.error('Error calculating distance/time:', error);
+            // Use fallback values
+            distance = tripData.estimatedDistance || 0;
+            duration = tripData.estimatedDuration || 5;
+        }
+        
+        // Update display
+        if (enrouteTime) {
+            enrouteTime.textContent = `${duration} MIN`;
+        }
+        
+        if (enrouteDistance) {
+            enrouteDistance.textContent = `${distance.toFixed(1)} KM`;
+        }
+        
+        // Update driver marker on map
+        if (driverMarker) {
+            updateMarkerPosition(driverMarker, driverLatLng);
+        } else {
+            // Create driver marker if it doesn't exist
+            driverMarker = createCustomMarker(driverLatLng, map, 'Driver', '#6f42c1', '🚗');
+        }
+        
+        // Update map bounds to show both user and driver
+        updateMapBoundsForEnroute(userLatLng, driverLatLng);
+    } else {
+        // Fallback to trip data if driver location not available
+        if (enrouteTime && tripData.estimatedDuration) {
+            enrouteTime.textContent = `${Math.round(tripData.estimatedDuration)} MIN`;
+        }
+        
+        if (enrouteDistance && tripData.estimatedDistance) {
+            enrouteDistance.textContent = `${tripData.estimatedDistance.toFixed(1)} KM`;
+        }
     }
 }
 
@@ -1372,4 +1449,36 @@ function updateMarkerPosition(marker, position) {
     const latLng = position.lat && position.lng ? new google.maps.LatLng(position.lat, position.lng) : position;
     if (marker.setPosition) marker.setPosition(latLng);
     else if (marker.position) marker.position = latLng;
+}
+
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function updateMapBoundsForEnroute(userLatLng, driverLatLng) {
+    if (!map || !userLatLng || !driverLatLng) return;
+    
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(userLatLng);
+    bounds.extend(driverLatLng);
+    
+    // Add some padding to the bounds
+    const padding = 0.01; // About 1km in latitude/longitude
+    bounds.extend(new google.maps.LatLng(
+        bounds.getSouthWest().lat() - padding,
+        bounds.getSouthWest().lng() - padding
+    ));
+    bounds.extend(new google.maps.LatLng(
+        bounds.getNorthEast().lat() + padding,
+        bounds.getNorthEast().lng() + padding
+    ));
+    
+    map.fitBounds(bounds);
 }
