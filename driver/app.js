@@ -399,7 +399,7 @@ loginButton.addEventListener('click', async () => {
             return;
         }
         
-        const provider = new GoogleAuthProvider();
+    const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
         console.log('Login exitoso:', result.user);
     } catch (error) {
@@ -676,9 +676,9 @@ function initMap(location) {
             disableDefaultUI: true,
             mapId: 'driver_map' // Agregar mapId para evitar warnings
         });
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
-        directionsRenderer.setMap(map);
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
+    directionsRenderer.setMap(map);
         console.log("Map initialized successfully.");
     } catch (error) {
         console.error('Error initializing map:', error);
@@ -878,29 +878,8 @@ async function acceptTrip(tripId) {
 }
 
 function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
-    directionsService.route({ 
-        origin, 
-        destination, 
-        travelMode: 'DRIVING',
-        provideRouteAlternatives: false,
-        drivingOptions: {
-            departureTime: new Date(),
-            trafficModel: 'best_guess'
-        }
-    }, (result, status) => {
+    directionsService.route({ origin, destination, travelMode: 'DRIVING' }, (result, status) => {
         if (status === 'OK') {
-            // Configurar el renderizador para mostrar la ruta como en Google Maps
-            directionsRenderer.setOptions({
-                suppressMarkers: true, // No mostrar marcadores automáticos
-                preserveViewport: false, // Permitir que el mapa se ajuste a la ruta
-                polylineOptions: {
-                    strokeColor: phase === 'to_client' ? '#4285F4' : '#34A853',
-                    strokeWeight: 6,
-                    strokeOpacity: 0.8,
-                    zIndex: 1000
-                }
-            });
-            
             directionsRenderer.setDirections(result);
             updateDoc(doc(db, "tripRequests", activeTripId), { routePolyline: result.routes[0].overview_polyline });
             
@@ -908,23 +887,7 @@ function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
             const route = result.routes[0];
             const leg = route.legs[0];
             showRouteInfo(leg.distance.text, leg.duration.text, phase, leg.steps);
-            
-            // Ajustar el mapa para mostrar toda la ruta
-            const bounds = new google.maps.LatLngBounds();
-            route.legs.forEach(leg => {
-                bounds.extend(leg.start_location);
-                bounds.extend(leg.end_location);
-            });
-            map.fitBounds(bounds, 80); // 80px de padding
-            
-            // Mostrar marcadores personalizados en origen y destino
-            showRouteMarkers(origin, destination, phase);
-            
-        } else { 
-            console.error('Directions request failed: ' + status);
-            // Fallback: mostrar ruta simple
-            showSimpleRoute(origin, destination, phase);
-        }
+        } else { console.error('Directions request failed: ' + status); }
     });
 }
 
@@ -1099,48 +1062,6 @@ function showAllInstructions(steps, phase) {
         </div>
     `;
     document.body.appendChild(instructionsModal);
-}
-
-// --- Route Visualization Functions ---
-function showRouteMarkers(origin, destination, phase) {
-    // Limpiar marcadores anteriores de ruta
-    if (window.routeOriginMarker) routeOriginMarker.setMap(null);
-    if (window.routeDestinationMarker) routeDestinationMarker.setMap(null);
-    
-    const originTitle = phase === 'to_client' ? 'Tu ubicación' : 'Cliente';
-    const destinationTitle = phase === 'to_client' ? 'Cliente' : 'Destino';
-    
-    // Marcador de origen (conductor)
-    window.routeOriginMarker = createCustomMarker(origin, map, originTitle, '#4285F4', '🚗');
-    
-    // Marcador de destino
-    const destColor = phase === 'to_client' ? '#34A853' : '#FF6B35';
-    const destEmoji = phase === 'to_client' ? '👤' : '🎯';
-    window.routeDestinationMarker = createCustomMarker(destination, map, destinationTitle, destColor, destEmoji);
-}
-
-function showSimpleRoute(origin, destination, phase) {
-    // Crear una línea recta simple entre origen y destino
-    const simpleRoute = new google.maps.Polyline({
-        path: [origin, destination],
-        geodesic: true,
-        strokeColor: phase === 'to_client' ? '#4285F4' : '#34A853',
-        strokeOpacity: 0.8,
-        strokeWeight: 6,
-        map: map
-    });
-    
-    // Mostrar marcadores
-    showRouteMarkers(origin, destination, phase);
-    
-    // Ajustar vista
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(origin);
-    bounds.extend(destination);
-    map.fitBounds(bounds, 80);
-    
-    // Guardar referencia para limpiar después
-    window.simpleRoute = simpleRoute;
 }
 
 // --- Navigation Flow Functions ---
@@ -1489,25 +1410,25 @@ async function updateTripStatus(status) {
             await updateDoc(tripRequestRef, { status: status });
 
             // Lógica de finalización del viaje
-            if (status === 'completed') {
+    if (status === 'completed') {
                 if (mainTripId) {
                     // En lugar de buscar inmediatamente, configuramos un listener para detectar cuando se añade la calificación
                     const tripRef = doc(db, "trips", mainTripId);
                     const unsubscribeTrip = onSnapshot(tripRef, async (tripDoc) => {
                         if (tripDoc.exists()) {
-                            const tripData = tripDoc.data();
+        const tripData = tripDoc.data();
                             const rating = tripData.rating || 0;
 
                             if (rating > 0) {
                                 // Detener el listener una vez que encontramos la calificación
                                 unsubscribeTrip();
                                 
-                                const driverRef = doc(db, "drivers", currentUser.uid);
-                                const driverDoc = await getDoc(driverRef);
+            const driverRef = doc(db, "drivers", currentUser.uid);
+            const driverDoc = await getDoc(driverRef);
                                 const newNumTrips = (driverDoc.data()?.numTrips || 0) + 1;
                                 const newTotalStars = (driverDoc.data()?.totalStars || 0) + rating;
-                                
-                                await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
+
+            await setDoc(driverRef, { numTrips: newNumTrips, totalStars: newTotalStars }, { merge: true });
                                 updateDriverRatingDisplay();
                                 showNotificationToast(`¡Recibiste ${rating} estrella${rating > 1 ? 's' : ''}!`);
                                 
@@ -1527,7 +1448,7 @@ async function updateTripStatus(status) {
                         resetTripState();
                     }, 120000); // 2 minutos
                 } else {
-                    resetTripState();
+        resetTripState();
                 }
             }
         }
@@ -1547,7 +1468,7 @@ function startSharingLocation(initialLocation) {
         // En modo navegación, centrar en la ruta completa
         updateNavigationView();
     } else {
-        updateMapBounds();
+    updateMapBounds();
     }
     
     locationWatcherId = navigator.geolocation.watchPosition((pos) => {
@@ -1560,7 +1481,7 @@ function startSharingLocation(initialLocation) {
         if (navigationMode) {
             updateNavigationView();
         } else {
-            updateMapBounds();
+        updateMapBounds();
         }
     }, (err) => console.error("Watch position error:", err), { enableHighAccuracy: true });
 }
@@ -2337,20 +2258,6 @@ function resetNavigationState() {
     // Limpiar ruta
     if (directionsRenderer) {
         directionsRenderer.setDirections({ routes: [] });
-    }
-    
-    // Limpiar marcadores de ruta
-    if (window.routeOriginMarker) {
-        window.routeOriginMarker.setMap(null);
-        window.routeOriginMarker = null;
-    }
-    if (window.routeDestinationMarker) {
-        window.routeDestinationMarker.setMap(null);
-        window.routeDestinationMarker = null;
-    }
-    if (window.simpleRoute) {
-        window.simpleRoute.setMap(null);
-        window.simpleRoute = null;
     }
     
     // Restaurar zoom original

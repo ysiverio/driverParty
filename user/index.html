@@ -91,40 +91,36 @@
 
             <!-- Screen 2: Driver En Route -->
             <div id="driver-enroute-screen" class="trip-status-screen" style="display: none;">
-                <!-- Map remains visible in background -->
-                <div class="enroute-overlay">
-                    <!-- Driver info floating card -->
-                    <div class="driver-info-card">
-                        <div class="driver-profile">
-                            <div class="driver-avatar">
-                                <img id="enroute-driver-pic" src="" alt="Driver">
-                            </div>
-                            <div class="driver-details">
-                                <h3 id="enroute-driver-name">NAME SURNAME</h3>
-                                <p class="driver-role">TAXI DRIVER</p>
-                                <div class="driver-rating">
-                                    <i class="fas fa-star"></i>
-                                    <i class="fas fa-star"></i>
-                                    <i class="fas fa-star"></i>
-                                    <i class="fas fa-star"></i>
-                                    <i class="fas fa-star"></i>
-                                </div>
-                            </div>
+                <div class="driver-info-section">
+                    <div class="driver-profile">
+                        <div class="driver-avatar">
+                            <img id="enroute-driver-pic" src="" alt="Driver">
                         </div>
-                        <div class="driver-actions">
-                            <button class="action-btn call-btn">
-                                <i class="fas fa-phone"></i>
-                                CALL
-                            </button>
-                            <button class="action-btn message-btn">
-                                <i class="fas fa-comment"></i>
-                                MESSAGE
-                            </button>
+                        <div class="driver-details">
+                            <h3 id="enroute-driver-name">NAME SURNAME</h3>
+                            <p class="driver-role">TAXI DRIVER</p>
+                            <div class="driver-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Trip details floating card -->
-                    <div class="trip-details-card">
+                    <div class="driver-actions">
+                        <button class="action-btn call-btn">
+                            <i class="fas fa-phone"></i>
+                            CALL
+                        </button>
+                        <button class="action-btn message-btn">
+                            <i class="fas fa-comment"></i>
+                            MESSAGE
+                        </button>
+                    </div>
+                </div>
+                <div class="map-section">
+                    <div class="trip-details-box">
                         <div class="detail-item">
                             <span class="detail-label">TIME</span>
                             <span id="enroute-time" class="detail-value">5 MIN</span>
@@ -133,14 +129,6 @@
                             <span class="detail-label">DISTANCE</span>
                             <span id="enroute-distance" class="detail-value">2 KM</span>
                         </div>
-                    </div>
-
-                    <!-- Cancel trip button -->
-                    <div class="cancel-trip-section">
-                        <button id="cancel-enroute-btn" class="cancel-trip-btn">
-                            <i class="fas fa-times"></i>
-                            CANCEL TRIP
-                        </button>
                     </div>
                 </div>
             </div>
@@ -363,7 +351,6 @@
                 </div>
                 
                 <div class="modal-actions">
-                    <button type="button" id="close-payment-modal" class="btn-close">Cerrar</button>
                     <button type="button" id="reject-trip-btn" class="btn-reject">Rechazar</button>
                     <button type="button" id="confirm-trip-btn" class="btn-confirm">Confirmar y Pagar</button>
                 </div>
