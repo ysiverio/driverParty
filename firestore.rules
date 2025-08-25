@@ -1,42 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Función para verificar si el usuario es administrador
-    function isAdmin() {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    // Colección de viajes
+    match /trips/{tripId} {
+      // Permitir lectura a clientId y driverId del viaje
+      allow read: if request.auth != null && 
+        (resource.data.clientId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+      
+      // Permitir escritura al clientId o driverId
+      allow write: if request.auth != null && 
+        (resource.data.clientId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+      
+      // Subcolección de presencia del conductor
+      match /presence/driver {
+        // Solo el driverId puede escribir su presencia
+        allow write: if request.auth != null && 
+          get(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid;
+        
+        // Permitir lectura a clientId y driverId
+        allow read: if request.auth != null && 
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.clientId == request.auth.uid || 
+           get(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid);
+      }
     }
     
-    // Permitir acceso a usuarios autenticados
+    // Colección de usuarios (opcional)
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null; // Los administradores pueden leer todos los usuarios
     }
     
-    // Permitir acceso a conductores autenticados
+    // Colección de conductores (opcional)
     match /drivers/{driverId} {
-      allow read, write: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
-    }
-    
-    // Permitir acceso a viajes
-    match /trips/{tripId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // Permitir acceso a solicitudes de viaje
-    match /tripRequests/{requestId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // Permitir acceso a configuración (solo administradores)
-    match /configuration/{configId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    // Permitir acceso a administradores
-    match /admins/{adminId} {
-      allow read, write: if request.auth != null && request.auth.uid == adminId;
+      allow read, write: if request.auth != null && request.auth.uid == driverId;
     }
   }
 }

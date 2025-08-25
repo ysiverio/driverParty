@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Seleccionar Rol</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="role-selection">
+            <div class="logo">
+                <i class="fas fa-car"></i>
+                <h1>DriverParty</h1>
+                <p>Selecciona tu rol para continuar</p>
+            </div>
+            
+            <div class="role-buttons">
+                <button id="driver-btn" class="role-btn driver">
+                    <i class="fas fa-steering-wheel"></i>
+                    <span>Conductor</span>
+                </button>
+                
+                <button id="client-btn" class="role-btn client">
+                    <i class="fas fa-user"></i>
+                    <span>Cliente</span>
+                </button>
+            </div>
+            
+            <div class="trip-input" style="display: none;">
+                <h3>Ingresa el ID del viaje</h3>
+                <input type="text" id="trip-id-input" placeholder="Ej: trip_123456" />
+                <button id="join-trip-btn" class="join-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Unirse al viaje
+                </button>
+                <button id="back-btn" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        let selectedRole = null;
+        
+        // Elementos del DOM
+        const driverBtn = document.getElementById('driver-btn');
+        const clientBtn = document.getElementById('client-btn');
+        const tripInput = document.querySelector('.trip-input');
+        const tripIdInput = document.getElementById('trip-id-input');
+        const joinTripBtn = document.getElementById('join-trip-btn');
+        const backBtn = document.getElementById('back-btn');
+        
+        // Event listeners
+        driverBtn.addEventListener('click', () => selectRole('driver'));
+        clientBtn.addEventListener('click', () => selectRole('client'));
+        joinTripBtn.addEventListener('click', joinTrip);
+        backBtn.addEventListener('click', goBack);
+        
+        // Función para seleccionar rol
+        function selectRole(role) {
+            selectedRole = role;
+            document.querySelector('.role-buttons').style.display = 'none';
+            tripInput.style.display = 'block';
+            
+            // Cambiar título según el rol
+            const title = tripInput.querySelector('h3');
+            if (role === 'driver') {
+                title.textContent = 'Ingresa el ID del viaje para conducir';
+            } else {
+                title.textContent = 'Ingresa el ID del viaje para seguir';
+            }
+        }
+        
+        // Función para volver atrás
+        function goBack() {
+            selectedRole = null;
+            tripInput.style.display = 'none';
+            document.querySelector('.role-buttons').style.display = 'flex';
+            tripIdInput.value = '';
+        }
+        
+        // Función para unirse al viaje
+        function joinTrip() {
+            const tripId = tripIdInput.value.trim();
+            
+            if (!tripId) {
+                alert('Por favor ingresa un ID de viaje válido');
+                return;
+            }
+            
+            // Redirigir según el rol
+            const url = selectedRole === 'driver' 
+                ? `driver.html?tripId=${encodeURIComponent(tripId)}`
+                : `client.html?tripId=${encodeURIComponent(tripId)}`;
+            
+            window.location.href = url;
+        }
+        
+        // Permitir Enter para unirse
+        tripIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinTrip();
+            }
+        });
+        
+        // Verificar si hay un tripId en la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tripId = urlParams.get('tripId');
+        
+        if (tripId) {
+            // Si hay un tripId, mostrar directamente la selección de rol
+            tripIdInput.value = tripId;
+            // Por defecto, seleccionar cliente si hay tripId
+            selectRole('client');
+        }
+    </script>
+</body>
+</html>

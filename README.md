@@ -1,367 +1,430 @@
+# DriverParty - Navegación Tipo "Modo Conducción"
 
-# DriverParty - Plataforma de Transporte Profesional
+Una aplicación web para navegación tipo "modo conducción" emulada usando Google Maps JavaScript API y Firebase Firestore. Diseñada para el caso de uso "conductor designado" donde llevamos al cliente en su propio auto.
 
-## 🚀 Descripción
+## 🚀 Características
 
-DriverParty es una plataforma completa de transporte que conecta conductores con usuarios de manera eficiente y segura. La aplicación incluye interfaces para conductores, usuarios y un panel de administración completo con sistema de configuración de precios dinámico.
+- **Navegación en tiempo real**: Vista de conducción con zoom 16-17, centrada en el auto
+- **Sincronización bidireccional**: Driver y cliente ven las mismas instrucciones y ubicación
+- **Actualización de posición**: Cada 1.5 segundos con throttling inteligente
+- **Recálculo automático**: Si el desvío supera 40m de la ruta
+- **Avance automático de pasos**: Basado en proximidad (30m al final del step)
+- **Interfaz moderna**: Diseño responsive con modo oscuro
 
-## ✨ Características Principales
+## 🛠️ Stack Tecnológico
 
-### 🎯 Funcionalidades Core
-- **Sistema de Geolocalización en Tiempo Real**: Ubicación precisa de conductores y usuarios
-- **Cálculo Automático de Rutas**: Optimización de rutas usando Google Maps API
-- **Sistema de Calificaciones**: Calificación bidireccional entre conductores y usuarios
-- **Notificaciones Sonoras**: Alertas audibles para nuevas solicitudes y actualizaciones
-- **Modo de Navegación**: Interfaz optimizada para conductores durante viajes
-- **Historial Completo**: Registro detallado de todos los viajes
+- **Frontend**: HTML5 + CSS3 + JavaScript nativo (ES Modules)
+- **Mapas**: Google Maps JavaScript API (DirectionsService + DirectionsRenderer + Geometry Library)
+- **Backend**: Firebase Firestore (tiempo real)
+- **Autenticación**: Firebase Auth (anónimo)
+- **Hosting**: Cualquier servidor web estático
 
-### 💰 Sistema de Precios Dinámico
-- **Configuración Flexible**: Precios por kilómetro configurables
-- **Multiplicadores Dinámicos**: Hora pico y tarifas nocturnas
-- **Cargos Adicionales**: Espera, cancelación y tarifa base
-- **Vista Previa en Tiempo Real**: Cálculo instantáneo de precios
-- **Comisiones Automáticas**: Cálculo de ganancias para conductores y plataforma
+## 📁 Estructura del Proyecto
 
-### 🛠️ Panel de Administración
-- **Dashboard Completo**: Métricas en tiempo real
-- **Gestión de Conductores**: Administración completa de conductores
-- **Gestión de Usuarios**: Control de usuarios registrados
-- **Historial de Viajes**: Consulta y exportación de datos
-- **Analíticas Avanzadas**: Gráficos y estadísticas detalladas
-- **Configuración General**: Personalización de la aplicación
-
-## 🏗️ Arquitectura del Sistema
-
-### 📁 Estructura de Archivos
 ```
 driverParty/
-├── admin/                 # Panel de administración
-│   ├── index.html        # Interfaz de administración
-│   ├── app.js           # Lógica de administración
-│   └── style.css        # Estilos del panel admin
-├── driver/               # Interfaz de conductores
-│   ├── index.html       # Interfaz principal
-│   ├── app.js          # Lógica de conductores
-│   └── style.css       # Estilos de conductores
-├── user/                 # Interfaz de usuarios
-│   ├── index.html       # Interfaz principal
-│   ├── app.js          # Lógica de usuarios
-│   └── style.css       # Estilos de usuarios
-├── config.js            # Configuración centralizada
-├── firebase-config.js   # Configuración de Firebase
-└── README.md           # Documentación
+├── public/
+│   ├── index.html          # Página principal de selección de rol
+│   ├── driver.html         # Interfaz del conductor
+│   ├── client.html         # Interfaz del cliente
+│   └── styles.css          # Estilos globales
+├── src/
+│   ├── firebase.js         # Configuración y servicios de Firebase
+│   ├── maps.js             # Operaciones de Google Maps
+│   ├── directions.js       # Cálculo de rutas y direcciones
+│   ├── location.js         # Seguimiento de ubicación
+│   ├── trips.js            # Operaciones de viajes
+│   └── utils.js            # Utilidades y formateo
+├── env.example             # Variables de entorno de ejemplo
+└── README.md               # Este archivo
 ```
 
-### 🔧 Tecnologías Utilizadas
-- **Frontend**: HTML5, CSS3, JavaScript ES6+
-- **Backend**: Firebase (Firestore, Authentication)
-- **Mapas**: Google Maps API
-- **Gráficos**: Chart.js
-- **Iconos**: Font Awesome
-- **Notificaciones**: Web Audio API
+## 🔧 Configuración
 
-### 🔐 Sistema de Autenticación
-- **Conductores y Usuarios**: Google Sign-In con reCAPTCHA Enterprise
-- **Administración**: Email/Password con Firebase Auth y reCAPTCHA Enterprise
-- **Recuperación de contraseña**: Sistema integrado
-- **Sesiones seguras**: Manejo automático de tokens
-- **Protección anti-bot**: reCAPTCHA Enterprise en todos los logins
+### 1. Configurar Firebase
 
-### 🔥 Configuración de Firebase
-- **Reglas de Seguridad**: `firestore.rules` - Control de acceso a datos
-- **Índices Optimizados**: Crear manualmente en Firestore (ver sección de índices)
-- **Estructuras Iniciales**: `init-firebase.html` - Configuración por defecto
-- **Setup Administrador**: `setup-admin.html` - Crear usuario administrador
+1. Crea un proyecto en [Firebase Console](https://console.firebase.google.com/)
+2. Habilita Firestore Database
+3. Configura las reglas de seguridad (ver sección de reglas)
+4. Obtén la configuración de tu proyecto
 
-### 🛡️ Seguridad con reCAPTCHA Enterprise
-- **Configuración**: `recaptcha-config.js` - Configuración centralizada
-- **Protección**: Implementado en todos los puntos de autenticación
-- **Acciones**: Diferentes niveles de seguridad por tipo de usuario
-- **Validación**: Sistema de puntuación para detectar bots
-- **Colecciones Principales**:
-  - `users` - Datos de usuarios
-  - `drivers` - Datos de conductores
-  - `trips` - Historial de viajes
-  - `tripRequests` - Solicitudes activas
-  - `configuration` - Configuración del sistema
-  - `admins` - Usuarios administradores
+### 2. Configurar Google Maps API
 
-### 📊 Índices de Firestore Necesarios
-Crear manualmente en la consola de Firebase los siguientes índices compuestos:
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Crea un proyecto o selecciona el existente
+3. Habilita las siguientes APIs:
+   - Maps JavaScript API
+   - Directions API
+   - Geometry Library
+4. Crea una clave de API y restríngela por dominio
 
-**Colección: `trips`**
-- `status` (Ascending) + `createdAt` (Descending)
-- `driverId` (Ascending) + `createdAt` (Descending)
-- `userId` (Ascending) + `createdAt` (Descending)
+### 3. Configurar Variables de Entorno
 
-**Colección: `tripRequests`**
-- `status` (Ascending) + `createdAt` (Descending)
+Copia `env.example` a `.env` y configura tus valores:
 
-## 🚀 Instalación y Configuración
-
-### 📋 Prerrequisitos
-- Node.js (versión 14 o superior)
-- Cuenta de Firebase
-- API Key de Google Maps
-- Servidor web local o hosting
-
-### ⚙️ Configuración Inicial
-
-1. **Clonar el repositorio**
 ```bash
-git clone https://github.com/ysiverio/driverParty.git
-cd driverParty
+# Google Maps API
+VITE_GOOGLE_MAPS_API_KEY=tu_clave_de_google_maps
+
+# Firebase
+VITE_FIREBASE_API_KEY=tu_clave_de_firebase
+VITE_FIREBASE_AUTH_DOMAIN=tu-proyecto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=tu-proyecto-id
+# ... resto de configuración
 ```
 
-2. **Configurar Firebase**
-   - Crear proyecto en Firebase Console
-   - Habilitar Authentication (Google Sign-In)
-   - Habilitar Firestore Database
-   - Configurar reglas de seguridad
+### 4. Reglas de Firestore
 
-3. **Configurar Google Maps API**
-   - Obtener API Key de Google Cloud Console
-   - Habilitar Maps JavaScript API
-   - Habilitar Directions API
-   - Habilitar Geocoding API
+Configura estas reglas en tu Firestore:
 
-4. **Configurar reCAPTCHA Enterprise**
-   - Configurar reCAPTCHA Enterprise en Google Cloud Console
-   - Verificar que la clave del sitio esté correcta en `recaptcha-config.js`
-   - Probar la funcionalidad en los puntos de autenticación
-
-5. **Actualizar configuración**
-   - Editar `firebase-config.js` con tus credenciales
-   - Agregar API Key de Google Maps en las interfaces
-
-6. **Configurar Firebase**
-   - **Reglas de Seguridad**: Copiar el contenido de `firestore.rules` a la consola de Firebase
-   - **Índices**: Crear manualmente los índices necesarios en Firestore (ver sección de índices)
-   - **Estructuras de Datos**: Abrir `init-firebase.html` en el navegador y hacer clic en "Inicializar Firebase"
-
-7. **Configurar usuario administrador**
-   - Abrir `setup-admin.html` en el navegador
-   - Hacer clic en "Configurar Administrador"
-   - Usar las credenciales generadas para acceder al panel
-
-8. **Ejecutar la aplicación**
-```bash
-# Usar servidor local (ejemplo con Python)
-python -m http.server 8000
-
-# O con Node.js
-npx http-server
-```
-
-## 📱 Interfaces de Usuario
-
-### 👨‍💼 Panel de Administración (`/admin`)
-- **URL**: `http://localhost:8000/admin/`
-- **Login**: `http://localhost:8000/admin/login.html`
-- **Autenticación**: Email/Password con Firebase Auth y reCAPTCHA
-- **Credenciales por defecto**: 
-  - Email: `admin@driverparty.com`
-  - Contraseña: `AdminDriverParty2024!`
-  - **⚠️ IMPORTANTE**: Cambiar la contraseña después del primer acceso
-- **Dashboard**: Métricas en tiempo real
-- **Configuración de Precios**: Gestión completa de tarifas
-- **Gestión de Conductores**: Administración y aprobación de solicitudes
-- **Solicitudes Pendientes**: Revisión y aprobación de nuevos drivers
-- **Gestión de Usuarios**: Control de usuarios
-- **Historial de Viajes**: Consulta de datos
-- **Analíticas**: Gráficos y estadísticas
-- **Configuración General**: Personalización
-
-### 🚗 Interfaz de Conductores (`/driver`)
-- **Registro y Autorización**: Formulario completo de registro con validación
-- **Estados de Aprobación**: Pendiente, Aprobado, Rechazado, Suspendido
-- **Autenticación**: Google Sign-In con reCAPTCHA
-- **Mapa Interactivo**: Ubicación en tiempo real
-- **Solicitudes de Viaje**: Notificaciones y aceptación
-- **Modo de Navegación**: Interfaz optimizada para viajes
-- **Historial de Viajes**: Registro completo
-- **Calificaciones**: Sistema de rating
-- **Notificaciones**: Alertas sonoras
-- **Perfil**: Gestión de información personal
-
-### 👤 Interfaz de Usuarios (`/user`)
-- **Autenticación**: Google Sign-In con reCAPTCHA
-- **Solicitud de Viaje**: Origen y destino con cálculo de tarifa
-- **Confirmación de Pago**: Modal con información del conductor y tarifa
-- **Estados de Viaje**: Pendiente, Aceptado, Pago Confirmado, En Curso, Completado
-- **Seguimiento en Tiempo Real**: Ubicación del conductor
-- **Información del Conductor**: Perfil, calificaciones y vehículo
-- **Modo de Navegación**: Durante el viaje
-- **Historial**: Viajes realizados
-- **Calificaciones**: Rating del conductor
-- **Notificaciones**: Alertas sonoras
-
-## 💰 Sistema de Precios
-
-### 🎛️ Configuración Dinámica
 ```javascript
-// Ejemplo de configuración
-{
-    DEFAULT_DRIVER_RATE_PER_KM: 2.50,    // Precio por km (conductor)
-    DEFAULT_USER_RATE_PER_KM: 3.50,      // Precio por km (usuario)
-    MINIMUM_FARE: 5.00,                  // Tarifa mínima
-    BASE_FARE: 2.00,                     // Tarifa base
-    SURGE_MULTIPLIER: 1.5,               // Multiplicador hora pico
-    NIGHT_RATE_MULTIPLIER: 1.2,          // Multiplicador nocturno
-    WAITING_FEE_PER_MINUTE: 0.50,        // Cargo por espera
-    CANCELLATION_FEE: 3.00               // Cargo por cancelación
-}
-```
-
-### 📊 Cálculo de Precios
-- **Precio Usuario**: Base + (Distancia × Tarifa/km) + Cargos adicionales
-- **Ganancia Conductor**: Distancia × Tarifa conductor + Cargos de espera
-- **Comisión Plataforma**: Precio usuario - Ganancia conductor
-
-## 🔧 Funcionalidades Avanzadas
-
-### 🚗 Sistema de Registro de Conductores
-- **Formulario Completo**: Información personal, licencia, vehículo, seguro
-- **Estados de Aprobación**: Pendiente, Aprobado, Rechazado, Suspendido
-- **Validación de Datos**: Verificación de información requerida
-- **Notificaciones**: Email automático de aprobación/rechazo
-
-### 💳 Sistema de Confirmación de Pago
-- **Cálculo de Tarifa**: Basado en distancia y configuración
-- **Modal de Confirmación**: Información del conductor y tarifa
-- **Métodos de Pago**: Efectivo, Tarjeta, Pago Digital
-- **Estados de Viaje**: Flujo completo desde solicitud hasta completado
-
-### 🎵 Sistema de Notificaciones
-- **Notificaciones Sonoras**: Tones personalizables
-- **Alertas Visuales**: Toasts informativos
-- **Vibración**: Soporte para dispositivos móviles
-- **Configuración**: Control de volumen y duración
-
-### 🗺️ Modo de Navegación
-- **Zoom Automático**: Ajuste automático del mapa
-- **Información en Tiempo Real**: Distancia, duración, siguiente instrucción
-- **Indicadores Visuales**: Estado de navegación
-- **Optimización**: Interfaz simplificada para conducción
-
-### 📈 Analíticas y Reportes
-- **Dashboard en Tiempo Real**: Métricas actualizadas
-- **Gráficos Interactivos**: Chart.js para visualización
-- **Exportación de Datos**: Funcionalidad de descarga
-- **Filtros Avanzados**: Búsqueda y filtrado de datos
-
-## 🔒 Seguridad
-
-### 🛡️ Medidas Implementadas
-- **Autenticación Google**: Login seguro
-- **Reglas de Firestore**: Validación de datos
-- **Validación de Entrada**: Sanitización de datos
-- **Control de Acceso**: Permisos por rol
-- **Encriptación**: Datos sensibles protegidos
-
-### 📋 Reglas de Firestore
-```javascript
-// Ejemplo de reglas de seguridad
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Usuarios solo pueden leer/escribir sus propios datos
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Conductores solo pueden leer/escribir sus propios datos
-    match /drivers/{driverId} {
-      allow read, write: if request.auth != null && request.auth.uid == driverId;
-    }
-    
-    // Viajes: usuarios y conductores involucrados pueden leer/escribir
+    // Colección de viajes
     match /trips/{tripId} {
-      allow read, write: if request.auth != null && 
-        (resource.data.userId == request.auth.uid || 
+      // Permitir lectura a clientId y driverId del viaje
+      allow read: if request.auth != null && 
+        (resource.data.clientId == request.auth.uid || 
          resource.data.driverId == request.auth.uid);
+      
+      // Permitir escritura al clientId o driverId
+      allow write: if request.auth != null && 
+        (resource.data.clientId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+      
+      // Subcolección de presencia del conductor
+      match /presence/driver {
+        // Solo el driverId puede escribir su presencia
+        allow write: if request.auth != null && 
+          get(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid;
+        
+        // Permitir lectura a clientId y driverId
+        allow read: if request.auth != null && 
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.clientId == request.auth.uid || 
+           get(/databases/$(database)/documents/trips/$(tripId)).data.driverId == request.auth.uid);
+      }
     }
   }
 }
 ```
 
-## 📊 Estado de Desarrollo
+## 🚀 Instalación y Ejecución
 
-### ✅ Funcionalidades Completadas
-- [x] Sistema de autenticación Google
-- [x] Geolocalización en tiempo real
-- [x] Cálculo de rutas optimizadas
-- [x] Sistema de calificaciones
-- [x] Notificaciones sonoras
-- [x] Modo de navegación
-- [x] Historial de viajes
-- [x] Panel de administración
-- [x] Sistema de precios dinámico
-- [x] Gestión de conductores y usuarios
-- [x] Analíticas y reportes
-- [x] Configuración general
-- [x] Interfaz responsive
-- [x] Validaciones de seguridad
+### Opción 1: Servidor Local Simple
 
-### 🚧 Funcionalidades en Desarrollo
-- [ ] Sistema de pagos integrado
-- [ ] Chat en tiempo real
-- [ ] Notificaciones push
-- [ ] Modo offline
-- [ ] Integración con GPS nativo
-- [ ] Sistema de recompensas
-- [ ] API REST pública
-- [ ] Aplicación móvil nativa
+```bash
+# Clona el repositorio
+git clone <tu-repositorio>
+cd driverParty
 
-### 📋 Próximas Funcionalidades
-- [ ] Integración con Stripe/PayPal
-- [ ] Sistema de cupones y descuentos
-- [ ] Programación de viajes
-- [ ] Viajes compartidos
-- [ ] Sistema de fidelización
-- [ ] Reportes avanzados
-- [ ] Integración con redes sociales
-- [ ] Sistema de soporte en vivo
+# Instala un servidor local (si no tienes uno)
+npm install -g http-server
 
-## 🤝 Contribución
+# Ejecuta el servidor
+http-server public -p 8080
 
-### 📝 Cómo Contribuir
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
+# Abre http://localhost:8080
+```
 
-### 🐛 Reportar Bugs
-- Usar el sistema de Issues de GitHub
-- Incluir pasos para reproducir el error
-- Adjuntar capturas de pantalla si es necesario
-- Especificar el navegador y sistema operativo
+### Opción 2: Con Vite (Recomendado)
 
-## 📄 Licencia
+```bash
+# Instala dependencias
+npm install
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+# Ejecuta en modo desarrollo
+npm run dev
+
+# Construye para producción
+npm run build
+```
+
+### Opción 3: Firebase Hosting
+
+```bash
+# Instala Firebase CLI
+npm install -g firebase-tools
+
+# Inicia sesión
+firebase login
+
+# Inicializa el proyecto
+firebase init hosting
+
+# Despliega
+firebase deploy
+```
+
+## 📱 Uso
+
+### 1. Crear un Viaje
+
+Para probar la aplicación, necesitas crear un viaje en Firestore con esta estructura:
+
+```javascript
+{
+  "tripId": "trip_123456",
+  "clientId": "client_uid",
+  "driverId": null,
+  "status": "requested",
+  "pickup": {
+    "lat": 40.7128,
+    "lng": -74.0060,
+    "address": "Nueva York, NY"
+  },
+  "destination": {
+    "lat": 40.7589,
+    "lng": -73.9851,
+    "address": "Times Square, NY"
+  },
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+### 2. Flujo de Uso
+
+1. **Abrir la aplicación**: `http://localhost:8080`
+2. **Seleccionar rol**: Conductor o Cliente
+3. **Ingresar ID del viaje**: Ej: `trip_123456`
+4. **Seguir las instrucciones**:
+   - **Conductor**: Aceptar → Llegué → Iniciar → Finalizar
+   - **Cliente**: Ver progreso en tiempo real
+
+### 3. Simular Movimiento
+
+Para simular el movimiento del conductor durante las pruebas:
+
+```javascript
+// En la consola del navegador del conductor
+function simulateMovement() {
+  const positions = [
+    { lat: 40.7128, lng: -74.0060 },
+    { lat: 40.7150, lng: -74.0080 },
+    { lat: 40.7180, lng: -74.0100 },
+    // ... más posiciones
+  ];
+  
+  let index = 0;
+  setInterval(() => {
+    if (index < positions.length) {
+      // Simular actualización de posición
+      const position = positions[index];
+      // Esto actualizará el mapa automáticamente
+      index++;
+    }
+  }, 2000);
+}
+
+simulateMovement();
+```
+
+## 🔄 Flujo de Estados del Viaje
+
+```
+requested → accepted → en_route_to_pickup → arrived → in_progress → completed
+```
+
+### Estados Detallados:
+
+- **`requested`**: Cliente solicitó viaje, esperando conductor
+- **`accepted`**: Conductor aceptó, calculando ruta al pickup
+- **`en_route_to_pickup`**: Conductor en camino al cliente
+- **`arrived`**: Conductor llegó al pickup, calculando ruta al destino
+- **`in_progress`**: Viaje en progreso hacia el destino
+- **`completed`**: Viaje finalizado
+
+## 📊 Estructura de Datos
+
+### Documento Trip (`trips/{tripId}`)
+
+```javascript
+{
+  "tripId": "string",
+  "clientId": "string",
+  "driverId": "string",
+  "status": "requested|accepted|en_route_to_pickup|arrived|in_progress|completed|canceled_by_client|canceled_by_driver",
+  "pickup": { "lat": 0, "lng": 0, "address": "" },
+  "destination": { "lat": 0, "lng": 0, "address": "" },
+  "driverLocation": { "lat": 0, "lng": 0, "heading": 0, "ts": 0 },
+  "routeToPickup": { "polyline": "", "steps": [] },
+  "routeToDestination": { "polyline": "", "steps": [] },
+  "currentLegIndex": 0,
+  "currentStepIndex": 0,
+  "metrics": { "distanceMeters": 0, "durationSec": 0, "actualDistanceMeters": 0, "actualDurationSec": 0 },
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+### Presencia del Conductor (`trips/{tripId}/presence/driver`)
+
+```javascript
+{
+  "lat": 0,
+  "lng": 0,
+  "heading": 0,
+  "speed": 0,
+  "ts": "timestamp"
+}
+```
+
+## 🎯 Funcionalidades Clave
+
+### Navegación Inteligente
+
+- **Vista de conducción**: Zoom 16-17, centrada en el auto
+- **Instrucciones paso a paso**: Con iconos y distancias
+- **Avance automático**: Basado en proximidad al final del step
+- **Recálculo**: Si el desvío supera 40m
+
+### Sincronización en Tiempo Real
+
+- **Posición del conductor**: Actualizada cada 1.5s
+- **Estado del viaje**: Sincronizado entre cliente y conductor
+- **Instrucciones**: Mismas para ambos usuarios
+- **Progreso**: Visualización del avance del viaje
+
+### Optimizaciones
+
+- **Throttling**: Solo publica cambios significativos (>8m o >5° heading)
+- **Caché de rutas**: Evita recálculos innecesarios
+- **Lazy loading**: Carga de APIs bajo demanda
+- **Responsive**: Funciona en móviles y desktop
+
+## 🧪 Pruebas
+
+### Pruebas Manuales
+
+1. **Crear viaje de prueba**:
+   ```javascript
+   // En Firestore Console
+   {
+     "tripId": "test_trip_001",
+     "clientId": "test_client",
+     "status": "requested",
+     "pickup": { "lat": 40.7128, "lng": -74.0060, "address": "Nueva York" },
+     "destination": { "lat": 40.7589, "lng": -73.9851, "address": "Times Square" }
+   }
+   ```
+
+2. **Abrir dos ventanas**:
+   - `http://localhost:8080/driver.html?tripId=test_trip_001`
+   - `http://localhost:8080/client.html?tripId=test_trip_001`
+
+3. **Seguir el flujo completo**:
+   - Aceptar viaje (driver)
+   - Ver ruta al pickup
+   - Marcar llegada
+   - Iniciar viaje
+   - Finalizar
+
+### Pruebas de Movimiento
+
+```javascript
+// Simular movimiento realista
+const route = [
+  { lat: 40.7128, lng: -74.0060 },
+  { lat: 40.7135, lng: -74.0065 },
+  { lat: 40.7142, lng: -74.0070 },
+  // ... más puntos
+];
+
+let currentIndex = 0;
+const interval = setInterval(() => {
+  if (currentIndex < route.length) {
+    // Actualizar posición
+    currentIndex++;
+  } else {
+    clearInterval(interval);
+  }
+}, 3000);
+```
+
+## 🚨 Limitaciones
+
+### Modo Conducción Nativo
+
+- **No disponible en API**: Google Maps no proporciona modo conducción nativo
+- **Emulación**: Esta aplicación emula la experiencia
+- **Alternativa**: Usar deep links a apps nativas (Google Maps, Apple Maps)
+
+### Costos
+
+- **Firestore**: Limitar escrituras a 1-2 Hz por conductor
+- **Google Maps**: ~$5 por 1000 cargas de página
+- **Optimización**: Usar throttling y caché
+
+### Compatibilidad
+
+- **Navegadores**: Chrome, Firefox, Safari, Edge (modernos)
+- **Móviles**: iOS Safari, Chrome Mobile
+- **Geolocalización**: Requiere HTTPS en producción
+
+## 🔧 Personalización
+
+### Cambiar Colores
+
+Edita `public/styles.css`:
+
+```css
+:root {
+  --primary-color: #4CAF50;
+  --secondary-color: #2196F3;
+  --background-color: #000;
+  --text-color: #fff;
+}
+```
+
+### Agregar Funcionalidades
+
+1. **Notificaciones push**: Integrar Firebase Cloud Messaging
+2. **Chat**: Agregar colección de mensajes
+3. **Pagos**: Integrar Stripe/PayPal
+4. **Calificaciones**: Sistema de rating post-viaje
 
 ## 📞 Soporte
 
-### 📧 Contacto
-- **Email**: support@driverparty.com
-- **Teléfono**: +1-800-DRIVER
-- **Documentación**: [docs.driverparty.com](https://docs.driverparty.com)
+### Problemas Comunes
 
-### 🔗 Enlaces Útiles
-- **Sitio Web**: [driverparty.com](https://driverparty.com)
-- **Panel de Administración**: [admin.driverparty.com](https://admin.driverparty.com)
-- **API Documentation**: [api.driverparty.com](https://api.driverparty.com)
+1. **"Google Maps API key not found"**:
+   - Verifica que `VITE_GOOGLE_MAPS_API_KEY` esté configurado
+   - Asegúrate de que la clave tenga las APIs habilitadas
 
-## 🙏 Agradecimientos
+2. **"Firebase not initialized"**:
+   - Verifica la configuración de Firebase en `src/firebase.js`
+   - Asegúrate de que las reglas de Firestore permitan acceso
 
-- **Google Maps API** por la funcionalidad de mapas
-- **Firebase** por el backend robusto
-- **Font Awesome** por los iconos
-- **Chart.js** por las visualizaciones
-- **Comunidad de desarrolladores** por el soporte
+3. **"Geolocation not supported"**:
+   - Usa HTTPS en producción
+   - Verifica permisos del navegador
+
+### Debugging
+
+```javascript
+// Habilitar logs detallados
+localStorage.setItem('debug', 'true');
+
+// Ver estado del viaje
+console.log('Trip data:', tripData);
+
+// Ver posición actual
+console.log('Current position:', currentPosition);
+```
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+
+## 🤝 Contribuciones
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
 ---
 
-**DriverParty v2.0.0** - Conectando el mundo, un viaje a la vez 🚗✨
+**DriverParty** - Navegación inteligente para conductores designados 🚗✨

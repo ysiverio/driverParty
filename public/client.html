@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriverParty - Cliente</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Barra superior con próxima instrucción -->
+    <div id="instruction-bar" class="instruction-bar">
+        <div class="instruction-content">
+            <i class="fas fa-route"></i>
+            <span id="next-instruction">Esperando conductor...</span>
+        </div>
+        <div class="instruction-actions">
+            <button id="recenter-btn" class="action-btn" title="Recentar mapa">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+            <button id="google-maps-btn" class="action-btn" title="Abrir en Google Maps">
+                <i class="fab fa-google"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Panel lateral con lista de pasos -->
+    <div id="steps-panel" class="steps-panel">
+        <div class="steps-header">
+            <h3>Instrucciones de navegación</h3>
+            <button id="toggle-steps-btn" class="toggle-btn">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        <div id="steps-list" class="steps-list">
+            <!-- Los pasos se cargarán dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Mapa principal -->
+    <div id="map" class="map-container"></div>
+
+    <!-- Panel de información del viaje -->
+    <div id="trip-info-panel" class="trip-info-panel">
+        <div class="trip-status">
+            <div id="trip-status" class="status-indicator">
+                <i class="fas fa-clock"></i>
+                <span>Esperando conductor...</span>
+            </div>
+        </div>
+        
+        <div class="driver-info" id="driver-info" style="display: none;">
+            <div class="driver-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="driver-details">
+                <div class="driver-name" id="driver-name">Conductor</div>
+                <div class="driver-eta" id="driver-eta">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicador de carga -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="../src/firebase.js"></script>
+    <script type="module" src="../src/maps.js"></script>
+    <script type="module" src="../src/directions.js"></script>
+    <script type="module" src="../src/location.js"></script>
+    <script type="module" src="../src/trips.js"></script>
+    <script type="module" src="../src/utils.js"></script>
+    
+    <script type="module">
+        import { db, auth } from '../src/firebase.js';
+        import { createMap } from '../src/maps.js';
+        import { listenTrip, listenDriverPresence } from '../src/trips.js';
+        import { formatInstruction } from '../src/utils.js';
+
+        // Estado global
+        let tripId = null;
+        let tripData = null;
+        let mapInstance = null;
+        let driverPresence = null;
+
+        // Elementos del DOM
+        const instructionBar = document.getElementById('instruction-bar');
+        const nextInstruction = document.getElementById('next-instruction');
+        const stepsPanel = document.getElementById('steps-panel');
+        const stepsList = document.getElementById('steps-list');
+        const toggleStepsBtn = document.getElementById('toggle-steps-btn');
+        const mapContainer = document.getElementById('map');
+        const tripInfoPanel = document.getElementById('trip-info-panel');
+        const tripStatus = document.getElementById('trip-status');
+        const driverInfo = document.getElementById('driver-info');
+        const driverName = document.getElementById('driver-name');
+        const driverEta = document.getElementById('driver-eta');
+        const recenterBtn = document.getElementById('recenter-btn');
+        const googleMapsBtn = document.getElementById('google-maps-btn');
+        const loading = document.getElementById('loading');
+
+        // Inicialización
+        async function init() {
+            // Obtener tripId de la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            tripId = urlParams.get('tripId');
+            
+            if (!tripId) {
+                alert('No se proporcionó un ID de viaje');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Inicializar mapa
+            try {
+                mapInstance = await createMap('map');
+                console.log('Mapa inicializado');
+            } catch (error) {
+                console.error('Error inicializando mapa:', error);
+                alert('Error al cargar el mapa');
+                return;
+            }
+
+            // Escuchar cambios en el viaje
+            listenTrip(tripId, handleTripUpdate);
+            
+            // Escuchar presencia del conductor
+            listenDriverPresence(tripId, handleDriverPresence);
+            
+            // Event listeners
+            setupEventListeners();
+            
+            // Ocultar loading
+            loading.style.display = 'none';
+        }
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            recenterBtn.addEventListener('click', recenterMap);
+            googleMapsBtn.addEventListener('click', openInGoogleMaps);
+            toggleStepsBtn.addEventListener('click', toggleStepsPanel);
+        }
+
+        // Manejar actualizaciones del viaje
+        function handleTripUpdate(trip) {
+            tripData = trip;
+            console.log('Viaje actualizado:', trip);
+
+            if (!trip) {
+                alert('Viaje no encontrado');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            updateUI();
+            handleTripStatus(trip.status);
+        }
+
+        // Manejar presencia del conductor
+        function handleDriverPresence(presence) {
+            driverPresence = presence;
+            console.log('Presencia del conductor:', presence);
+
+            if (presence && mapInstance) {
+                // Actualizar marcador del auto
+                mapInstance.updateCarMarker({
+                    lat: presence.lat,
+                    lng: presence.lng,
+                    heading: presence.heading || 0
+                });
+
+                // Calcular ETA si tenemos ruta
+                if (tripData && tripData.routeToPickup) {
+                    calculateETA(presence);
+                }
+            }
+        }
+
+        // Calcular tiempo estimado de llegada
+        function calculateETA(driverPosition) {
+            if (!tripData || !tripData.routeToPickup) return;
+
+            try {
+                // Calcular distancia restante
+                const distanceToPickup = google.maps.geometry.spherical.computeDistanceBetween(
+                    new google.maps.LatLng(driverPosition.lat, driverPosition.lng),
+                    new google.maps.LatLng(tripData.pickup.lat, tripData.pickup.lng)
+                );
+
+                // Estimación: 2 minutos por km
+                const etaMinutes = Math.round((distanceToPickup / 1000) * 2);
+                
+                if (etaMinutes < 1) {
+                    driverEta.textContent = 'Llegando...';
+                } else {
+                    driverEta.textContent = `${etaMinutes} min`;
+                }
+            } catch (error) {
+                console.error('Error calculando ETA:', error);
+                driverEta.textContent = '--';
+            }
+        }
+
+        // Actualizar UI según el estado del viaje
+        function updateUI() {
+            if (!tripData) return;
+
+            // Actualizar estado
+            const statusText = getStatusText(tripData.status);
+            tripStatus.innerHTML = `<i class="fas fa-clock"></i><span>${statusText}</span>`;
+
+            // Mostrar/ocultar información del conductor
+            if (['accepted', 'en_route_to_pickup', 'arrived', 'in_progress'].includes(tripData.status)) {
+                driverInfo.style.display = 'flex';
+                if (tripData.driverId) {
+                    driverName.textContent = `Conductor ${tripData.driverId.slice(-4)}`;
+                }
+            } else {
+                driverInfo.style.display = 'none';
+            }
+            
+            // Actualizar instrucciones
+            updateInstructions();
+            
+            // Actualizar lista de pasos
+            updateStepsList();
+        }
+
+        // Obtener texto del estado
+        function getStatusText(status) {
+            const statusMap = {
+                'requested': 'Esperando conductor...',
+                'accepted': 'Conductor aceptó el viaje',
+                'en_route_to_pickup': 'Conductor en camino',
+                'arrived': 'Conductor llegó',
+                'in_progress': 'Viaje en progreso',
+                'completed': 'Viaje completado',
+                'canceled_by_client': 'Cancelado por ti',
+                'canceled_by_driver': 'Cancelado por conductor'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Actualizar instrucciones
+        function updateInstructions() {
+            if (!tripData) return;
+
+            let instruction = 'Esperando conductor...';
+            let routeData = null;
+
+            // Determinar qué ruta mostrar según el estado
+            if (['accepted', 'en_route_to_pickup'].includes(tripData.status)) {
+                routeData = tripData.routeToPickup;
+                instruction = 'Conductor en camino hacia ti';
+            } else if (['arrived', 'in_progress'].includes(tripData.status)) {
+                routeData = tripData.routeToDestination;
+            }
+
+            if (routeData && routeData.steps && routeData.steps.length > 0) {
+                const currentStep = routeData.steps[tripData.currentStepIndex || 0];
+                if (currentStep) {
+                    instruction = formatInstruction(currentStep);
+                }
+            }
+
+            nextInstruction.textContent = instruction;
+        }
+
+        // Actualizar lista de pasos
+        function updateStepsList() {
+            if (!tripData) return;
+
+            let routeData = null;
+            if (['accepted', 'en_route_to_pickup'].includes(tripData.status)) {
+                routeData = tripData.routeToPickup;
+            } else if (['arrived', 'in_progress'].includes(tripData.status)) {
+                routeData = tripData.routeToDestination;
+            }
+
+            if (!routeData || !routeData.steps) {
+                stepsList.innerHTML = '<p>No hay instrucciones disponibles</p>';
+                return;
+            }
+
+            const currentStepIndex = tripData.currentStepIndex || 0;
+            
+            stepsList.innerHTML = routeData.steps.map((step, index) => {
+                const isActive = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+                
+                return `
+                    <div class="step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}" 
+                         data-step="${index}">
+                        <div class="step-number">${index + 1}</div>
+                        <div class="step-content">
+                            <div class="step-instruction">${formatInstruction(step)}</div>
+                            <div class="step-distance">${step.distance?.text || ''}</div>
+                        </div>
+                        <div class="step-status">
+                            ${isActive ? '<i class="fas fa-play"></i>' : ''}
+                            ${isCompleted ? '<i class="fas fa-check"></i>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Scroll al paso activo
+            const activeStep = stepsList.querySelector('.step-item.active');
+            if (activeStep) {
+                activeStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Manejar cambios de estado del viaje
+        function handleTripStatus(status) {
+            switch (status) {
+                case 'requested':
+                    // Esperar a que el conductor acepte
+                    break;
+                case 'accepted':
+                case 'en_route_to_pickup':
+                    // Mostrar ruta al pickup
+                    if (tripData.routeToPickup) {
+                        mapInstance.renderRoute(tripData.routeToPickup, 'toPickup');
+                        mapInstance.setCameraToDrivingView();
+                    }
+                    break;
+                case 'arrived':
+                    // Mostrar ruta al destino
+                    if (tripData.routeToDestination) {
+                        mapInstance.renderRoute(tripData.routeToDestination, 'toDestination');
+                        mapInstance.setCameraToDrivingView();
+                    }
+                    break;
+                case 'in_progress':
+                    // Seguir el viaje en progreso
+                    if (tripData.routeToDestination) {
+                        mapInstance.renderRoute(tripData.routeToDestination, 'toDestination');
+                        mapInstance.setCameraToDrivingView();
+                    }
+                    break;
+                case 'completed':
+                    // Viaje completado
+                    alert('¡Viaje completado!');
+                    break;
+            }
+        }
+
+        // Recentrar mapa
+        function recenterMap() {
+            if (mapInstance && mapInstance.recenter) {
+                mapInstance.recenter();
+            }
+        }
+
+        // Abrir en Google Maps
+        function openInGoogleMaps() {
+            if (!tripData) return;
+
+            let origin, destination;
+            
+            if (['accepted', 'en_route_to_pickup'].includes(tripData.status)) {
+                origin = `${tripData.pickup.lat},${tripData.pickup.lng}`;
+                destination = `${tripData.pickup.lat},${tripData.pickup.lng}`;
+            } else {
+                origin = `${tripData.pickup.lat},${tripData.pickup.lng}`;
+                destination = `${tripData.destination.lat},${tripData.destination.lng}`;
+            }
+
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving&dir_action=navigate`;
+            window.open(url, '_blank');
+        }
+
+        // Alternar panel de pasos
+        function toggleStepsPanel() {
+            stepsPanel.classList.toggle('collapsed');
+            const icon = toggleStepsBtn.querySelector('i');
+            if (stepsPanel.classList.contains('collapsed')) {
+                icon.className = 'fas fa-chevron-right';
+            } else {
+                icon.className = 'fas fa-chevron-left';
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
