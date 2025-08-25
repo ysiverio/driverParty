@@ -1,24 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Colección de viajes - Permitir acceso a usuarios autenticados
-    match /trips/{tripId} {
-      allow read, write: if request.auth != null;
-      
-      // Subcolección de presencia del conductor
-      match /presence/driver {
-        allow read, write: if request.auth != null;
-      }
-    }
-    
-    // Colección de usuarios
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Colección de conductores (opcional)
-    match /drivers/{driverId} {
-      allow read, write: if request.auth != null && request.auth.uid == driverId;
+    // Permitir acceso completo para desarrollo
+    // En producción, deberías usar reglas más restrictivas
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
