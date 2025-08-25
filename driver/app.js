@@ -796,6 +796,41 @@ function listenForTripRejection(tripId) {
     });
 }
 
+// --- Listen for Trip Payment ---
+function listenForTripPayment(tripId) {
+    const tripRef = doc(db, "tripRequests", tripId);
+    onSnapshot(tripRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const tripData = docSnap.data();
+            
+            // Verificar si el cliente ha pagado (cuando se crea el documento en 'trips')
+            if (tripData.tripId && tripData.status === 'accepted') {
+                console.log("Client has paid, starting navigation to client");
+                showNotificationToast('¡Cliente ha pagado! Iniciando navegación...');
+                
+                // Ocultar información de espera
+                const tripInfo = document.getElementById('trip-info');
+                if (tripInfo) {
+                    tripInfo.remove();
+                }
+                
+                // Iniciar navegación hacia el cliente
+                const userLocation = tripData.originCoords || tripData.userLocation;
+                if (userLocation) {
+                    startNavigationToClient(userLocation);
+                    
+                    // Obtener ubicación actual del conductor y calcular ruta
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                        const driverLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        calculateAndDisplayRoute(driverLocation, userLocation, 'to_client');
+                        startSharingLocation(driverLocation);
+                    }, (err) => console.error("Geolocation error:", err));
+                }
+            }
+        }
+    });
+}
+
 // --- Accept & Manage Trip ---
 async function acceptTrip(tripId) {
     if (activeTripId) return;
@@ -809,29 +844,36 @@ async function acceptTrip(tripId) {
         const tripDoc = await getDoc(tripRef);
         currentTripData = tripDoc.data();
         
-        // Usar originCoords en lugar de userLocation
-        const userLocation = currentTripData.originCoords || currentTripData.userLocation;
-        
-        // Iniciar fase 1: Navegación hacia el cliente
-        startNavigationToClient(userLocation);
-        
+        // Mostrar pantalla de espera de pago
         requestsPanel.style.display = 'none';
         tripPanel.style.display = 'block';
         tripClientName.textContent = currentTripData.userName;
         clearRequestMarkers();
-        // Crear marcador con fallback para compatibilidad
-        userMarker = createCustomMarker(userLocation, map, currentTripData.userName, '#4285f4');
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            calculateAndDisplayRoute(location, userLocation, 'to_client');
-            startSharingLocation(location);
-        }, (err) => console.error("Geolocation error:", err));
+        
+        // Crear marcador del cliente
+        const userLocation = currentTripData.originCoords || currentTripData.userLocation;
+        if (userLocation) {
+            userMarker = createCustomMarker(userLocation, map, currentTripData.userName, '#4285f4');
+        }
+        
+        // Crear marcador del destino si existe
+        if (currentTripData.destinationCoords) {
+            const destinationMarker = createCustomMarker(currentTripData.destinationCoords, map, currentTripData.destination || 'Destino', '#34A853', '🎯');
+        }
+        
+        // Mostrar información del viaje
+        showTripInfo(currentTripData);
+        
+        // Escuchar cambios en el viaje (pago del cliente)
+        listenForTripPayment(tripId);
         
         // Escuchar si el usuario rechaza el viaje
         listenForTripRejection(tripId);
         
         // Guardar estado del viaje
         saveTripState();
+        
+        showNotificationToast('Viaje aceptado. Esperando confirmación de pago del cliente...');
     } catch (error) { console.error("Error accepting trip: ", error); activeTripId = null; }
 }
 
@@ -844,12 +886,73 @@ function calculateAndDisplayRoute(origin, destination, phase = 'to_client') {
             // Mostrar información de la ruta
             const route = result.routes[0];
             const leg = route.legs[0];
-            showRouteInfo(leg.distance.text, leg.duration.text, phase);
+            showRouteInfo(leg.distance.text, leg.duration.text, phase, leg.steps);
         } else { console.error('Directions request failed: ' + status); }
     });
 }
 
-function showRouteInfo(distance, duration, phase = 'to_client') {
+// --- Trip Information Display ---
+function showTripInfo(tripData) {
+    // Crear o actualizar información del viaje
+    let tripInfo = document.getElementById('trip-info');
+    if (!tripInfo) {
+        tripInfo = document.createElement('div');
+        tripInfo.id = 'trip-info';
+        tripInfo.style.cssText = `
+            position: fixed;
+            top: 130px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.1);
+            max-width: 350px;
+        `;
+        document.body.appendChild(tripInfo);
+    }
+    
+    const destination = tripData.destination || 'Destino no especificado';
+    const estimatedDistance = tripData.estimatedDistance || 'Distancia no calculada';
+    const estimatedFare = tripData.estimatedFare || 'Tarifa no calculada';
+    
+    tripInfo.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #4285F4; font-weight: 600;">
+            <i class="fas fa-info-circle"></i>
+            <span>Información del Viaje</span>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <i class="fas fa-user" style="color: #4285F4;"></i>
+                <span><strong>Cliente:</strong> ${tripData.userName || 'Usuario'}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <i class="fas fa-map-marker-alt" style="color: #34A853;"></i>
+                <span><strong>Destino:</strong> ${destination}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <i class="fas fa-road" style="color: #4285F4;"></i>
+                <span><strong>Distancia:</strong> ${estimatedDistance}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                <i class="fas fa-dollar-sign" style="color: #34A853;"></i>
+                <span><strong>Tarifa:</strong> ${estimatedFare}</span>
+            </div>
+        </div>
+        <div style="border-top: 1px solid #eee; padding-top: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Estado:</div>
+            <div style="font-size: 13px; color: #ffc107; font-weight: 600;">
+                <i class="fas fa-clock"></i> Esperando pago del cliente
+            </div>
+        </div>
+    `;
+}
+
+function showRouteInfo(distance, duration, phase = 'to_client', steps = []) {
     // Crear o actualizar información de ruta
     let routeInfo = document.getElementById('route-info');
     if (!routeInfo) {
@@ -868,7 +971,9 @@ function showRouteInfo(distance, duration, phase = 'to_client') {
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0,0,0,0.1);
-            max-width: 300px;
+            max-width: 350px;
+            max-height: 400px;
+            overflow-y: auto;
         `;
         document.body.appendChild(routeInfo);
     }
@@ -876,6 +981,9 @@ function showRouteInfo(distance, duration, phase = 'to_client') {
     const phaseText = phase === 'to_client' ? 'Hacia el cliente' : 'Hacia el destino';
     const phaseIcon = phase === 'to_client' ? 'fa-user' : 'fa-map-marker-alt';
     const phaseColor = phase === 'to_client' ? '#4285F4' : '#34A853';
+    
+    // Obtener las primeras 3 instrucciones
+    const firstInstructions = steps.slice(0, 3).map(step => step.instructions.replace(/<[^>]*>/g, '')).join(' • ');
     
     routeInfo.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: ${phaseColor}; font-weight: 600;">
@@ -893,12 +1001,67 @@ function showRouteInfo(distance, duration, phase = 'to_client') {
             </div>
         </div>
         <div style="border-top: 1px solid #eee; padding-top: 8px;">
-            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Próxima instrucción:</div>
-            <div id="next-instruction" style="font-size: 13px; color: #333; font-weight: 500;">
-                Siguiendo la ruta optimizada...
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Próximas instrucciones:</div>
+            <div id="next-instruction" style="font-size: 13px; color: #333; font-weight: 500; line-height: 1.4;">
+                ${firstInstructions || 'Siguiendo la ruta optimizada...'}
+            </div>
+        </div>
+        ${steps.length > 3 ? `
+        <div style="margin-top: 8px; text-align: center;">
+            <button id="show-all-instructions" style="background: ${phaseColor}; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                Ver todas las instrucciones (${steps.length})
+            </button>
+        </div>
+        ` : ''}
+    `;
+    
+    // Agregar event listener para mostrar todas las instrucciones
+    const showAllBtn = document.getElementById('show-all-instructions');
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', () => {
+            showAllInstructions(steps, phase);
+        });
+    }
+}
+
+function showAllInstructions(steps, phase) {
+    const phaseText = phase === 'to_client' ? 'Hacia el cliente' : 'Hacia el destino';
+    const phaseColor = phase === 'to_client' ? '#4285F4' : '#34A853';
+    
+    const instructionsModal = document.createElement('div');
+    instructionsModal.className = 'overlay-container';
+    instructionsModal.style.display = 'flex';
+    instructionsModal.innerHTML = `
+        <div class="modal-box" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="color: ${phaseColor}; margin: 0;">
+                    <i class="fas fa-route"></i> Instrucciones de Navegación
+                </h2>
+                <button onclick="this.closest('.overlay-container').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">×</button>
+            </div>
+            <div style="margin-bottom: 16px; padding: 8px; background: #f8f9fa; border-radius: 8px;">
+                <strong>${phaseText}</strong>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                ${steps.map((step, index) => `
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px; padding: 8px; border-left: 3px solid ${phaseColor}; background: #f8f9fa;">
+                        <div style="flex-shrink: 0; width: 24px; height: 24px; background: ${phaseColor}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">
+                            ${index + 1}
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 14px; color: #333; margin-bottom: 4px;">
+                                ${step.instructions.replace(/<[^>]*>/g, '')}
+                            </div>
+                            <div style="font-size: 12px; color: #666;">
+                                ${step.distance?.text || ''} • ${step.duration?.text || ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `;
+    document.body.appendChild(instructionsModal);
 }
 
 // --- Navigation Flow Functions ---
@@ -927,6 +1090,9 @@ function startNavigationToClient(clientLocation) {
         
         // Iniciar actualizaciones de ubicación en tiempo real
         startLocationUpdates();
+        
+        // Mostrar instrucciones de navegación hacia el cliente
+        showNotificationToast('¡En camino hacia el cliente! Siguiendo ruta optimizada');
     }, (err) => {
         console.error("Error getting driver location:", err);
     });
@@ -959,6 +1125,9 @@ function startNavigationToDestination() {
         
         // Actualizar información de tiempo y distancia
         updateNavigationInfo(driverLocation, currentTripData.destinationCoords, 'to_destination');
+        
+        // Mostrar instrucciones de navegación hacia el destino
+        showNotificationToast('¡Viaje iniciado! Siguiendo ruta hacia el destino');
     }, (err) => {
         console.error("Error getting driver location:", err);
     });
@@ -1185,6 +1354,19 @@ function deactivateNavigationMode() {
             }
         }, 300);
     }
+    
+    // Remover información del viaje
+    const tripInfo = document.getElementById('trip-info');
+    if (tripInfo) {
+        tripInfo.style.transition = 'all 0.3s ease';
+        tripInfo.style.transform = 'translateY(-20px)';
+        tripInfo.style.opacity = '0';
+        setTimeout(() => {
+            if (tripInfo && tripInfo.parentNode) {
+                tripInfo.parentNode.removeChild(tripInfo);
+            }
+        }, 300);
+    }
 }
 
 startTripButton.addEventListener('click', () => startNavigationToDestination());
@@ -1334,6 +1516,13 @@ function resetTripState(isLogout = false) {
     if (!isLogout) {
         deactivateNavigationMode();
     }
+    
+    // Limpiar información del viaje
+    const tripInfo = document.getElementById('trip-info');
+    if (tripInfo) tripInfo.remove();
+    
+    const routeInfo = document.getElementById('route-info');
+    if (routeInfo) routeInfo.remove();
     
     tripPanel.style.display = 'none';
     if (!isLogout && onlineToggle && onlineToggle.checked) {
@@ -2063,13 +2252,18 @@ function resetNavigationState() {
     const routeInfo = document.getElementById('route-info');
     if (routeInfo) routeInfo.remove();
     
+    const tripInfo = document.getElementById('trip-info');
+    if (tripInfo) tripInfo.remove();
+    
     // Limpiar ruta
     if (directionsRenderer) {
         directionsRenderer.setDirections({ routes: [] });
     }
     
     // Restaurar zoom original
-    map.setZoom(originalZoom);
+    if (map && typeof map.setZoom === 'function') {
+        map.setZoom(originalZoom);
+    }
 }
 
 
