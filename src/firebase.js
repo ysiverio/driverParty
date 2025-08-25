@@ -51,7 +51,18 @@ async function initializeAuth() {
         return currentUser;
     } catch (error) {
         console.error('Error signing in anonymously:', error);
-        throw error;
+        
+        // Check if anonymous auth is disabled
+        if (error.code === 'auth/admin-restricted-operation') {
+            console.error('Anonymous authentication is disabled. Please enable it in Firebase Console:');
+            console.error('1. Go to Firebase Console > Authentication > Sign-in method');
+            console.error('2. Enable Anonymous authentication');
+            console.error('3. Save the changes');
+        }
+        
+        // For now, continue without authentication
+        console.warn('Continuing without authentication. Some features may not work.');
+        return null;
     }
 }
 

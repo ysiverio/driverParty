@@ -49,7 +49,15 @@ function loadGoogleMapsAPI() {
 function getGoogleMapsAPIKey() {
     // For development, you can set this in your .env file
     // For production, you should use a proper environment variable system
-    return import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
+    const apiKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey || apiKey === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
+        console.error('Google Maps API key not configured. Please set VITE_GOOGLE_MAPS_API_KEY in your .env file');
+        console.error('Get your API key at: https://console.cloud.google.com/apis/credentials');
+        return null;
+    }
+    
+    return apiKey;
 }
 
 // Create map instance
