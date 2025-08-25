@@ -929,7 +929,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     z-index: 20;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d1b69 50%, #1a1a1a 100%);
+    background: transparent;
+    pointer-events: none;
 }
 
 .navigation-content {
@@ -937,8 +938,9 @@ input:checked + .slider:before { transform: translateX(22px); }
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 60px 20px 40px;
+    padding: 20px;
     text-align: center;
+    pointer-events: auto;
 }
 
 .navigation-header {
@@ -986,7 +988,7 @@ input:checked + .slider:before { transform: translateX(22px); }
 }
 
 .info-card {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 15px;
@@ -995,6 +997,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     align-items: center;
     gap: 15px;
     transition: all 0.3s ease;
+    color: white;
 }
 
 .info-card:hover {
