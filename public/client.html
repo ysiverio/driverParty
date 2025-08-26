@@ -652,6 +652,10 @@
                 tripSetupPanel.style.display = 'none';
                 tripInfoPanel.style.display = 'block';
                 
+                // Configurar listeners para el viaje creado
+                listenTrip(tripId, handleTripUpdate);
+                listenDriverPresence(tripId, handleDriverPresence);
+                
                 // Mostrar mensaje de éxito
                 showTripCreatedMessage();
                 
