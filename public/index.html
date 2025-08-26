@@ -9,7 +9,15 @@
 </head>
 <body>
     <div class="container">
-        <div class="role-selection">
+        <!-- Loading indicator -->
+        <div id="loading" class="loading-overlay" style="display: flex;">
+            <div class="loading-content">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Verificando autenticación...</p>
+            </div>
+        </div>
+        
+        <div class="role-selection" style="display: none;">
             <div class="logo">
                 <i class="fas fa-car"></i>
                 <h1>DriverParty</h1>
@@ -67,10 +75,11 @@
     </div>
 
     <script type="module">
-        import { currentUser, signOutUser } from '../src/firebase.js';
+        import { auth, signOutUser } from '../src/firebase.js';
         import { UIUtils } from '../config.js';
         
         let selectedRole = null;
+        let currentUser = null;
         
         // Elementos del DOM
         const driverBtn = document.getElementById('driver-btn');
@@ -87,13 +96,26 @@
         
         // Check authentication on page load
         document.addEventListener('DOMContentLoaded', () => {
-            if (!currentUser) {
-                // Redirect to auth page if not logged in
-                window.location.href = 'auth.html';
-                return;
-            }
+            const loading = document.getElementById('loading');
+            const roleSelection = document.querySelector('.role-selection');
             
-            console.log('User authenticated:', currentUser.uid);
+            // Wait for auth state to be determined
+            auth.onAuthStateChanged((user) => {
+                // Hide loading
+                loading.style.display = 'none';
+                
+                if (user) {
+                    currentUser = user;
+                    console.log('User authenticated:', user.uid);
+                    // User is logged in, show the role selection
+                    roleSelection.style.display = 'block';
+                } else {
+                    currentUser = null;
+                    console.log('No user authenticated, redirecting to auth');
+                    // Redirect to auth page if not logged in
+                    window.location.href = 'auth.html';
+                }
+            });
         });
         
         // Event listeners

@@ -381,6 +381,7 @@ body {
     background: #7b1fa2;
 }
 
+.pickup-suggestions,
 .destination-suggestions {
     max-height: 200px;
     overflow-y: auto;
@@ -390,6 +391,7 @@ body {
     display: none;
 }
 
+.pickup-suggestions.show,
 .destination-suggestions.show {
     display: block;
 }
@@ -420,6 +422,7 @@ body {
     color: rgba(255, 255, 255, 0.6);
 }
 
+.selected-pickup,
 .selected-destination {
     background: #2a2a2a;
     border: 1px solid #9c27b0;
@@ -431,11 +434,17 @@ body {
     align-items: center;
 }
 
+.pickup-info,
 .destination-info {
     display: flex;
     align-items: center;
     gap: 12px;
     color: #fff;
+}
+
+.pickup-info i {
+    color: #4CAF50;
+    font-size: 18px;
 }
 
 .destination-info i {
