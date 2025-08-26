@@ -448,54 +448,20 @@
             }
         }
 
-        // Obtener detalles del lugar usando la nueva API Place
+        // Obtener detalles del lugar usando PlacesService
         async function getPlaceDetails(placeId) {
             return new Promise((resolve, reject) => {
-                // Check if new Place API is available
-                if (google.maps.places && google.maps.places.Place) {
-                    // Use new Place API
-                    const place = new google.maps.places.Place({
-                        id: placeId,
-                        requestedLanguage: 'es'
-                    });
-                    
-                    place.fetchPlace({
-                        fields: ['geometry', 'formattedAddress']
-                    }).then((result) => {
-                        if (result && result.geometry) {
-                            resolve({
-                                geometry: {
-                                    location: result.geometry.location
-                                },
-                                formatted_address: result.formattedAddress
-                            });
-                        } else {
-                            reject(new Error('No se pudieron obtener los detalles del lugar'));
-                        }
-                    }).catch((error) => {
-                        console.warn('Error with new Place API, falling back to PlacesService:', error);
-                        // Fallback to PlacesService
-                        getPlaceDetailsFallback(placeId, resolve, reject);
-                    });
-                } else {
-                    // Fallback to PlacesService
-                    getPlaceDetailsFallback(placeId, resolve, reject);
-                }
-            });
-        }
-
-        // Fallback function using PlacesService
-        function getPlaceDetailsFallback(placeId, resolve, reject) {
-            const service = new google.maps.places.PlacesService(mapInstance.map);
-            service.getDetails({
-                placeId: placeId,
-                fields: ['geometry', 'formatted_address']
-            }, (place, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-                    resolve(place);
-                } else {
-                    reject(new Error('No se pudieron obtener los detalles del lugar'));
-                }
+                const service = new google.maps.places.PlacesService(mapInstance.map);
+                service.getDetails({
+                    placeId: placeId,
+                    fields: ['geometry', 'formatted_address']
+                }, (place, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                        resolve(place);
+                    } else {
+                        reject(new Error('No se pudieron obtener los detalles del lugar'));
+                    }
+                });
             });
         }
 
