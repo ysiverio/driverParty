@@ -320,17 +320,42 @@
                     return;
                 }
                 
-                const service = new google.maps.places.AutocompleteService();
-                service.getPlacePredictions({
-                    input: query,
-                    types: ['establishment', 'geocode']
-                }, (predictions, status) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                        resolve(predictions);
-                    } else {
-                        resolve([]);
+                // Try new AutocompleteSuggestion API first, fallback to AutocompleteService
+                if (google.maps.places.AutocompleteSuggestion) {
+                    try {
+                        const autocomplete = new google.maps.places.AutocompleteSuggestion();
+                        autocomplete.getPlacePredictions({
+                            input: query,
+                            types: ['establishment', 'geocode']
+                        }).then((predictions) => {
+                            resolve(predictions || []);
+                        }).catch(() => {
+                            // Fallback to AutocompleteService
+                            useAutocompleteService(query, resolve);
+                        });
+                    } catch (error) {
+                        // Fallback to AutocompleteService
+                        useAutocompleteService(query, resolve);
                     }
-                });
+                } else {
+                    // Use AutocompleteService as fallback
+                    useAutocompleteService(query, resolve);
+                }
+            });
+        }
+
+        // Fallback function using AutocompleteService
+        function useAutocompleteService(query, resolve) {
+            const service = new google.maps.places.AutocompleteService();
+            service.getPlacePredictions({
+                input: query,
+                types: ['establishment', 'geocode']
+            }, (predictions, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    resolve(predictions);
+                } else {
+                    resolve([]);
+                }
             });
         }
 
@@ -467,8 +492,8 @@
 
         // Helper function to create markers with AdvancedMarkerElement fallback
         function createMarker(options) {
-            // Check if AdvancedMarkerElement is available and map is properly initialized
-            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement && options.map && options.map.getMapId) {
+            // Check if AdvancedMarkerElement is available
+            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
                 try {
                     // Create AdvancedMarkerElement
                     const markerElement = document.createElement('div');
