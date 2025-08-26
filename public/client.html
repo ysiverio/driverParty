@@ -465,25 +465,49 @@
             });
         }
 
+        // Helper function to create markers with AdvancedMarkerElement fallback
+        function createMarker(options) {
+            // Check if AdvancedMarkerElement is available
+            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+                // Create AdvancedMarkerElement
+                const markerElement = document.createElement('div');
+                markerElement.innerHTML = options.icon?.url || '📍';
+                markerElement.style.fontSize = '24px';
+                markerElement.style.cursor = 'pointer';
+                
+                return new google.maps.marker.AdvancedMarkerElement({
+                    position: options.position,
+                    map: options.map,
+                    title: options.title,
+                    content: markerElement
+                });
+            } else {
+                // Fallback to traditional Marker
+                return new google.maps.Marker(options);
+            }
+        }
+
         // Agregar marcador de pickup en el mapa
         function addPickupMarker(pickup) {
             if (mapInstance.pickupMarker) {
                 mapInstance.pickupMarker.setMap(null);
             }
             
-            mapInstance.pickupMarker = new google.maps.Marker({
+            const pickupIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4CAF50"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(24, 24),
+                anchor: new google.maps.Point(12, 24)
+            };
+            
+            mapInstance.pickupMarker = createMarker({
                 position: { lat: pickup.lat, lng: pickup.lng },
                 map: mapInstance.map,
                 title: pickup.name,
-                icon: {
-                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4CAF50"/>
-                        </svg>
-                    `),
-                    scaledSize: new google.maps.Size(24, 24),
-                    anchor: new google.maps.Point(12, 24)
-                }
+                icon: pickupIcon
             });
             
             // Ajustar vista del mapa para mostrar pickup y destino
@@ -496,19 +520,21 @@
                 mapInstance.destinationMarker.setMap(null);
             }
             
-            mapInstance.destinationMarker = new google.maps.Marker({
+            const destinationIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#9c27b0"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(24, 24),
+                anchor: new google.maps.Point(12, 24)
+            };
+            
+            mapInstance.destinationMarker = createMarker({
                 position: { lat: destination.lat, lng: destination.lng },
                 map: mapInstance.map,
                 title: destination.name,
-                icon: {
-                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#9c27b0"/>
-                        </svg>
-                    `),
-                    scaledSize: new google.maps.Size(24, 24),
-                    anchor: new google.maps.Point(12, 24)
-                }
+                icon: destinationIcon
             });
             
             // Ajustar vista del mapa para mostrar pickup y destino

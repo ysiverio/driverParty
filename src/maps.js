@@ -25,7 +25,7 @@ function loadGoogleMapsAPI() {
 
         // Create script element
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initGoogleMaps`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places,marker&callback=initGoogleMaps`;
         script.async = true;
         script.defer = true;
 
@@ -106,6 +106,28 @@ async function createMap(elementId) {
         destination: null
     };
 
+    // Helper function to create markers with AdvancedMarkerElement fallback
+    function createMarker(options) {
+        // Check if AdvancedMarkerElement is available
+        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+            // Create AdvancedMarkerElement
+            const markerElement = document.createElement('div');
+            markerElement.innerHTML = options.icon?.url || '📍';
+            markerElement.style.fontSize = '24px';
+            markerElement.style.cursor = 'pointer';
+            
+            return new google.maps.marker.AdvancedMarkerElement({
+                position: options.position,
+                map: options.map,
+                title: options.title,
+                content: markerElement
+            });
+        } else {
+            // Fallback to traditional Marker
+            return new google.maps.Marker(options);
+        }
+    }
+
     // Create car marker
     function createCarMarker(position) {
         if (markers.car) {
@@ -118,7 +140,7 @@ async function createMap(elementId) {
             anchor: new google.maps.Point(16, 16)
         };
 
-        markers.car = new google.maps.Marker({
+        markers.car = createMarker({
             position: position,
             map: map,
             icon: carIcon,
@@ -135,7 +157,7 @@ async function createMap(elementId) {
             markers.pickup.setMap(null);
         }
 
-        markers.pickup = new google.maps.Marker({
+        markers.pickup = createMarker({
             position: position,
             map: map,
             icon: {
@@ -155,7 +177,7 @@ async function createMap(elementId) {
             markers.destination.setMap(null);
         }
 
-        markers.destination = new google.maps.Marker({
+        markers.destination = createMarker({
             position: position,
             map: map,
             icon: {
@@ -176,7 +198,12 @@ async function createMap(elementId) {
         if (!markers.car) {
             createCarMarker(position);
         } else {
-            markers.car.setPosition(position);
+            // Handle both AdvancedMarkerElement and traditional Marker
+            if (markers.car.setPosition) {
+                markers.car.setPosition(position);
+            } else if (markers.car.position) {
+                markers.car.position = position;
+            }
         }
 
         // Update car icon rotation based on heading
@@ -186,7 +213,17 @@ async function createMap(elementId) {
                 scaledSize: new google.maps.Size(32, 32),
                 anchor: new google.maps.Point(16, 16)
             };
-            markers.car.setIcon(carIcon);
+            
+            // Handle both AdvancedMarkerElement and traditional Marker
+            if (markers.car.setIcon) {
+                markers.car.setIcon(carIcon);
+            } else if (markers.car.content) {
+                // For AdvancedMarkerElement, update the content
+                const markerElement = markers.car.content;
+                if (markerElement && markerElement.innerHTML !== undefined) {
+                    markerElement.innerHTML = carIcon.url;
+                }
+            }
         }
     }
 
