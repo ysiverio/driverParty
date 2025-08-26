@@ -157,14 +157,7 @@
             // Obtener tripId de la URL
             const urlParams = new URLSearchParams(window.location.search);
             tripId = urlParams.get('tripId');
-            const isNewTrip = urlParams.get('new') === 'true';
             
-            if (!tripId) {
-                alert('No se proporcionó un ID de viaje');
-                window.location.href = 'index.html';
-                return;
-            }
-
             // Inicializar mapa
             try {
                 mapInstance = await createMap('map');
@@ -174,23 +167,50 @@
                 alert('Error al cargar el mapa');
                 return;
             }
-
-            // Si es un viaje nuevo, crear el documento en Firestore
-            if (isNewTrip) {
-                await createNewTripDocument();
-            }
-
-            // Escuchar cambios en el viaje
-            listenTrip(tripId, handleTripUpdate);
             
-            // Escuchar presencia del conductor
-            listenDriverPresence(tripId, handleDriverPresence);
+            // Verificar si es un viaje nuevo
+            const isNewTrip = urlParams.get('new') === 'true';
+            
+            if (isNewTrip) {
+                // Generar nuevo tripId
+                tripId = generateTripId();
+                
+                // Configurar para nuevo viaje
+                setupNewTrip();
+            } else if (tripId) {
+                // Unirse a viaje existente
+                joinExistingTrip();
+            } else {
+                alert('No se proporcionó un ID de viaje válido');
+                window.location.href = 'index.html';
+                return;
+            }
             
             // Event listeners
             setupEventListeners();
             
             // Ocultar loading
             loading.style.display = 'none';
+        }
+
+        // Generar ID único para el viaje
+        function generateTripId() {
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substring(2, 10);
+            return `trip_${timestamp}_${randomId}`;
+        }
+
+        // Unirse a viaje existente
+        function joinExistingTrip() {
+            // Mostrar panel de información del viaje
+            tripSetupPanel.style.display = 'none';
+            tripInfoPanel.style.display = 'block';
+            
+            // Escuchar cambios en el viaje
+            listenTrip(tripId, handleTripUpdate);
+            
+            // Escuchar presencia del conductor
+            listenDriverPresence(tripId, handleDriverPresence);
         }
 
         // Configurar para nuevo viaje
