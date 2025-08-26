@@ -8,6 +8,18 @@ async function fetchRoute({ origin, destination, travelMode = 'DRIVING' }) {
     await loadGoogleMapsAPI();
 
     return new Promise((resolve, reject) => {
+        // Validate that origin and destination are different
+        const originLatLng = new google.maps.LatLng(origin.lat, origin.lng);
+        const destLatLng = new google.maps.LatLng(destination.lat, destination.lng);
+        
+        const distance = google.maps.geometry.spherical.computeDistanceBetween(originLatLng, destLatLng);
+        
+        // If distance is less than 10 meters, consider it the same location
+        if (distance < 10) {
+            reject(new Error('Origin and destination are too close to each other (less than 10 meters)'));
+            return;
+        }
+
         const directionsService = new google.maps.DirectionsService();
         
         const request = {
@@ -21,8 +33,12 @@ async function fetchRoute({ origin, destination, travelMode = 'DRIVING' }) {
 
         directionsService.route(request, (result, status) => {
             if (status === 'OK') {
-                const normalizedRoute = normalizeRoute(result);
-                resolve(normalizedRoute);
+                try {
+                    const normalizedRoute = normalizeRoute(result);
+                    resolve(normalizedRoute);
+                } catch (error) {
+                    reject(new Error(`Failed to normalize route: ${error.message}`));
+                }
             } else {
                 reject(new Error(`Directions request failed: ${status}`));
             }
@@ -43,9 +59,25 @@ function normalizeRoute(directionsResult) {
     
     const leg = route.legs[0];
     
-    // Validate polyline
+    // Check if we have a valid polyline
     if (!route.overview_polyline || !route.overview_polyline.encoded) {
-        throw new Error('No polyline found in route');
+        console.warn('No polyline found in route, this might be a very short route');
+        
+        // For very short routes, create a simple polyline between origin and destination
+        const originLatLng = new google.maps.LatLng(leg.start_location.lat(), leg.start_location.lng());
+        const destLatLng = new google.maps.LatLng(leg.end_location.lat(), leg.end_location.lng());
+        
+        // Create a simple encoded polyline with just the two points
+        const simplePolyline = google.maps.geometry.encoding.encodePath([
+            originLatLng,
+            destLatLng
+        ]);
+        
+        if (!simplePolyline) {
+            throw new Error('Unable to create polyline for route');
+        }
+        
+        route.overview_polyline = { encoded: simplePolyline };
     }
     
     // Normalize steps
