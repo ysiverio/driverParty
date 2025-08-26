@@ -345,6 +345,12 @@
                 // Obtener ubicación actual
                 const position = await getCurrentPosition();
                 
+                console.log('Driver position:', {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+                console.log('Pickup location:', tripData.pickup);
+                
                 // Calcular ruta al pickup
                 const route = await fetchRoute({
                     origin: {
@@ -354,6 +360,13 @@
                     destination: tripData.pickup,
                     travelMode: 'DRIVING'
                 });
+
+                // Validar que la ruta se generó correctamente
+                if (!route || !route.polyline) {
+                    throw new Error('No se pudo generar la ruta al pickup');
+                }
+
+                console.log('Route generated:', route);
 
                 // Actualizar viaje
                 await updateTrip(tripId, {
@@ -365,7 +378,7 @@
                 console.log('Viaje aceptado');
             } catch (error) {
                 console.error('Error aceptando viaje:', error);
-                alert('Error al aceptar el viaje');
+                alert('Error al aceptar el viaje: ' + error.message);
             }
         }
 
@@ -396,6 +409,13 @@
                     },
                     travelMode: 'DRIVING'
                 });
+
+                // Validar que la ruta se generó correctamente
+                if (!route || !route.polyline) {
+                    throw new Error('No se pudo generar la ruta al destino');
+                }
+
+                console.log('Route to destination generated:', route);
 
                 // Actualizar viaje
                 await updateTrip(tripId, {

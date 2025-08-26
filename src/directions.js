@@ -32,8 +32,21 @@ async function fetchRoute({ origin, destination, travelMode = 'DRIVING' }) {
 
 // Normalize route data from Google Maps API
 function normalizeRoute(directionsResult) {
+    if (!directionsResult || !directionsResult.routes || directionsResult.routes.length === 0) {
+        throw new Error('No routes found in directions result');
+    }
+    
     const route = directionsResult.routes[0];
+    if (!route || !route.legs || route.legs.length === 0) {
+        throw new Error('No legs found in route');
+    }
+    
     const leg = route.legs[0];
+    
+    // Validate polyline
+    if (!route.overview_polyline || !route.overview_polyline.encoded) {
+        throw new Error('No polyline found in route');
+    }
     
     // Normalize steps
     const steps = leg.steps.map(step => normalizeStep(step));
@@ -42,7 +55,7 @@ function normalizeRoute(directionsResult) {
     const totalDistance = leg.distance.value; // meters
     const totalDuration = leg.duration.value; // seconds
     
-    return {
+    const normalizedRoute = {
         polyline: route.overview_polyline.encoded,
         steps: steps,
         legs: [{
@@ -57,6 +70,14 @@ function normalizeRoute(directionsResult) {
         origin: leg.start_location,
         destination: leg.end_location
     };
+    
+    // Validate that all required fields are present
+    if (!normalizedRoute.polyline) {
+        throw new Error('Polyline is missing from normalized route');
+    }
+    
+    console.log('Normalized route:', normalizedRoute);
+    return normalizedRoute;
 }
 
 // Normalize individual step

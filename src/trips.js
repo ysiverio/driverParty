@@ -47,14 +47,34 @@ async function updateTrip(tripId, data) {
     try {
         const tripRef = doc(db, 'trips', tripId);
         
+        // Filter out undefined values to prevent Firestore errors
+        const cleanData = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (value !== undefined && value !== null) {
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    // Recursively clean nested objects
+                    const cleanNested = {};
+                    for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                        if (nestedValue !== undefined && nestedValue !== null) {
+                            cleanNested[nestedKey] = nestedValue;
+                        }
+                    }
+                    cleanData[key] = cleanNested;
+                } else {
+                    cleanData[key] = value;
+                }
+            }
+        }
+        
         // Add timestamp
         const updateData = {
-            ...data,
+            ...cleanData,
             updatedAt: serverTimestamp()
         };
         
+        console.log('Updating trip with data:', updateData);
         await updateDoc(tripRef, updateData);
-        console.log('Trip updated:', tripId, data);
+        console.log('Trip updated successfully:', tripId);
     } catch (error) {
         console.error('Error updating trip:', error);
         throw error;
