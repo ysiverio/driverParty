@@ -102,7 +102,7 @@
         import { db, auth } from '../src/firebase.js';
         import { createMap } from '../src/maps.js';
         import { fetchRoute } from '../src/directions.js';
-        import { watchDriverPosition } from '../src/location.js';
+        import { watchDriverPosition, stopPositionTracking } from '../src/location.js';
         import { getTrip, listenTrip, updateTrip, publishDriverPresence } from '../src/trips.js';
         import { stripHtml, formatInstruction } from '../src/utils.js';
 
@@ -440,12 +440,17 @@
             
             try {
                 // Iniciar seguimiento de posición
-                locationWatcher = await watchDriverPosition((position) => {
-                    publishDriverPresence(tripId, {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        heading: position.coords.heading || 0
-                    });
+                locationWatcher = watchDriverPosition({
+                    onUpdate: (position) => {
+                        publishDriverPresence(tripId, {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            heading: position.coords.heading || 0
+                        });
+                    },
+                    onError: (error) => {
+                        console.error('Error en seguimiento de posición:', error);
+                    }
                 });
                 
                 // Actualizar estado
@@ -469,7 +474,7 @@
             try {
                 // Detener seguimiento de posición
                 if (locationWatcher) {
-                    locationWatcher();
+                    stopPositionTracking();
                     locationWatcher = null;
                 }
                 
