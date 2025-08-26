@@ -40,8 +40,21 @@
     <!-- Mapa principal -->
     <div id="map" class="map-container"></div>
 
+    <!-- Panel de viajes disponibles -->
+    <div id="available-trips-panel" class="available-trips-panel">
+        <div class="panel-header">
+            <h3>Viajes disponibles</h3>
+            <button id="refresh-trips-btn" class="refresh-btn">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div id="trips-list" class="trips-list">
+            <!-- Los viajes se cargarán dinámicamente -->
+        </div>
+    </div>
+
     <!-- Panel de control del conductor -->
-    <div id="driver-controls" class="driver-controls">
+    <div id="driver-controls" class="driver-controls" style="display: none;">
         <div class="control-buttons">
             <button id="accept-trip-btn" class="control-btn primary">
                 <i class="fas fa-check"></i>
@@ -100,6 +113,7 @@
         let locationWatcher = null;
         let currentStepIndex = 0;
         let isDriving = false;
+        let availableTripsListener = null;
 
         // Elementos del DOM
         const instructionBar = document.getElementById('instruction-bar');
@@ -108,6 +122,9 @@
         const stepsList = document.getElementById('steps-list');
         const toggleStepsBtn = document.getElementById('toggle-steps-btn');
         const mapContainer = document.getElementById('map');
+        const availableTripsPanel = document.getElementById('available-trips-panel');
+        const tripsList = document.getElementById('trips-list');
+        const refreshTripsBtn = document.getElementById('refresh-trips-btn');
         const driverControls = document.getElementById('driver-controls');
         const acceptTripBtn = document.getElementById('accept-trip-btn');
         const arrivedBtn = document.getElementById('arrived-btn');
@@ -120,16 +137,10 @@
 
         // Inicialización
         async function init() {
-            // Obtener tripId de la URL
+            // Obtener tripId de la URL (opcional)
             const urlParams = new URLSearchParams(window.location.search);
             tripId = urlParams.get('tripId');
             
-            if (!tripId) {
-                alert('No se proporcionó un ID de viaje');
-                window.location.href = 'index.html';
-                return;
-            }
-
             // Inicializar mapa
             try {
                 mapInstance = await createMap('map');
@@ -140,8 +151,13 @@
                 return;
             }
 
-            // Escuchar cambios en el viaje
-            listenTrip(tripId, handleTripUpdate);
+            if (tripId) {
+                // Unirse a un viaje específico
+                joinSpecificTrip();
+            } else {
+                // Mostrar viajes disponibles
+                showAvailableTrips();
+            }
             
             // Event listeners
             setupEventListeners();
@@ -150,8 +166,127 @@
             loading.style.display = 'none';
         }
 
+        // Unirse a un viaje específico
+        function joinSpecificTrip() {
+            availableTripsPanel.style.display = 'none';
+            driverControls.style.display = 'block';
+            
+            // Escuchar cambios en el viaje
+            listenTrip(tripId, handleTripUpdate);
+        }
+
+        // Mostrar viajes disponibles
+        function showAvailableTrips() {
+            availableTripsPanel.style.display = 'block';
+            driverControls.style.display = 'none';
+            
+            // Centrar mapa en Montevideo
+            const defaultLocation = { lat: -34.9011, lng: -56.1645 };
+            mapInstance.map.setCenter(defaultLocation);
+            mapInstance.map.setZoom(12);
+            
+            // Cargar viajes disponibles
+            loadAvailableTrips();
+        }
+
+        // Cargar viajes disponibles
+        async function loadAvailableTrips() {
+            try {
+                const { collection, query, where, onSnapshot } = await import('../src/firebase.js');
+                
+                // Escuchar viajes con estado 'requested'
+                const tripsQuery = query(
+                    collection(db, 'trips'),
+                    where('status', '==', 'requested')
+                );
+                
+                availableTripsListener = onSnapshot(tripsQuery, (snapshot) => {
+                    const trips = [];
+                    snapshot.forEach((doc) => {
+                        trips.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    displayAvailableTrips(trips);
+                });
+                
+            } catch (error) {
+                console.error('Error cargando viajes disponibles:', error);
+                tripsList.innerHTML = '<p>Error al cargar viajes</p>';
+            }
+        }
+
+        // Mostrar viajes disponibles
+        function displayAvailableTrips(trips) {
+            if (trips.length === 0) {
+                tripsList.innerHTML = '<p class="no-trips">No hay viajes disponibles</p>';
+                return;
+            }
+            
+            tripsList.innerHTML = trips.map(trip => `
+                <div class="trip-item" data-trip-id="${trip.id}">
+                    <div class="trip-header">
+                        <h4>Viaje #${trip.id.slice(-6)}</h4>
+                        <span class="trip-time">${formatTime(trip.createdAt)}</span>
+                    </div>
+                    <div class="trip-details">
+                        <div class="trip-location">
+                            <i class="fas fa-map-marker-alt pickup"></i>
+                            <span>${trip.pickup?.address || 'Punto de partida'}</span>
+                        </div>
+                        <div class="trip-location">
+                            <i class="fas fa-map-marker-alt destination"></i>
+                            <span>${trip.destination?.address || 'Destino'}</span>
+                        </div>
+                    </div>
+                    <button class="accept-trip-btn" onclick="acceptAvailableTrip('${trip.id}')">
+                        <i class="fas fa-check"></i>
+                        Aceptar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Formatear tiempo
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // Aceptar viaje disponible
+        window.acceptAvailableTrip = function(tripId) {
+            if (confirm('¿Aceptar este viaje?')) {
+                joinTrip(tripId);
+            }
+        };
+
+        // Unirse a un viaje
+        function joinTrip(newTripId) {
+            tripId = newTripId;
+            
+            // Limpiar listener de viajes disponibles
+            if (availableTripsListener) {
+                availableTripsListener();
+                availableTripsListener = null;
+            }
+            
+            // Ocultar panel de viajes disponibles
+            availableTripsPanel.style.display = 'none';
+            driverControls.style.display = 'block';
+            
+            // Escuchar cambios en el viaje
+            listenTrip(tripId, handleTripUpdate);
+        }
+
         // Configurar event listeners
         function setupEventListeners() {
+            refreshTripsBtn.addEventListener('click', loadAvailableTrips);
             acceptTripBtn.addEventListener('click', acceptTrip);
             arrivedBtn.addEventListener('click', markArrived);
             startTripBtn.addEventListener('click', startTrip);
@@ -168,7 +303,7 @@
 
             if (!trip) {
                 alert('Viaje no encontrado');
-                window.location.href = 'index.html';
+                showAvailableTrips();
                 return;
             }
 
@@ -199,8 +334,8 @@
             const statusMap = {
                 'requested': 'Solicitado',
                 'accepted': 'Aceptado',
-                'en_route_to_pickup': 'En camino al pickup',
-                'arrived': 'Llegué al pickup',
+                'en_route_to_pickup': 'En camino al cliente',
+                'arrived': 'Llegué al cliente',
                 'in_progress': 'Viaje en progreso',
                 'completed': 'Completado',
                 'canceled_by_client': 'Cancelado por cliente',
@@ -218,7 +353,7 @@
             arrivedBtn.style.display = 'none';
             startTripBtn.style.display = 'none';
             finishTripBtn.style.display = 'none';
-
+            
             // Mostrar botones según el estado
             switch (status) {
                 case 'requested':
@@ -237,6 +372,136 @@
             }
         }
 
+        // Aceptar viaje
+        async function acceptTrip() {
+            if (!tripData) return;
+            
+            try {
+                // Obtener posición actual del conductor
+                const position = await getCurrentPosition();
+                
+                // Calcular ruta al pickup
+                const routeToPickup = await fetchRoute(
+                    { lat: position.coords.latitude, lng: position.coords.longitude },
+                    tripData.pickup
+                );
+                
+                // Actualizar viaje
+                await updateTrip(tripId, {
+                    status: 'accepted',
+                    driverId: auth.currentUser?.uid || 'driver_' + Date.now(),
+                    routeToPickup: routeToPickup,
+                    currentStepIndex: 0
+                });
+                
+                console.log('Viaje aceptado');
+                
+            } catch (error) {
+                console.error('Error aceptando viaje:', error);
+                alert('Error al aceptar el viaje');
+            }
+        }
+
+        // Marcar llegada al cliente
+        async function markArrived() {
+            if (!tripData) return;
+            
+            try {
+                // Calcular ruta al destino
+                const routeToDestination = await fetchRoute(
+                    tripData.pickup,
+                    tripData.destination
+                );
+                
+                // Actualizar viaje
+                await updateTrip(tripId, {
+                    status: 'arrived',
+                    routeToDestination: routeToDestination,
+                    currentStepIndex: 0
+                });
+                
+                console.log('Llegada marcada');
+                
+            } catch (error) {
+                console.error('Error marcando llegada:', error);
+                alert('Error al marcar llegada');
+            }
+        }
+
+        // Iniciar viaje
+        async function startTrip() {
+            if (!tripData) return;
+            
+            try {
+                // Iniciar seguimiento de posición
+                locationWatcher = await watchDriverPosition((position) => {
+                    publishDriverPresence(tripId, {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        heading: position.coords.heading || 0
+                    });
+                });
+                
+                // Actualizar estado
+                await updateTrip(tripId, {
+                    status: 'in_progress'
+                });
+                
+                isDriving = true;
+                console.log('Viaje iniciado');
+                
+            } catch (error) {
+                console.error('Error iniciando viaje:', error);
+                alert('Error al iniciar el viaje');
+            }
+        }
+
+        // Finalizar viaje
+        async function finishTrip() {
+            if (!tripData) return;
+            
+            try {
+                // Detener seguimiento de posición
+                if (locationWatcher) {
+                    locationWatcher();
+                    locationWatcher = null;
+                }
+                
+                // Actualizar estado
+                await updateTrip(tripId, {
+                    status: 'completed'
+                });
+                
+                isDriving = false;
+                console.log('Viaje finalizado');
+                
+                // Volver a mostrar viajes disponibles
+                setTimeout(() => {
+                    showAvailableTrips();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error finalizando viaje:', error);
+                alert('Error al finalizar el viaje');
+            }
+        }
+
+        // Obtener posición actual
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocalización no soportada'));
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                });
+            });
+        }
+
         // Actualizar instrucciones
         function updateInstructions() {
             if (!tripData) return;
@@ -247,8 +512,10 @@
             // Determinar qué ruta mostrar según el estado
             if (['accepted', 'en_route_to_pickup'].includes(tripData.status)) {
                 routeData = tripData.routeToPickup;
+                instruction = 'Dirígete al cliente';
             } else if (['arrived', 'in_progress'].includes(tripData.status)) {
                 routeData = tripData.routeToDestination;
+                instruction = 'Dirígete al destino';
             }
 
             if (routeData && routeData.steps && routeData.steps.length > 0) {
@@ -328,226 +595,17 @@
                     }
                     break;
                 case 'in_progress':
-                    // Iniciar seguimiento de posición
-                    startLocationTracking();
+                    // Seguir el viaje en progreso
+                    if (tripData.routeToDestination) {
+                        mapInstance.renderRoute(tripData.routeToDestination, 'toDestination');
+                        mapInstance.setCameraToDrivingView();
+                    }
                     break;
                 case 'completed':
-                    // Finalizar
-                    stopLocationTracking();
-                    alert('Viaje completado');
+                    // Viaje completado
+                    alert('¡Viaje completado!');
                     break;
             }
-        }
-
-        // Aceptar viaje
-        async function acceptTrip() {
-            try {
-                // Obtener ubicación actual
-                const position = await getCurrentPosition();
-                
-                console.log('Driver position:', {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
-                console.log('Pickup location:', tripData.pickup);
-                
-                // Calcular ruta al pickup
-                const route = await fetchRoute({
-                    origin: {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    },
-                    destination: tripData.pickup,
-                    travelMode: 'DRIVING'
-                });
-
-                // Validar que la ruta se generó correctamente
-                if (!route || !route.polyline) {
-                    throw new Error('No se pudo generar la ruta al pickup');
-                }
-
-                console.log('Route generated:', route);
-
-                // Actualizar viaje
-                await updateTrip(tripId, {
-                    status: 'en_route_to_pickup',
-                    routeToPickup: route,
-                    currentStepIndex: 0
-                });
-
-                console.log('Viaje aceptado');
-            } catch (error) {
-                console.error('Error aceptando viaje:', error);
-                alert('Error al aceptar el viaje: ' + error.message);
-            }
-        }
-
-        // Marcar como llegado
-        async function markArrived() {
-            try {
-                // Validar que pickup y destination tengan la estructura correcta
-                console.log('Pickup data:', tripData.pickup);
-                console.log('Destination data:', tripData.destination);
-                
-                if (!tripData.pickup || !tripData.pickup.lat || !tripData.pickup.lng) {
-                    throw new Error('Pickup location is missing or invalid');
-                }
-                
-                if (!tripData.destination || !tripData.destination.lat || !tripData.destination.lng) {
-                    throw new Error('Destination location is missing or invalid');
-                }
-                
-                // Calcular ruta al destino
-                const route = await fetchRoute({
-                    origin: {
-                        lat: parseFloat(tripData.pickup.lat),
-                        lng: parseFloat(tripData.pickup.lng)
-                    },
-                    destination: {
-                        lat: parseFloat(tripData.destination.lat),
-                        lng: parseFloat(tripData.destination.lng)
-                    },
-                    travelMode: 'DRIVING'
-                });
-
-                // Validar que la ruta se generó correctamente
-                if (!route || !route.polyline) {
-                    throw new Error('No se pudo generar la ruta al destino');
-                }
-
-                console.log('Route to destination generated:', route);
-
-                // Actualizar viaje
-                await updateTrip(tripId, {
-                    status: 'arrived',
-                    routeToDestination: route,
-                    currentStepIndex: 0
-                });
-
-                console.log('Marcado como llegado');
-            } catch (error) {
-                console.error('Error marcando llegada:', error);
-                alert('Error al marcar llegada');
-            }
-        }
-
-        // Iniciar viaje
-        async function startTrip() {
-            try {
-                await updateTrip(tripId, {
-                    status: 'in_progress'
-                });
-
-                console.log('Viaje iniciado');
-            } catch (error) {
-                console.error('Error iniciando viaje:', error);
-                alert('Error al iniciar el viaje');
-            }
-        }
-
-        // Finalizar viaje
-        async function finishTrip() {
-            try {
-                stopLocationTracking();
-                
-                // Calcular métricas finales
-                const metrics = calculateFinalMetrics();
-                
-                await updateTrip(tripId, {
-                    status: 'completed',
-                    metrics: metrics
-                });
-
-                console.log('Viaje finalizado');
-            } catch (error) {
-                console.error('Error finalizando viaje:', error);
-                alert('Error al finalizar el viaje');
-            }
-        }
-
-        // Iniciar seguimiento de posición
-        function startLocationTracking() {
-            if (locationWatcher) return;
-
-            locationWatcher = watchDriverPosition({
-                onUpdate: async (position) => {
-                    // Publicar posición
-                    await publishDriverPresence(tripId, {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        heading: position.coords.heading || 0,
-                        speed: position.coords.speed || 0,
-                        ts: Date.now()
-                    });
-
-                    // Actualizar marcador del auto
-                    mapInstance.updateCarMarker({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        heading: position.coords.heading || 0
-                    });
-
-                    // Verificar si debe avanzar el paso
-                    checkStepAdvancement(position);
-                }
-            });
-
-            isDriving = true;
-        }
-
-        // Detener seguimiento de posición
-        function stopLocationTracking() {
-            if (locationWatcher) {
-                navigator.geolocation.clearWatch(locationWatcher);
-                locationWatcher = null;
-            }
-            isDriving = false;
-        }
-
-        // Verificar avance de paso
-        function checkStepAdvancement(position) {
-            if (!tripData || !tripData.routeToDestination) return;
-
-            const currentStep = tripData.routeToDestination.steps[tripData.currentStepIndex];
-            if (!currentStep) return;
-
-            // Calcular distancia al final del paso actual
-            const distanceToStepEnd = google.maps.geometry.spherical.computeDistanceBetween(
-                new google.maps.LatLng(position.coords.latitude, position.coords.longitude),
-                currentStep.end_location
-            );
-
-            // Si está a menos de 30 metros del final del paso, avanzar
-            if (distanceToStepEnd < 30) {
-                const nextStepIndex = (tripData.currentStepIndex || 0) + 1;
-                if (nextStepIndex < tripData.routeToDestination.steps.length) {
-                    updateTrip(tripId, {
-                        currentStepIndex: nextStepIndex
-                    });
-                }
-            }
-        }
-
-        // Obtener posición actual
-        function getCurrentPosition() {
-            return new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 60000
-                });
-            });
-        }
-
-        // Calcular métricas finales
-        function calculateFinalMetrics() {
-            // Implementar cálculo de métricas reales
-            return {
-                distanceMeters: tripData.metrics?.distanceMeters || 0,
-                durationSec: tripData.metrics?.durationSec || 0,
-                actualDistanceMeters: tripData.metrics?.actualDistanceMeters || 0,
-                actualDurationSec: tripData.metrics?.actualDurationSec || 0
-            };
         }
 
         // Recentrar mapa
