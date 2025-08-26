@@ -380,11 +380,14 @@
                 // Obtener posición actual del conductor
                 const position = await getCurrentPosition();
                 
+                console.log('Driver position:', position);
+                console.log('Trip pickup:', tripData.pickup);
+                
                 // Calcular ruta al pickup
-                const routeToPickup = await fetchRoute(
-                    { lat: position.coords.latitude, lng: position.coords.longitude },
-                    tripData.pickup
-                );
+                const routeToPickup = await fetchRoute({
+                    origin: { lat: position.coords.latitude, lng: position.coords.longitude },
+                    destination: tripData.pickup
+                });
                 
                 // Actualizar viaje
                 await updateTrip(tripId, {
@@ -398,7 +401,7 @@
                 
             } catch (error) {
                 console.error('Error aceptando viaje:', error);
-                alert('Error al aceptar el viaje');
+                alert('Error al aceptar el viaje: ' + error.message);
             }
         }
 
@@ -407,11 +410,14 @@
             if (!tripData) return;
             
             try {
+                console.log('Pickup location:', tripData.pickup);
+                console.log('Destination location:', tripData.destination);
+                
                 // Calcular ruta al destino
-                const routeToDestination = await fetchRoute(
-                    tripData.pickup,
-                    tripData.destination
-                );
+                const routeToDestination = await fetchRoute({
+                    origin: tripData.pickup,
+                    destination: tripData.destination
+                });
                 
                 // Actualizar viaje
                 await updateTrip(tripId, {
@@ -424,7 +430,7 @@
                 
             } catch (error) {
                 console.error('Error marcando llegada:', error);
-                alert('Error al marcar llegada');
+                alert('Error al marcar llegada: ' + error.message);
             }
         }
 
