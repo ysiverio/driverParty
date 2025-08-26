@@ -25,7 +25,7 @@ function loadGoogleMapsAPI() {
 
         // Create script element
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initGoogleMaps`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initGoogleMaps`;
         script.async = true;
         script.defer = true;
 
