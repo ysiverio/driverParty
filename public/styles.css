@@ -305,6 +305,190 @@ body {
     font-size: 14px;
 }
 
+/* Panel de configuración del viaje */
+.trip-setup-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+    padding: 20px;
+    z-index: 1000;
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+}
+
+.trip-setup-panel.hidden {
+    transform: translateY(100%);
+}
+
+.setup-header h3 {
+    color: #fff;
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.setup-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    color: #fff;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #2a2a2a;
+    color: #fff;
+    font-size: 16px;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #9c27b0;
+    box-shadow: 0 0 0 2px rgba(156, 39, 176, 0.2);
+}
+
+.search-btn {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #9c27b0;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.search-btn:hover {
+    background: #7b1fa2;
+}
+
+.destination-suggestions {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #2a2a2a;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: none;
+}
+
+.destination-suggestions.show {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    color: #fff;
+}
+
+.suggestion-item:hover {
+    background: #3a3a3a;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item .suggestion-text {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.suggestion-item .suggestion-address {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.selected-destination {
+    background: #2a2a2a;
+    border: 1px solid #9c27b0;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.destination-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+}
+
+.destination-info i {
+    color: #9c27b0;
+    font-size: 18px;
+}
+
+.change-btn {
+    padding: 8px 16px;
+    border: 1px solid #9c27b0;
+    border-radius: 6px;
+    background: transparent;
+    color: #9c27b0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.change-btn:hover {
+    background: #9c27b0;
+    color: #fff;
+}
+
+.setup-actions {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.setup-actions .action-btn {
+    padding: 16px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.setup-actions .action-btn.primary {
+    background: #9c27b0;
+    color: #fff;
+}
+
+.setup-actions .action-btn.primary:hover:not(:disabled) {
+    background: #7b1fa2;
+}
+
+.setup-actions .action-btn:disabled {
+    background: #555;
+    color: #999;
+    cursor: not-allowed;
+}
+
 /* Páginas de conductor y cliente */
 .map-container {
     position: absolute;

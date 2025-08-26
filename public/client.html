@@ -40,8 +40,43 @@
     <!-- Mapa principal -->
     <div id="map" class="map-container"></div>
 
+    <!-- Panel de configuración del viaje -->
+    <div id="trip-setup-panel" class="trip-setup-panel">
+        <div class="setup-header">
+            <h3>Configurar viaje</h3>
+        </div>
+        <div class="setup-content">
+            <div class="form-group">
+                <label for="destination-input">Destino</label>
+                <div class="input-group">
+                    <input type="text" id="destination-input" placeholder="¿A dónde vas?" />
+                    <button id="search-destination-btn" class="search-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="destination-suggestions" id="destination-suggestions"></div>
+            <div class="selected-destination" id="selected-destination" style="display: none;">
+                <div class="destination-info">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span id="selected-destination-text"></span>
+                </div>
+                <button id="change-destination-btn" class="change-btn">
+                    <i class="fas fa-edit"></i>
+                    Cambiar
+                </button>
+            </div>
+            <div class="setup-actions">
+                <button id="create-trip-btn" class="action-btn primary" disabled>
+                    <i class="fas fa-car"></i>
+                    Solicitar viaje
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Panel de información del viaje -->
-    <div id="trip-info-panel" class="trip-info-panel">
+    <div id="trip-info-panel" class="trip-info-panel" style="display: none;">
         <div class="trip-status">
             <div id="trip-status" class="status-indicator">
                 <i class="fas fa-clock"></i>
@@ -95,9 +130,22 @@
         const stepsList = document.getElementById('steps-list');
         const toggleStepsBtn = document.getElementById('toggle-steps-btn');
         const mapContainer = document.getElementById('map');
+        const tripSetupPanel = document.getElementById('trip-setup-panel');
         const tripInfoPanel = document.getElementById('trip-info-panel');
         const tripStatus = document.getElementById('trip-status');
         const driverInfo = document.getElementById('driver-info');
+        
+        // Elementos del panel de configuración
+        const destinationInput = document.getElementById('destination-input');
+        const searchDestinationBtn = document.getElementById('search-destination-btn');
+        const destinationSuggestions = document.getElementById('destination-suggestions');
+        const selectedDestination = document.getElementById('selected-destination');
+        const selectedDestinationText = document.getElementById('selected-destination-text');
+        const changeDestinationBtn = document.getElementById('change-destination-btn');
+        const createTripBtn = document.getElementById('create-trip-btn');
+        
+        // Estado del destino
+        let selectedDestinationData = null;
         const driverName = document.getElementById('driver-name');
         const driverEta = document.getElementById('driver-eta');
         const recenterBtn = document.getElementById('recenter-btn');
@@ -145,8 +193,204 @@
             loading.style.display = 'none';
         }
 
-        // Crear nuevo documento de viaje
-        async function createNewTripDocument() {
+        // Configurar para nuevo viaje
+        function setupNewTrip() {
+            // Mostrar panel de configuración
+            tripSetupPanel.style.display = 'block';
+            tripInfoPanel.style.display = 'none';
+            
+            // Centrar mapa en ubicación actual
+            getCurrentPosition().then(position => {
+                const latLng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                mapInstance.map.setCenter(latLng);
+                mapInstance.map.setZoom(15);
+            });
+        }
+
+        // Buscar destino
+        async function searchDestination() {
+            const query = destinationInput.value.trim();
+            if (!query) return;
+            
+            try {
+                const suggestions = await searchPlaces(query);
+                showDestinationSuggestions(suggestions);
+            } catch (error) {
+                console.error('Error buscando destino:', error);
+                alert('Error al buscar destino');
+            }
+        }
+
+        // Manejar input de destino
+        function handleDestinationInput() {
+            const query = destinationInput.value.trim();
+            if (query.length > 2) {
+                // Auto-búsqueda después de 3 caracteres
+                setTimeout(() => {
+                    if (destinationInput.value.trim() === query) {
+                        searchDestination();
+                    }
+                }, 500);
+            } else {
+                hideDestinationSuggestions();
+            }
+        }
+
+        // Buscar lugares usando Google Places API
+        async function searchPlaces(query) {
+            return new Promise((resolve, reject) => {
+                if (!window.google || !window.google.maps) {
+                    reject(new Error('Google Maps API no disponible'));
+                    return;
+                }
+                
+                const service = new google.maps.places.AutocompleteService();
+                service.getPlacePredictions({
+                    input: query,
+                    types: ['establishment', 'geocode']
+                }, (predictions, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                        resolve(predictions);
+                    } else {
+                        resolve([]);
+                    }
+                });
+            });
+        }
+
+        // Mostrar sugerencias de destino
+        function showDestinationSuggestions(suggestions) {
+            destinationSuggestions.innerHTML = '';
+            
+            if (suggestions.length === 0) {
+                destinationSuggestions.innerHTML = '<div class="suggestion-item">No se encontraron resultados</div>';
+            } else {
+                suggestions.forEach(suggestion => {
+                    const item = document.createElement('div');
+                    item.className = 'suggestion-item';
+                    item.innerHTML = `
+                        <div class="suggestion-text">${suggestion.structured_formatting.main_text}</div>
+                        <div class="suggestion-address">${suggestion.structured_formatting.secondary_text}</div>
+                    `;
+                    item.addEventListener('click', () => selectDestination(suggestion));
+                    destinationSuggestions.appendChild(item);
+                });
+            }
+            
+            destinationSuggestions.classList.add('show');
+        }
+
+        // Ocultar sugerencias de destino
+        function hideDestinationSuggestions() {
+            destinationSuggestions.classList.remove('show');
+        }
+
+        // Seleccionar destino
+        async function selectDestination(suggestion) {
+            try {
+                const placeDetails = await getPlaceDetails(suggestion.place_id);
+                selectedDestinationData = {
+                    lat: placeDetails.geometry.location.lat(),
+                    lng: placeDetails.geometry.location.lng(),
+                    address: suggestion.description,
+                    name: suggestion.structured_formatting.main_text
+                };
+                
+                // Mostrar destino seleccionado
+                selectedDestinationText.textContent = selectedDestinationData.address;
+                selectedDestination.style.display = 'flex';
+                destinationInput.style.display = 'none';
+                searchDestinationBtn.style.display = 'none';
+                hideDestinationSuggestions();
+                
+                // Habilitar botón de crear viaje
+                createTripBtn.disabled = false;
+                
+                // Agregar marcador en el mapa
+                addDestinationMarker(selectedDestinationData);
+                
+            } catch (error) {
+                console.error('Error seleccionando destino:', error);
+                alert('Error al seleccionar destino');
+            }
+        }
+
+        // Obtener detalles del lugar
+        async function getPlaceDetails(placeId) {
+            return new Promise((resolve, reject) => {
+                const service = new google.maps.places.PlacesService(mapInstance.map);
+                service.getDetails({
+                    placeId: placeId,
+                    fields: ['geometry', 'formatted_address']
+                }, (place, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                        resolve(place);
+                    } else {
+                        reject(new Error('No se pudieron obtener los detalles del lugar'));
+                    }
+                });
+            });
+        }
+
+        // Agregar marcador de destino en el mapa
+        function addDestinationMarker(destination) {
+            if (mapInstance.destinationMarker) {
+                mapInstance.destinationMarker.setMap(null);
+            }
+            
+            mapInstance.destinationMarker = new google.maps.Marker({
+                position: { lat: destination.lat, lng: destination.lng },
+                map: mapInstance.map,
+                title: destination.name,
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#9c27b0"/>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(24, 24),
+                    anchor: new google.maps.Point(12, 24)
+                }
+            });
+            
+            // Ajustar vista del mapa para mostrar pickup y destino
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend({ lat: selectedDestinationData.lat, lng: selectedDestinationData.lng });
+            
+            getCurrentPosition().then(position => {
+                bounds.extend({ lat: position.coords.latitude, lng: position.coords.longitude });
+                mapInstance.map.fitBounds(bounds);
+                mapInstance.map.setZoom(Math.min(mapInstance.map.getZoom(), 15));
+            });
+        }
+
+        // Resetear destino
+        function resetDestination() {
+            selectedDestinationData = null;
+            selectedDestination.style.display = 'none';
+            destinationInput.style.display = 'block';
+            searchDestinationBtn.style.display = 'block';
+            destinationInput.value = '';
+            createTripBtn.disabled = true;
+            hideDestinationSuggestions();
+            
+            // Remover marcador de destino
+            if (mapInstance.destinationMarker) {
+                mapInstance.destinationMarker.setMap(null);
+                mapInstance.destinationMarker = null;
+            }
+        }
+
+        // Crear viaje con destino seleccionado
+        async function createTripWithDestination() {
+            if (!selectedDestinationData) {
+                alert('Por favor selecciona un destino');
+                return;
+            }
+            
             try {
                 const { createTrip } = await import('../src/trips.js');
                 
@@ -163,9 +407,9 @@
                         address: 'Ubicación actual'
                     },
                     destination: {
-                        lat: 0,
-                        lng: 0,
-                        address: ''
+                        lat: selectedDestinationData.lat,
+                        lng: selectedDestinationData.lng,
+                        address: selectedDestinationData.address
                     },
                     createdAt: new Date(),
                     updatedAt: new Date()
@@ -173,6 +417,10 @@
 
                 await createTrip(tripData);
                 console.log('Nuevo viaje creado:', tripId);
+                
+                // Cambiar a modo de seguimiento del viaje
+                tripSetupPanel.style.display = 'none';
+                tripInfoPanel.style.display = 'block';
                 
                 // Mostrar mensaje de éxito
                 showTripCreatedMessage();
@@ -242,6 +490,17 @@
             recenterBtn.addEventListener('click', recenterMap);
             googleMapsBtn.addEventListener('click', openInGoogleMaps);
             toggleStepsBtn.addEventListener('click', toggleStepsPanel);
+            
+            // Event listeners para búsqueda de destino
+            searchDestinationBtn.addEventListener('click', searchDestination);
+            destinationInput.addEventListener('input', handleDestinationInput);
+            destinationInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    searchDestination();
+                }
+            });
+            changeDestinationBtn.addEventListener('click', resetDestination);
+            createTripBtn.addEventListener('click', createTripWithDestination);
         }
 
         // Manejar actualizaciones del viaje
