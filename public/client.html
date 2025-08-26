@@ -448,39 +448,78 @@
             }
         }
 
-        // Obtener detalles del lugar
+        // Obtener detalles del lugar usando la nueva API Place
         async function getPlaceDetails(placeId) {
             return new Promise((resolve, reject) => {
-                const service = new google.maps.places.PlacesService(mapInstance.map);
-                service.getDetails({
-                    placeId: placeId,
-                    fields: ['geometry', 'formatted_address']
-                }, (place, status) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-                        resolve(place);
-                    } else {
-                        reject(new Error('No se pudieron obtener los detalles del lugar'));
-                    }
-                });
+                // Check if new Place API is available
+                if (google.maps.places && google.maps.places.Place) {
+                    // Use new Place API
+                    const place = new google.maps.places.Place({
+                        id: placeId,
+                        requestedLanguage: 'es'
+                    });
+                    
+                    place.fetchPlace({
+                        fields: ['geometry', 'formattedAddress']
+                    }).then((result) => {
+                        if (result && result.geometry) {
+                            resolve({
+                                geometry: {
+                                    location: result.geometry.location
+                                },
+                                formatted_address: result.formattedAddress
+                            });
+                        } else {
+                            reject(new Error('No se pudieron obtener los detalles del lugar'));
+                        }
+                    }).catch((error) => {
+                        console.warn('Error with new Place API, falling back to PlacesService:', error);
+                        // Fallback to PlacesService
+                        getPlaceDetailsFallback(placeId, resolve, reject);
+                    });
+                } else {
+                    // Fallback to PlacesService
+                    getPlaceDetailsFallback(placeId, resolve, reject);
+                }
+            });
+        }
+
+        // Fallback function using PlacesService
+        function getPlaceDetailsFallback(placeId, resolve, reject) {
+            const service = new google.maps.places.PlacesService(mapInstance.map);
+            service.getDetails({
+                placeId: placeId,
+                fields: ['geometry', 'formatted_address']
+            }, (place, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                    resolve(place);
+                } else {
+                    reject(new Error('No se pudieron obtener los detalles del lugar'));
+                }
             });
         }
 
         // Helper function to create markers with AdvancedMarkerElement fallback
         function createMarker(options) {
-            // Check if AdvancedMarkerElement is available
-            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
-                // Create AdvancedMarkerElement
-                const markerElement = document.createElement('div');
-                markerElement.innerHTML = options.icon?.url || '📍';
-                markerElement.style.fontSize = '24px';
-                markerElement.style.cursor = 'pointer';
-                
-                return new google.maps.marker.AdvancedMarkerElement({
-                    position: options.position,
-                    map: options.map,
-                    title: options.title,
-                    content: markerElement
-                });
+            // Check if AdvancedMarkerElement is available and map is properly initialized
+            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement && options.map && options.map.getMapId) {
+                try {
+                    // Create AdvancedMarkerElement
+                    const markerElement = document.createElement('div');
+                    markerElement.innerHTML = options.icon?.url || '📍';
+                    markerElement.style.fontSize = '24px';
+                    markerElement.style.cursor = 'pointer';
+                    
+                    return new google.maps.marker.AdvancedMarkerElement({
+                        position: options.position,
+                        map: options.map,
+                        title: options.title,
+                        content: markerElement
+                    });
+                } catch (error) {
+                    console.warn('Error creating AdvancedMarkerElement, falling back to traditional Marker:', error);
+                    return new google.maps.Marker(options);
+                }
             } else {
                 // Fallback to traditional Marker
                 return new google.maps.Marker(options);

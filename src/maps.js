@@ -71,7 +71,7 @@ async function createMap(elementId) {
         throw new Error(`Map element with id '${elementId}' not found`);
     }
 
-    // Initialize map
+    // Initialize map with MapId for AdvancedMarkerElement support
     const map = new google.maps.Map(mapElement, {
         zoom: 14,
         center: { lat: 0, lng: 0 },
@@ -82,6 +82,7 @@ async function createMap(elementId) {
         streetViewControl: false,
         rotateControl: false,
         fullscreenControl: false,
+        mapId: 'driverparty_map_' + Date.now(), // Unique MapId for AdvancedMarkerElement
         styles: [
             {
                 featureType: 'poi',
@@ -108,20 +109,25 @@ async function createMap(elementId) {
 
     // Helper function to create markers with AdvancedMarkerElement fallback
     function createMarker(options) {
-        // Check if AdvancedMarkerElement is available
-        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
-            // Create AdvancedMarkerElement
-            const markerElement = document.createElement('div');
-            markerElement.innerHTML = options.icon?.url || '📍';
-            markerElement.style.fontSize = '24px';
-            markerElement.style.cursor = 'pointer';
-            
-            return new google.maps.marker.AdvancedMarkerElement({
-                position: options.position,
-                map: options.map,
-                title: options.title,
-                content: markerElement
-            });
+        // Check if AdvancedMarkerElement is available and map is properly initialized
+        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement && options.map && options.map.getMapId) {
+            try {
+                // Create AdvancedMarkerElement
+                const markerElement = document.createElement('div');
+                markerElement.innerHTML = options.icon?.url || '📍';
+                markerElement.style.fontSize = '24px';
+                markerElement.style.cursor = 'pointer';
+                
+                return new google.maps.marker.AdvancedMarkerElement({
+                    position: options.position,
+                    map: options.map,
+                    title: options.title,
+                    content: markerElement
+                });
+            } catch (error) {
+                console.warn('Error creating AdvancedMarkerElement, falling back to traditional Marker:', error);
+                return new google.maps.Marker(options);
+            }
         } else {
             // Fallback to traditional Marker
             return new google.maps.Marker(options);
