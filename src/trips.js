@@ -42,28 +42,75 @@ function listenTrip(tripId, callback) {
     }
 }
 
+// Serialize data for Firestore (remove non-serializable objects)
+function serializeForFirestore(obj) {
+    if (obj === null || obj === undefined) {
+        return null;
+    }
+    
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+        return obj;
+    }
+    
+    if (obj instanceof Date) {
+        return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => serializeForFirestore(item));
+    }
+    
+    if (typeof obj === 'object') {
+        // Check if it's a Google Maps object (has methods)
+        if (typeof obj.lat === 'function' || typeof obj.lng === 'function') {
+            // Convert Google Maps LatLng to plain object
+            return {
+                lat: typeof obj.lat === 'function' ? obj.lat() : obj.lat,
+                lng: typeof obj.lng === 'function' ? obj.lng() : obj.lng
+            };
+        }
+        
+        // Check if it's a Google Maps bounds object
+        if (obj.getNorthEast && obj.getSouthWest) {
+            return {
+                northEast: {
+                    lat: obj.getNorthEast().lat(),
+                    lng: obj.getNorthEast().lng()
+                },
+                southWest: {
+                    lat: obj.getSouthWest().lat(),
+                    lng: obj.getSouthWest().lng()
+                }
+            };
+        }
+        
+        // Regular object - serialize recursively
+        const serialized = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined && value !== null) {
+                const serializedValue = serializeForFirestore(value);
+                if (serializedValue !== null) {
+                    serialized[key] = serializedValue;
+                }
+            }
+        }
+        return serialized;
+    }
+    
+    return null;
+}
+
 // Update trip data
 async function updateTrip(tripId, data) {
     try {
         const tripRef = doc(db, 'trips', tripId);
         
-        // Filter out undefined values to prevent Firestore errors
-        const cleanData = {};
-        for (const [key, value] of Object.entries(data)) {
-            if (value !== undefined && value !== null) {
-                if (typeof value === 'object' && !Array.isArray(value)) {
-                    // Recursively clean nested objects
-                    const cleanNested = {};
-                    for (const [nestedKey, nestedValue] of Object.entries(value)) {
-                        if (nestedValue !== undefined && nestedValue !== null) {
-                            cleanNested[nestedKey] = nestedValue;
-                        }
-                    }
-                    cleanData[key] = cleanNested;
-                } else {
-                    cleanData[key] = value;
-                }
-            }
+        // Serialize data for Firestore
+        const cleanData = serializeForFirestore(data);
+        
+        if (!cleanData) {
+            console.warn('No valid data to update');
+            return;
         }
         
         // Add timestamp
@@ -86,8 +133,16 @@ async function createTrip(tripData) {
     try {
         // Use the provided tripId as the document ID
         const tripRef = doc(db, 'trips', tripData.tripId);
+        
+        // Serialize data for Firestore
+        const cleanData = serializeForFirestore(tripData);
+        
+        if (!cleanData) {
+            throw new Error('No valid data to create trip');
+        }
+        
         const newTrip = {
-            ...tripData,
+            ...cleanData,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         };
@@ -106,8 +161,16 @@ async function publishDriverPresence(tripId, presenceData) {
     try {
         const presenceRef = doc(db, 'trips', tripId, 'presence', 'driver');
         
+        // Serialize presence data for Firestore
+        const cleanData = serializeForFirestore(presenceData);
+        
+        if (!cleanData) {
+            console.warn('No valid presence data to publish');
+            return;
+        }
+        
         const presence = {
-            ...presenceData,
+            ...cleanData,
             ts: serverTimestamp()
         };
         
